@@ -1,0 +1,435 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider  = "postgresql"
+  url       = env("DATABASE_URL")
+}
+
+// =============================================================================
+// TRANSACTIONS — The core financial ledger
+// =============================================================================
+
+model Transaction {
+  id              String    @id @default(uuid())
+  date            DateTime
+  amount          Decimal   @db.Decimal(10, 2)
+  type            String    // "expense" | "income" | "transfer" | "refund"
+  description     String
+  reference       String?   // Check #, invoice #, confirmation code
+  paymentMethod   String?   @map("payment_method") // "check" | "card" | "ach" | "cash" | "paypal" | "donor_paid"
+
+  // Categorization
+  categoryId      String?   @map("category_id")
+  category        ExpenseCategory? @relation(fields: [categoryId], references: [id])
+  subcategory     String?   // Freeform or AI-suggested
+
+  // Vendor link
+  vendorId        String?   @map("vendor_id")
+  vendor          Vendor?   @relation(fields: [vendorId], references: [id])
+
+  // Source tracking
+  source          String    @default("manual") // "manual" | "bank_import" | "gmail_scan" | "square_sync" | "stripe_sync" | "receipt_scan"
+  sourceId        String?   @map("source_id")  // External ID from source system
+  bankRecordId    String?   @map("bank_record_id")
+  bankRecord      BankRecord? @relation(fields: [bankRecordId], references: [id])
+
+  // Tax/compliance
+  taxDeductible   Boolean   @default(false) @map("tax_deductible")
+  taxCategory     String?   @map("tax_category")  // IRS 990 line item
+  fiscalYear      Int       @map("fiscal_year")
+
+  // Status
+  status          String    @default("pending") // "pending" | "verified" | "reconciled" | "flagged"
+  flagReason      String?   @map("flag_reason")
+
+  // Donor-paid vendor bills (e.g., donor calls Elston's to pay hay bill)
+  donorPaidBill   DonorPaidBill?
+
+  // Relations
+  documents       TransactionDocument[]
+  journalNotes    JournalNote[]
+  transparencyItems TransparencyItem[]
+
+  // Meta
+  createdAt       DateTime  @default(now()) @map("created_at")
+  updatedAt       DateTime  @updatedAt @map("updated_at")
+  createdBy       String?   @map("created_by")
+
+  @@map("transactions")
+  @@index([date])
+  @@index([vendorId])
+  @@index([categoryId])
+  @@index([fiscalYear])
+  @@index([status])
+  @@index([source])
+}
+
+// =============================================================================
+// DOCUMENTS — Scanned receipts, invoices, manifests, bank statements
+// =============================================================================
+
+model Document {
+  id              String    @id @default(uuid())
+  filename        String
+  originalName    String    @map("original_name")
+  mimeType        String    @map("mime_type")    // "application/pdf" | "image/jpeg" | etc.
+  fileSize        Int       @map("file_size")     // bytes
+  blobUrl         String    @map("blob_url")      // Vercel Blob URL
+
+  // AI extraction
+  extractedText   String?   @map("extracted_text") // Raw OCR/parsed text
+  extractedData   String?   @map("extracted_data") // JSON: structured fields (date, vendor, amount, line items)
+  parseStatus     String    @default("pending") @map("parse_status") // "pending" | "processing" | "complete" | "failed"
+  parseModel      String?   @map("parse_model")   // Claude model used
+  confidence      Decimal?  @db.Decimal(3, 2)      // AI confidence score 0.00-1.00
+
+  // Classification
+  docType         String    @map("doc_type") // "invoice" | "receipt" | "bank_statement" | "shipping_manifest" | "tax_form" | "filing" | "other"
+  vendorId        String?   @map("vendor_id")
+  vendor          Vendor?   @relation(fields: [vendorId], references: [id])
+
+  // Relations
+  transactions    TransactionDocument[]
+
+  // Meta
+  uploadedAt      DateTime  @default(now()) @map("uploaded_at")
+  uploadedBy      String?   @map("uploaded_by")
+
+  @@map("documents")
+  @@index([docType])
+  @@index([parseStatus])
+  @@index([vendorId])
+}
+
+// Join table: transactions <-> documents (many-to-many)
+model TransactionDocument {
+  transactionId   String    @map("transaction_id")
+  transaction     Transaction @relation(fields: [transactionId], references: [id], onDelete: Cascade)
+  documentId      String    @map("document_id")
+  document        Document  @relation(fields: [documentId], references: [id], onDelete: Cascade)
+
+  @@id([transactionId, documentId])
+  @@map("transaction_documents")
+}
+
+// =============================================================================
+// VENDORS — Recurring suppliers and service providers
+// =============================================================================
+
+model Vendor {
+  id              String    @id @default(uuid())
+  name            String
+  slug            String    @unique
+  type            String    // "feed_supplier" | "supplies" | "veterinary" | "utilities" | "soap_materials" | "shipping" | "services" | "other"
+
+  // Contact
+  phone           String?
+  email           String?
+  website         String?
+  address         String?
+  accountNumber   String?   @map("account_number")
+
+  // Payment details
+  paymentTerms    String?   @map("payment_terms")  // "net_30" | "on_delivery" | "prepaid"
+  typicalAmount   Decimal?  @map("typical_amount") @db.Decimal(10, 2) // Average invoice for anomaly detection
+  acceptsDonorPayment Boolean @default(false) @map("accepts_donor_payment") // Can donors call to pay?
+
+  // Notes
+  notes           String?
+  tags            String?   // JSON array of tags
+
+  // Relations
+  transactions    Transaction[]
+  documents       Document[]
+  donorPaidBills  DonorPaidBill[]
+  costTrackers    CostTracker[]
+
+  // Meta
+  isActive        Boolean   @default(true) @map("is_active")
+  createdAt       DateTime  @default(now()) @map("created_at")
+  updatedAt       DateTime  @updatedAt @map("updated_at")
+
+  @@map("vendors")
+}
+
+// =============================================================================
+// EXPENSE CATEGORIES — Hierarchical budget categories
+// =============================================================================
+
+model ExpenseCategory {
+  id              String    @id @default(uuid())
+  name            String
+  slug            String    @unique
+  parentId        String?   @map("parent_id")
+  parent          ExpenseCategory? @relation("CategoryTree", fields: [parentId], references: [id])
+  children        ExpenseCategory[] @relation("CategoryTree")
+
+  // Budget
+  annualBudget    Decimal?  @map("annual_budget") @db.Decimal(10, 2)
+  irs990Line      String?   @map("irs_990_line") // Maps to IRS 990 form line
+
+  // Display
+  icon            String?   // Lucide icon name
+  color           String?   // Tailwind color class
+  sortOrder       Int       @default(0) @map("sort_order")
+
+  // Relations
+  transactions    Transaction[]
+
+  @@map("expense_categories")
+}
+
+// =============================================================================
+// DONOR-PAID VENDOR BILLS
+// Special case: donors calling vendors directly to pay the farm's bill
+// =============================================================================
+
+model DonorPaidBill {
+  id              String    @id @default(uuid())
+  transactionId   String    @unique @map("transaction_id")
+  transaction     Transaction @relation(fields: [transactionId], references: [id], onDelete: Cascade)
+
+  vendorId        String    @map("vendor_id")
+  vendor          Vendor    @relation(fields: [vendorId], references: [id])
+
+  donorName       String    @map("donor_name")
+  donorEmail      String?   @map("donor_email")
+  donorId         String?   @map("donor_id") // Studiolo donor ID if linked
+
+  amount          Decimal   @db.Decimal(10, 2)
+  paidDate        DateTime  @map("paid_date")
+  coverageType    String    @map("coverage_type") // "full" | "partial"
+  invoiceRef      String?   @map("invoice_ref")   // Which invoice this covers
+
+  // Acknowledgment
+  thanked         Boolean   @default(false)
+  thankedDate     DateTime? @map("thanked_date")
+  receiptSent     Boolean   @default(false) @map("receipt_sent")
+
+  notes           String?
+
+  createdAt       DateTime  @default(now()) @map("created_at")
+  updatedAt       DateTime  @updatedAt @map("updated_at")
+
+  @@map("donor_paid_bills")
+  @@index([vendorId])
+  @@index([donorId])
+}
+
+// =============================================================================
+// BANK IMPORTS — Imported bank statement batches and individual records
+// =============================================================================
+
+model BankImport {
+  id              String    @id @default(uuid())
+  filename        String
+  bankName        String    @map("bank_name")
+  accountLast4    String?   @map("account_last4")
+  periodStart     DateTime  @map("period_start")
+  periodEnd       DateTime  @map("period_end")
+  recordCount     Int       @map("record_count")
+  totalDebits     Decimal   @map("total_debits") @db.Decimal(10, 2)
+  totalCredits    Decimal   @map("total_credits") @db.Decimal(10, 2)
+  status          String    @default("imported") // "imported" | "reviewing" | "reconciled"
+
+  records         BankRecord[]
+
+  importedAt      DateTime  @default(now()) @map("imported_at")
+  importedBy      String?   @map("imported_by")
+
+  @@map("bank_imports")
+}
+
+model BankRecord {
+  id              String    @id @default(uuid())
+  importId        String    @map("import_id")
+  import          BankImport @relation(fields: [importId], references: [id], onDelete: Cascade)
+
+  date            DateTime
+  description     String    // Raw bank description
+  amount          Decimal   @db.Decimal(10, 2)
+  type            String    // "debit" | "credit"
+  balance         Decimal?  @db.Decimal(10, 2)
+  checkNumber     String?   @map("check_number")
+
+  // AI matching
+  matchedVendor   String?   @map("matched_vendor")  // AI-suggested vendor name
+  matchedCategory String?   @map("matched_category") // AI-suggested category
+  matchConfidence Decimal?  @map("match_confidence") @db.Decimal(3, 2)
+
+  // Link to transaction (once reconciled)
+  transactions    Transaction[]
+  status          String    @default("unmatched") // "unmatched" | "matched" | "reconciled" | "skipped"
+
+  @@map("bank_records")
+  @@index([importId])
+  @@index([date])
+  @@index([status])
+}
+
+// =============================================================================
+// COMPLIANCE — Recurring filings, deadlines, regulatory tasks
+// =============================================================================
+
+model ComplianceTask {
+  id              String    @id @default(uuid())
+  name            String    // "CA Secretary of State Statement of Information"
+  slug            String    @unique
+  description     String?
+  authority       String    // "IRS" | "CA_SOS" | "CA_AG" | "CA_FTB" | "GuideStar" | "Candid" | "County" | "Internal"
+  category        String    // "tax_filing" | "state_filing" | "charity_registration" | "reporting" | "renewal" | "sales_tax"
+
+  // Schedule
+  frequency       String    // "annual" | "quarterly" | "monthly" | "biennial" | "one_time"
+  dueMonth        Int?      @map("due_month")   // 1-12
+  dueDay          Int?      @map("due_day")      // 1-31
+  dueDayOfQuarter Int?      @map("due_day_of_quarter") // For quarterly tasks
+  reminderDays    Int       @default(30) @map("reminder_days") // Days before due to start reminding
+
+  // Filing details
+  filingUrl       String?   @map("filing_url")   // Direct link to filing portal
+  requiresPayment Boolean   @default(false) @map("requires_payment")
+  estimatedCost   Decimal?  @map("estimated_cost") @db.Decimal(10, 2)
+  penalty         String?   // Description of late penalties
+
+  // Data dependencies
+  dependsOn       String?   @map("depends_on") // JSON: what data needs to be ready (e.g., "expenses_reconciled", "990_prepared")
+
+  // Relations
+  completions     ComplianceCompletion[]
+
+  isActive        Boolean   @default(true) @map("is_active")
+  createdAt       DateTime  @default(now()) @map("created_at")
+  updatedAt       DateTime  @updatedAt @map("updated_at")
+
+  @@map("compliance_tasks")
+}
+
+model ComplianceCompletion {
+  id              String    @id @default(uuid())
+  taskId          String    @map("task_id")
+  task            ComplianceTask @relation(fields: [taskId], references: [id])
+
+  fiscalYear      Int       @map("fiscal_year")
+  period          String?   // "Q1" | "Q2" | "2025" | "2025-01" depending on frequency
+  dueDate         DateTime  @map("due_date")
+  status          String    @default("upcoming") // "upcoming" | "in_progress" | "completed" | "overdue" | "extended"
+
+  completedDate   DateTime? @map("completed_date")
+  completedBy     String?   @map("completed_by")
+  confirmationNum String?   @map("confirmation_num")
+  amountPaid      Decimal?  @map("amount_paid") @db.Decimal(10, 2)
+  notes           String?
+
+  // Attached documents (filed forms, confirmations)
+  documentIds     String?   @map("document_ids") // JSON array of Document IDs
+
+  createdAt       DateTime  @default(now()) @map("created_at")
+  updatedAt       DateTime  @updatedAt @map("updated_at")
+
+  @@map("compliance_completions")
+  @@unique([taskId, fiscalYear, period])
+  @@index([status])
+  @@index([dueDate])
+}
+
+// =============================================================================
+// JOURNAL NOTES — Per-transaction or general financial notes
+// =============================================================================
+
+model JournalNote {
+  id              String    @id @default(uuid())
+  content         String
+  type            String    @default("note") // "note" | "review" | "question" | "flag" | "decision"
+
+  // Optional links
+  transactionId   String?   @map("transaction_id")
+  transaction     Transaction? @relation(fields: [transactionId], references: [id])
+  vendorSlug      String?   @map("vendor_slug")
+  complianceSlug  String?   @map("compliance_slug")
+  reviewPeriod    String?   @map("review_period") // "2025-Q1" | "2025-01" for periodic reviews
+
+  createdAt       DateTime  @default(now()) @map("created_at")
+  createdBy       String?   @map("created_by")
+
+  @@map("journal_notes")
+  @@index([transactionId])
+  @@index([reviewPeriod])
+}
+
+// =============================================================================
+// COST TRACKING — COGS monitoring for Cleanpunk soaps
+// =============================================================================
+
+model CostTracker {
+  id              String    @id @default(uuid())
+  vendorId        String    @map("vendor_id")
+  vendor          Vendor    @relation(fields: [vendorId], references: [id])
+
+  item            String    // "lye" | "coconut_oil" | "fragrance_oils" | "labels" | "shipping_boxes"
+  unit            String    // "lb" | "oz" | "each" | "case"
+  unitCost        Decimal   @map("unit_cost") @db.Decimal(10, 4)
+  previousCost    Decimal?  @map("previous_cost") @db.Decimal(10, 4)
+  percentChange   Decimal?  @map("percent_change") @db.Decimal(5, 2)
+
+  recordedDate    DateTime  @map("recorded_date")
+  invoiceRef      String?   @map("invoice_ref")
+
+  createdAt       DateTime  @default(now()) @map("created_at")
+
+  @@map("cost_trackers")
+  @@index([vendorId])
+  @@index([item])
+  @@index([recordedDate])
+}
+
+// =============================================================================
+// TRANSPARENCY — Public-facing financial data for Rescue Barn
+// =============================================================================
+
+model TransparencyItem {
+  id              String    @id @default(uuid())
+  transactionId   String?   @map("transaction_id")
+  transaction     Transaction? @relation(fields: [transactionId], references: [id])
+
+  category        String    // "feed_grain" | "veterinary" | "shelter" | "general_operations"
+  displayLabel    String    @map("display_label")   // "Feed & Grain — Hay" (public-facing)
+  amount          Decimal   @db.Decimal(10, 2)
+  period          String    // "2025-01" | "2025-Q1"
+  donorCovered    Decimal   @default(0) @map("donor_covered") @db.Decimal(10, 2) // Portion paid by donor directly
+
+  isPublished     Boolean   @default(false) @map("is_published")
+  publishedAt     DateTime? @map("published_at")
+
+  createdAt       DateTime  @default(now()) @map("created_at")
+  updatedAt       DateTime  @updatedAt @map("updated_at")
+
+  @@map("transparency_items")
+  @@index([category])
+  @@index([period])
+  @@index([isPublished])
+}
+
+// =============================================================================
+// AUDIT LOG — Who did what when
+// =============================================================================
+
+model AuditLog {
+  id              String    @id @default(uuid())
+  action          String    // "create" | "update" | "delete" | "import" | "parse" | "publish" | "sync"
+  entity          String    // "transaction" | "document" | "vendor" | "compliance" | etc.
+  entityId        String?   @map("entity_id")
+  details         String?   // JSON: what changed
+  userId          String?   @map("user_id")
+  userName        String?   @map("user_name")
+  ipAddress       String?   @map("ip_address")
+
+  createdAt       DateTime  @default(now()) @map("created_at")
+
+  @@map("audit_logs")
+  @@index([entity, entityId])
+  @@index([createdAt])
+  @@index([userId])
+}

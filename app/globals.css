@@ -1,0 +1,157 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* ============================================================================
+   The Bridge — TARDIS Control Room Visual Language
+   Deep blues, brass instruments, temporal glows, console panels
+   ============================================================================ */
+
+:root {
+  --color-tardis: #003B6F;
+  --color-tardis-glow: #4DA8DA;
+  --color-brass: #D4A842;
+  --color-console: #1B2A3D;
+  --color-dim: #0A2540;
+}
+
+/* Brass focus rings — like instrument bezels */
+*:focus-visible {
+  outline: 2px solid var(--color-brass);
+  outline-offset: 2px;
+}
+
+/* Console-style scrollbars */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+
+::-webkit-scrollbar-track {
+  background: var(--color-dim);
+}
+
+::-webkit-scrollbar-thumb {
+  background: #2D4A6A;
+  border-radius: 3px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: #3D5A7A;
+}
+
+/* Temporal selection glow */
+::selection {
+  background: rgba(77, 168, 218, 0.3);
+  color: #fff;
+}
+
+/* Panel surface */
+.panel {
+  @apply bg-console-light border border-console-border rounded-lg;
+}
+
+.panel-hover {
+  @apply transition-all duration-200;
+}
+
+.panel-hover:hover {
+  @apply border-tardis-glow/30 shadow-[0_0_12px_rgba(77,168,218,0.08)];
+}
+
+/* Gauge indicator dots */
+.gauge-dot {
+  @apply w-2.5 h-2.5 rounded-full;
+}
+
+.gauge-dot-green { @apply bg-gauge-green shadow-[0_0_6px_rgba(74,222,128,0.4)]; }
+.gauge-dot-amber { @apply bg-gauge-amber shadow-[0_0_6px_rgba(251,191,36,0.4)]; }
+.gauge-dot-red   { @apply bg-gauge-red shadow-[0_0_6px_rgba(248,113,113,0.4)]; }
+.gauge-dot-blue  { @apply bg-gauge-blue shadow-[0_0_6px_rgba(96,165,250,0.4)]; }
+
+/* Brass divider */
+.brass-divider {
+  @apply h-px;
+  background: linear-gradient(to right, transparent, #C4AD8A40, transparent);
+}
+
+/* Console card with subtle grid texture */
+.console-card {
+  @apply bg-console-light border border-console-border rounded-lg relative overflow-hidden;
+}
+
+.console-card::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background-image: url("data:image/svg+xml,%3Csvg width='20' height='20' viewBox='0 0 20 20' xmlns='http://www.w3.org/2000/svg'%3E%3Cg fill='%23ffffff' fill-opacity='0.015'%3E%3Crect width='1' height='1'/%3E%3C/g%3E%3C/svg%3E");
+  pointer-events: none;
+}
+
+/* Temporal glow for active/important elements */
+.temporal-glow {
+  box-shadow: 0 0 16px rgba(77, 168, 218, 0.15),
+              inset 0 0 0 1px rgba(77, 168, 218, 0.1);
+}
+
+/* Status badges */
+.badge {
+  @apply inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-xs font-medium;
+}
+
+.badge-green   { @apply bg-gauge-green/10 text-gauge-green border border-gauge-green/20; }
+.badge-amber   { @apply bg-gauge-amber/10 text-gauge-amber border border-gauge-amber/20; }
+.badge-red     { @apply bg-gauge-red/10 text-gauge-red border border-gauge-red/20; }
+.badge-blue    { @apply bg-gauge-blue/10 text-gauge-blue border border-gauge-blue/20; }
+.badge-brass   { @apply bg-brass-gold/10 text-brass-gold border border-brass-gold/20; }
+
+/* Table styling */
+.bridge-table th {
+  @apply text-xs font-medium uppercase tracking-wider text-brass-muted px-4 py-3 text-left;
+}
+
+.bridge-table td {
+  @apply px-4 py-3 text-sm text-slate-200 border-t border-console-border;
+}
+
+.bridge-table tr:hover td {
+  @apply bg-console-hover;
+}
+
+/* Smooth page entrance */
+main {
+  animation: consoleWake 0.3s ease-out;
+}
+
+@keyframes consoleWake {
+  from { opacity: 0; transform: translateY(6px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+/* Button base styles */
+.btn-primary {
+  @apply px-4 py-2 bg-tardis hover:bg-tardis-light text-white font-medium rounded-lg 
+         transition-all duration-200 shadow-sm;
+}
+
+.btn-primary:hover {
+  box-shadow: 0 2px 8px rgba(0, 59, 111, 0.4);
+}
+
+.btn-brass {
+  @apply px-4 py-2 bg-brass-gold/10 hover:bg-brass-gold/20 text-brass-gold 
+         border border-brass-gold/30 font-medium rounded-lg transition-all duration-200;
+}
+
+/* Input styling */
+input, select, textarea {
+  @apply bg-console border border-console-border text-slate-200 rounded-lg px-3 py-2
+         placeholder:text-slate-500 focus:border-tardis-glow focus:ring-1 focus:ring-tardis-glow/30
+         transition-colors;
+}
+
+/* Print */
+@media print {
+  .no-print { display: none !important; }
+  body { background: white; color: black; }
+}
