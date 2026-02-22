@@ -96,7 +96,7 @@ export async function GET(request: Request) {
         if (msg.payload.parts) {
           bodyText = getTextFromParts(msg.payload.parts as Parameters<typeof getTextFromParts>[0]);
         } else if (msg.payload.body?.data) {
-          bodyText = decodeBody(msg.payload.body);
+          bodyText = decodeBody(msg.payload.body as { data?: string });
         }
 
         // Extract amount
