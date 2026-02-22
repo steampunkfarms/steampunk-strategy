@@ -14,6 +14,7 @@ import {
   Package,
   CreditCard,
   Handshake,
+  Pencil,
 } from 'lucide-react';
 import { getVendors } from '@/lib/queries';
 
@@ -32,10 +33,10 @@ export default async function VendorsPage() {
             Supplier directory, cost tracking &amp; donor-paid bill management
           </p>
         </div>
-        <button className="btn-primary flex items-center gap-2 text-sm">
+        <Link href="/vendors/new" className="btn-primary flex items-center gap-2 text-sm">
           <Plus className="w-4 h-4" />
           Add Vendor
-        </button>
+        </Link>
       </div>
 
       {/* Summary strip */}
@@ -144,6 +145,9 @@ function VendorCard({ vendor }: { vendor: VendorWithCounts }) {
                 Donor-payable
               </span>
             )}
+            <Link href={`/vendors/${vendor.id}`} className="ml-auto text-slate-500 hover:text-brass-gold transition-colors" title="Edit vendor">
+              <Pencil className="w-3.5 h-3.5" />
+            </Link>
           </div>
           <span className="text-xs text-tardis-glow">{typeLabels[vendor.type] ?? vendor.type}</span>
 

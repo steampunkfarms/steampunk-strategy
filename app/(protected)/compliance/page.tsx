@@ -10,6 +10,7 @@ import {
   Clock,
   ExternalLink,
   ChevronRight,
+  Pencil,
 } from 'lucide-react';
 import { getComplianceTasks } from '@/lib/queries';
 import { formatDate, formatCurrency } from '@/lib/utils';
@@ -29,10 +30,10 @@ export default async function CompliancePage() {
           <h1 className="text-2xl font-display font-bold text-slate-100">Compliance</h1>
           <p className="text-sm text-brass-muted mt-1">Filing deadlines, regulatory tasks &amp; audit trail</p>
         </div>
-        <button className="btn-primary flex items-center gap-2 text-sm">
+        <Link href="/compliance/new" className="btn-primary flex items-center gap-2 text-sm">
           <Plus className="w-4 h-4" />
-          Add Custom Task
-        </button>
+          Add Task
+        </Link>
       </div>
 
       {/* Summary gauges */}
@@ -175,6 +176,9 @@ export default async function CompliancePage() {
                 </div>
 
                 <div className="flex flex-col items-end gap-2 flex-shrink-0">
+                  <Link href={`/compliance/${task.id}`} className="text-xs text-slate-500 hover:text-brass-gold flex items-center gap-1 transition-colors">
+                    <Pencil className="w-3 h-3" /> Edit
+                  </Link>
                   {task.filingUrl && (
                     <a
                       href={task.filingUrl}
