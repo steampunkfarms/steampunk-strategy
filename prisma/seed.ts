@@ -244,7 +244,9 @@ async function main() {
       paymentTerms: 'on_delivery',
       acceptsDonorPayment: true,
       tags: JSON.stringify(['hay', 'feed', 'delivery', 'ramona']),
-      notes: 'Primary hay supplier — family-owned since 1969 (Wayne & Teresa Elston). Delivers to Ranchita. Also Poway location: 14277 Garden Rd, (858) 513-1495. M-F 9-5:30, Sat 9-5, Sun 9-4. Donors can call to pre-pay hay bills. Accepts credit cards.',
+      notes: `Primary hay supplier — family-owned since 1969 (Wayne & Teresa Elston). Delivers to Ranchita. Also Poway location: 14277 Garden Rd, (858) 513-1495. M-F 9-5:30, Sat 9-5, Sun 9-4. Donors can call to pre-pay hay bills. Accepts credit cards.
+
+SEASONAL PRICING: Hay prices follow a predictable annual cycle driven by harvest timing. Post-harvest (Oct–Apr): warehouses flush, prices lowest. Depletion (May–Sep): prior year's stores draw down, supply shrinks while demand holds steady, prices climb ~30%. New harvest (late Sep–Oct): fall cuts begin, supply surges, prices drop. This is normal and not cost creep. Compare year-over-year same-month, not month-over-month. Straw purchases (Oct–Dec) are winter bedding prep, not feed.`,
     },
     {
       name: 'Star Milling Co.',
@@ -349,6 +351,133 @@ async function main() {
       },
     });
     console.log('  ✓ Ironwood → Star Milling donor arrangement seeded');
+  }
+
+  // --- Seasonal Baselines (2025 hay from Elston's) ---
+  // Source: 2025 invoice scans. Hay follows a predictable annual cycle:
+  //   Post-harvest (Oct–Feb): warehouses flush, prices lowest
+  //   Depletion (Mar–Sep): prior year stores draw down, prices climb ~30%
+  //   New harvest (late Sep–Oct): fall cuts, supply surges, prices drop
+  //
+  // This data teaches the cost-creep scanner that a May→Sep climb is
+  // EXPECTED, but Sep 2026 > Sep 2025 by >10% is REAL cost creep.
+
+  const elstons = await prisma.vendor.findUnique({ where: { slug: 'elstons' } });
+  if (elstons) {
+    const hayBaselines = [
+      // month, typicalPrice, low, high, phase, notes
+      { month: 1,  typical: 11.50, low: 11.00, high: 12.00, phase: 'post_harvest', notes: 'Warehouses flush from fall harvest. Best prices of the year.' },
+      { month: 2,  typical: 11.62, low: 11.00, high: 12.25, phase: 'post_harvest', notes: 'Observed 2025: $11.62/bale bermuda. Still post-harvest pricing.' },
+      { month: 3,  typical: 11.75, low: 11.25, high: 12.50, phase: 'post_harvest', notes: 'Late post-harvest. Prices starting to firm up.' },
+      { month: 4,  typical: 11.91, low: 11.50, high: 13.00, phase: 'depletion',    notes: 'Observed 2025: $11.91/bale. Depletion cycle beginning.' },
+      { month: 5,  typical: 14.97, low: 13.50, high: 15.50, phase: 'depletion',    notes: 'Observed 2025: $14.97/bale. Significant jump as stores thin out.' },
+      { month: 6,  typical: 15.10, low: 14.00, high: 15.75, phase: 'depletion',    notes: 'Mid-depletion. Steady climb continues.' },
+      { month: 7,  typical: 15.30, low: 14.50, high: 16.00, phase: 'depletion',    notes: 'Deep depletion. Supply getting tight.' },
+      { month: 8,  typical: 15.55, low: 14.75, high: 16.25, phase: 'peak',         notes: 'Near-peak. Warehouses running low before harvest.' },
+      { month: 9,  typical: 15.84, low: 15.00, high: 16.50, phase: 'peak',         notes: 'Observed 2025: $15.84/bale. Peak price before fall cuts begin.' },
+      { month: 10, typical: 13.90, low: 12.50, high: 14.75, phase: 'new_harvest',  notes: 'Observed 2025: $13.90/bale. Fall harvest cuts begin, supply surges. Also straw for winter prep.' },
+      { month: 11, typical: 12.50, low: 11.50, high: 13.50, phase: 'new_harvest',  notes: 'Harvest settling. Prices dropping toward post-harvest lows.' },
+      { month: 12, typical: 12.00, low: 11.25, high: 13.00, phase: 'post_harvest', notes: 'Observed 2025: mixed load (alfalfa + bermuda + straw). Winter diversification.' },
+    ];
+
+    for (const b of hayBaselines) {
+      await prisma.seasonalBaseline.upsert({
+        where: {
+          vendorId_item_month_baselineYear: {
+            vendorId: elstons.id,
+            item: 'bermuda_hay',
+            month: b.month,
+            baselineYear: 2025,
+          },
+        },
+        update: {
+          expectedLow: b.low,
+          expectedHigh: b.high,
+          typicalPrice: b.typical,
+          seasonPhase: b.phase,
+          notes: b.notes,
+        },
+        create: {
+          vendorId: elstons.id,
+          item: 'bermuda_hay',
+          itemGroup: 'hay',
+          unit: 'bale',
+          month: b.month,
+          baselineYear: 2025,
+          expectedLow: b.low,
+          expectedHigh: b.high,
+          typicalPrice: b.typical,
+          seasonPhase: b.phase,
+          notes: b.notes,
+          creepThreshold: 0.10, // Flag if >10% above expected_high
+        },
+      });
+    }
+    console.log('  ✓ 12-month bermuda hay seasonal baselines seeded (Elston\'s 2025)');
+
+    // Seed actual 2025 CostTracker entries from invoice scans
+    const hayPrices2025 = [
+      { month: 2,  date: '2025-02-15', unitCost: 11.62, qty: 40, ref: 'elstons-2025-02' },
+      { month: 4,  date: '2025-04-10', unitCost: 11.91, qty: 38, ref: 'elstons-2025-04' },
+      { month: 5,  date: '2025-05-12', unitCost: 14.97, qty: 35, ref: 'elstons-2025-05' },
+      { month: 9,  date: '2025-09-08', unitCost: 15.84, qty: 30, ref: 'elstons-2025-09' },
+      { month: 10, date: '2025-10-14', unitCost: 13.90, qty: 42, ref: 'elstons-2025-10' },
+    ];
+
+    for (let i = 0; i < hayPrices2025.length; i++) {
+      const p = hayPrices2025[i];
+      const prev = i > 0 ? hayPrices2025[i - 1] : null;
+      const pctChange = prev ? ((p.unitCost - prev.unitCost) / prev.unitCost * 100) : null;
+
+      await prisma.costTracker.create({
+        data: {
+          vendorId: elstons.id,
+          item: 'bermuda_hay',
+          itemGroup: 'hay',
+          unit: 'bale',
+          quantity: p.qty,
+          unitCost: p.unitCost,
+          previousCost: prev?.unitCost ?? null,
+          percentChange: pctChange ? parseFloat(pctChange.toFixed(2)) : null,
+          seasonalFlag: 'expected', // All 2025 prices define the baseline — they ARE expected
+          recordedDate: new Date(p.date),
+          month: p.month,
+          fiscalYear: 2025,
+          invoiceRef: p.ref,
+        },
+      });
+    }
+    console.log('  ✓ 5 actual 2025 hay price entries seeded (CostTracker)');
+
+    // Straw baseline — seasonal purchase, Oct-Dec only
+    for (const m of [10, 11, 12]) {
+      await prisma.seasonalBaseline.upsert({
+        where: {
+          vendorId_item_month_baselineYear: {
+            vendorId: elstons.id,
+            item: 'straw',
+            month: m,
+            baselineYear: 2025,
+          },
+        },
+        update: {},
+        create: {
+          vendorId: elstons.id,
+          item: 'straw',
+          itemGroup: 'hay',
+          unit: 'bale',
+          month: m,
+          baselineYear: 2025,
+          expectedLow: 8.00,
+          expectedHigh: 12.00,
+          typicalPrice: 10.00,
+          seasonPhase: 'new_harvest',
+          notes: 'Straw is a winter bedding purchase, not feed. Only bought Oct–Dec for cold-weather prep.',
+          creepThreshold: 0.15, // Straw is less price-sensitive, wider threshold
+        },
+      });
+    }
+    console.log('  ✓ Straw seasonal baselines seeded (Oct-Dec only)');
   }
 
   console.log('\n🎯 Seed complete!');

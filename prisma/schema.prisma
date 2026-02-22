@@ -145,6 +145,7 @@ model Vendor {
   documents       Document[]
   donorPaidBills  DonorPaidBill[]
   costTrackers    CostTracker[]
+  seasonalBaselines SeasonalBaseline[]
   donorArrangements VendorDonorArrangement[]
 
   // Meta
@@ -398,7 +399,9 @@ model JournalNote {
 }
 
 // =============================================================================
-// COST TRACKING — COGS monitoring for Cleanpunk soaps
+// COST TRACKING — Unit price history for ANY tracked item
+// Covers soap COGS, hay, grain, specialty feeds, supplements — anything
+// where you want to detect price creep or negotiate better.
 // =============================================================================
 
 model CostTracker {
@@ -406,13 +409,24 @@ model CostTracker {
   vendorId        String    @map("vendor_id")
   vendor          Vendor    @relation(fields: [vendorId], references: [id])
 
-  item            String    // "lye" | "coconut_oil" | "fragrance_oils" | "labels" | "shipping_boxes"
-  unit            String    // "lb" | "oz" | "each" | "case"
+  item            String    // "bermuda_hay" | "three_way_hay" | "alfalfa" | "straw" | "lye" | "coconut_oil" | etc.
+  itemGroup       String?   @map("item_group")  // "hay" | "grain" | "soap_materials" | "specialty_feed" — for grouping
+  unit            String    // "bale" | "ton" | "lb" | "oz" | "each" | "bag" | "case"
+  quantity        Decimal?  @db.Decimal(10, 2)   // Qty on this invoice (for weighted averages)
   unitCost        Decimal   @map("unit_cost") @db.Decimal(10, 4)
+
+  // Change tracking (filled by scanner comparing to previous entry)
   previousCost    Decimal?  @map("previous_cost") @db.Decimal(10, 4)
   percentChange   Decimal?  @map("percent_change") @db.Decimal(5, 2)
 
+  // Seasonal comparison (filled by scanner comparing to same month prior year)
+  priorYearCost   Decimal?  @map("prior_year_cost") @db.Decimal(10, 4) // Same month, previous year
+  yoyChange       Decimal?  @map("yoy_change") @db.Decimal(5, 2)       // Year-over-year % change
+  seasonalFlag    String?   @map("seasonal_flag") // null | "expected" | "above_expected" | "below_expected" | "cost_creep"
+
   recordedDate    DateTime  @map("recorded_date")
+  month           Int?      // 1-12, for easy seasonal queries
+  fiscalYear      Int?      @map("fiscal_year")
   invoiceRef      String?   @map("invoice_ref")
 
   createdAt       DateTime  @default(now()) @map("created_at")
@@ -420,7 +434,49 @@ model CostTracker {
   @@map("cost_trackers")
   @@index([vendorId])
   @@index([item])
+  @@index([itemGroup])
   @@index([recordedDate])
+  @@index([month, fiscalYear])
+}
+
+// =============================================================================
+// SEASONAL BASELINES — Expected price ranges by month for seasonal items
+// The cost-creep scanner checks against these instead of blindly comparing
+// to last month. Hay climbs Feb→Sep every year — that's not a red flag.
+// But Sep 2026 > Sep 2025 + 10% threshold? That's real cost creep.
+// =============================================================================
+
+model SeasonalBaseline {
+  id              String    @id @default(uuid())
+  vendorId        String?   @map("vendor_id")    // null = industry-wide baseline
+  vendor          Vendor?   @relation(fields: [vendorId], references: [id])
+
+  item            String    // "bermuda_hay" | "three_way_hay" | "alfalfa" | etc.
+  itemGroup       String?   @map("item_group")   // "hay" | "grain"
+  unit            String    // "bale"
+
+  month           Int       // 1-12
+  baselineYear    Int       @map("baseline_year") // Year this data was captured (2025)
+
+  // Price expectations
+  expectedLow     Decimal   @map("expected_low")  @db.Decimal(10, 4)
+  expectedHigh    Decimal   @map("expected_high") @db.Decimal(10, 4)
+  typicalPrice    Decimal   @map("typical_price") @db.Decimal(10, 4) // Midpoint or observed
+
+  // Seasonal context
+  seasonPhase     String?   @map("season_phase")  // "post_harvest" | "depletion" | "peak" | "new_harvest"
+  notes           String?                          // "Warehouses flush, best prices" etc.
+
+  // Alerting thresholds
+  creepThreshold  Decimal   @default(0.10) @map("creep_threshold") @db.Decimal(5, 2) // 10% above expected_high = flag
+
+  createdAt       DateTime  @default(now()) @map("created_at")
+  updatedAt       DateTime  @updatedAt @map("updated_at")
+
+  @@unique([vendorId, item, month, baselineYear])
+  @@map("seasonal_baselines")
+  @@index([item, month])
+  @@index([vendorId])
 }
 
 // =============================================================================
