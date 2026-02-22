@@ -9,6 +9,7 @@ import {
   getTextFromParts,
   decodeBody,
   isDuplicate,
+  isAmazonPersonal,
   FINANCIAL_QUERIES,
 } from '@/lib/gmail';
 
@@ -108,6 +109,12 @@ export async function GET(request: Request) {
 
         // Match vendor
         const vendorSlug = matchVendorSlug(headers.senderEmail, headers.senderName, headers.subject);
+
+        // Amazon: skip personal purchases (card 9785 only, no gift card = personal)
+        if (vendorSlug === 'amazon' && isAmazonPersonal(bodyText)) {
+          result.skipped.push({ messageId, reason: 'amazon personal (card 9785, no gift card)' });
+          continue;
+        }
 
         // Check for duplicates
         const duplicate = await isDuplicate(messageId, vendorSlug, headers.date, amount);

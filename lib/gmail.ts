@@ -77,6 +77,30 @@ export function extractAmount(text: string): number | null {
   return null;
 }
 
+// --- Amazon Personal vs Farm Classification ---
+// Card 9785 = Frederick's personal card. Card 9932 = farm bank account.
+// Gift card (with or without either card for remainder) = farm.
+// Only skip: card 9785 alone with NO gift card balance.
+
+export function isAmazonPersonal(bodyText: string): boolean {
+  const text = bodyText.toLowerCase();
+  const hasGiftCard = text.includes('gift card') || text.includes('gift card balance');
+  const hasCard9932 = text.includes('9932');
+  const hasCard9785 = text.includes('9785');
+
+  // Gift card present = farm (RaiseRight or farm-purchased)
+  if (hasGiftCard) return false;
+
+  // Farm bank card 9932 = farm
+  if (hasCard9932) return false;
+
+  // Card 9785 alone with no gift card and no 9932 = personal
+  if (hasCard9785) return true;
+
+  // No card info found — don't skip, let it through for manual review
+  return false;
+}
+
 // --- Email Parsing ---
 
 export interface ParsedEmail {
