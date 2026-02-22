@@ -17,15 +17,8 @@ export const authOptions: NextAuthOptions = {
     }),
   ],
   callbacks: {
-    async signIn({ user }) {
-      // Restrict to org emails — add allow-list if needed
-      const allowedDomains = ['steampunkfarms.org', 'steampunkstudiolo.org'];
-      const email = user.email?.toLowerCase() ?? '';
-      const domain = email.split('@')[1];
-      if (!allowedDomains.includes(domain)) {
-        console.warn(`[Auth] Rejected sign-in from: ${email}`);
-        return false;
-      }
+    async signIn() {
+      // Azure AD tenant already restricts who can authenticate
       return true;
     },
     async jwt({ token, account, user }) {
