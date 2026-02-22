@@ -507,6 +507,116 @@ model TransparencyItem {
 }
 
 // =============================================================================
+// PERSONAL/FARM RECONCILIATION
+// Annual review of commingled purchases. When farm and personal accounts
+// overlap (Amazon, Chewy, TSC, etc.), purchases need to be sorted each
+// January. The queue presents suspected items; Fred marks each as "farm"
+// or "personal"; the system calculates the net and creates the settlement.
+//
+// Directions:
+//   "personal_on_farm" — Personal item paid by farm account. Farm is owed.
+//   "farm_on_personal" — Farm item paid by personal account. Founder is owed.
+// =============================================================================
+
+model ReconciliationSession {
+  id              String    @id @default(uuid())
+  fiscalYear      Int       @map("fiscal_year") @unique
+  status          String    @default("pending") // "pending" | "open" | "in_review" | "settled"
+
+  // Opened/closed
+  openedAt        DateTime? @map("opened_at")
+  openedBy        String?   @map("opened_by")
+  settledAt       DateTime? @map("settled_at")
+  settledBy       String?   @map("settled_by")
+
+  // Tallies (computed when settled)
+  personalOnFarmTotal  Decimal?  @map("personal_on_farm_total") @db.Decimal(10, 2) // Farm is owed this
+  farmOnPersonalTotal  Decimal?  @map("farm_on_personal_total") @db.Decimal(10, 2) // Founder is owed this
+  netBalance           Decimal?  @map("net_balance") @db.Decimal(10, 2)            // Positive = founder owes farm
+  itemCount            Int?      @map("item_count")
+  resolvedCount        Int?      @map("resolved_count")
+
+  // Settlement
+  resolution      String?   // "donation_to_farm" | "reimbursement_to_founder" | "donation_from_founder" | "zero_balance"
+  settlementAmount Decimal? @map("settlement_amount") @db.Decimal(10, 2)
+  settlementMethod String?  @map("settlement_method") // "zeffy" | "check" | "ach" | "card" | "internal"
+  settlementRef   String?   @map("settlement_ref")    // Confirmation #, check #, Zeffy donation ID
+  settlementNote  String?   @map("settlement_note")   // "Rounded up $23.17 → $25 as additional donation"
+  padAmount       Decimal?  @map("pad_amount") @db.Decimal(10, 2) // Extra donated beyond net balance
+
+  // Relations
+  items           CommingledItem[]
+
+  createdAt       DateTime  @default(now()) @map("created_at")
+  updatedAt       DateTime  @updatedAt @map("updated_at")
+
+  @@map("reconciliation_sessions")
+}
+
+model CommingledItem {
+  id              String    @id @default(uuid())
+  sessionId       String    @map("session_id")
+  session         ReconciliationSession @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+
+  // The purchase
+  date            DateTime
+  amount          Decimal   @db.Decimal(10, 2)
+  description     String
+  vendor          String?   // "Amazon" | "Chewy" | "Tractor Supply" | freeform
+  orderRef        String?   @map("order_ref") // Amazon order #, etc.
+
+  // Which direction is the suspicion?
+  direction       String    // "personal_on_farm" | "farm_on_personal"
+  account         String?   // Which account was charged: "farm_amazon" | "personal_amazon" | "farm_card" | "personal_card"
+
+  // How it got here
+  source          String    @default("manual") // "manual" | "gmail_scan" | "bank_import" | "ai_flagged"
+  transactionId   String?   @map("transaction_id") // Link to the Transaction record if one exists
+  confidence      Decimal?  @db.Decimal(3, 2)       // AI confidence it's commingled (0.00-1.00)
+  flagReason      String?   @map("flag_reason")     // "Item 'Kindle Paperwhite' on farm Amazon unlikely farm expense"
+
+  // Resolution
+  status          String    @default("pending") // "pending" | "farm" | "personal" | "split" | "skipped"
+  resolvedAt      DateTime? @map("resolved_at")
+  resolvedBy      String?   @map("resolved_by")
+  resolvedNote    String?   @map("resolved_note") // "Actually farm — tablet for barn webcam display"
+
+  // For split items (part farm, part personal on same order)
+  farmPortion     Decimal?  @map("farm_portion") @db.Decimal(10, 2)
+  personalPortion Decimal?  @map("personal_portion") @db.Decimal(10, 2)
+
+  createdAt       DateTime  @default(now()) @map("created_at")
+  updatedAt       DateTime  @updatedAt @map("updated_at")
+
+  @@map("commingled_items")
+  @@index([sessionId])
+  @@index([status])
+  @@index([direction])
+  @@index([transactionId])
+}
+
+// =============================================================================
+// ACCOUNT REGISTRY — Which purchasing accounts belong to farm vs. personal
+// Used by the scanner to flag cross-account purchases automatically.
+// =============================================================================
+
+model PurchasingAccount {
+  id              String    @id @default(uuid())
+  name            String    // "Farm Amazon" | "Personal Amazon" | "RaiseRight Card"
+  slug            String    @unique
+  owner           String    // "farm" | "personal_fred" | "personal_krystal"
+  platform        String    // "amazon" | "chewy" | "tractor_supply" | "card" | "other"
+  email           String?   // Email associated with the account
+  last4           String?   // Last 4 of card for matching bank records
+  notes           String?
+
+  isActive        Boolean   @default(true) @map("is_active")
+  createdAt       DateTime  @default(now()) @map("created_at")
+
+  @@map("purchasing_accounts")
+}
+
+// =============================================================================
 // AUDIT LOG — Who did what when
 // =============================================================================
 

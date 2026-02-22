@@ -218,6 +218,18 @@ async function main() {
       penalty: 'Cannot legally operate without current license.',
       description: 'Annual business license for Cleanpunk Soaps. County Treasurer-Tax Collector: (877) 829-4732.',
     },
+    {
+      name: 'Annual Personal/Farm Account Reconciliation',
+      slug: 'annual-reconciliation',
+      authority: 'Internal',
+      category: 'reporting',
+      frequency: 'annual',
+      dueMonth: 1, dueDay: 31,
+      reminderDays: 14,
+      requiresPayment: false,
+      description: 'Annual review of commingled purchases across shared Amazon, Chewy, TSC, and card accounts. Open reconciliation session in The Bridge for prior fiscal year. Review all flagged items, mark farm vs personal, settle the net. If founder owes farm → donation via Zeffy. If farm owes founder → decide reimbursement or donate back. Document the settlement for 990 records. Must complete before expense reconciliation starts.',
+      dependsOn: JSON.stringify(['gmail_scan_complete']),
+    },
   ];
 
   for (const task of tasks) {
@@ -479,6 +491,76 @@ SEASONAL PRICING: Hay prices follow a predictable annual cycle driven by harvest
     }
     console.log('  ✓ Straw seasonal baselines seeded (Oct-Dec only)');
   }
+
+  // --- Purchasing Accounts ---
+  // Maps which accounts are farm vs personal so the scanner can flag cross-use
+  const purchasingAccounts = [
+    {
+      name: 'Farm Amazon',
+      slug: 'farm-amazon',
+      owner: 'farm',
+      platform: 'amazon',
+      notes: 'Primary Amazon account for farm supplies. Also used for personal orders occasionally.',
+    },
+    {
+      name: 'Personal Amazon (Fred)',
+      slug: 'personal-amazon-fred',
+      owner: 'personal_fred',
+      platform: 'amazon',
+      notes: 'Fred\'s personal Amazon. Sometimes orders farm supplies here for faster delivery.',
+    },
+    {
+      name: 'Farm Chewy',
+      slug: 'farm-chewy',
+      owner: 'farm',
+      platform: 'chewy',
+      notes: 'Autoship for dog food, supplements. Occasionally has personal pet items.',
+    },
+    {
+      name: 'Personal Chewy',
+      slug: 'personal-chewy',
+      owner: 'personal_fred',
+      platform: 'chewy',
+      notes: 'Personal Chewy for home pets. Sometimes adds a farm order to hit free shipping.',
+    },
+    {
+      name: 'Farm Tractor Supply (TSC)',
+      slug: 'farm-tsc',
+      owner: 'farm',
+      platform: 'tractor_supply',
+      notes: 'Neighborhood Rewards account. 8-10 trips/month for specialty feeds, litter, barn supplies.',
+    },
+    {
+      name: 'Farm Debit/Credit Card',
+      slug: 'farm-card',
+      owner: 'farm',
+      platform: 'card',
+      notes: 'Primary farm payment card. Used for most in-store and online purchases.',
+    },
+    {
+      name: 'RaiseRight Card',
+      slug: 'raiseright-card',
+      owner: 'farm',
+      platform: 'card',
+      notes: 'RaiseRight (formerly SCRIP) gift cards. Earn rebates on purchases. Mixed farm/personal use.',
+    },
+    {
+      name: 'Personal Card (Fred)',
+      slug: 'personal-card-fred',
+      owner: 'personal_fred',
+      platform: 'card',
+      notes: 'Fred\'s personal card. Emergency farm purchases end up here sometimes.',
+    },
+  ];
+
+  for (const acc of purchasingAccounts) {
+    await prisma.purchasingAccount.upsert({
+      where: { slug: acc.slug },
+      update: acc,
+      create: acc,
+    });
+  }
+  console.log(`  ✓ ${purchasingAccounts.length} purchasing accounts seeded`);
 
   console.log('\n🎯 Seed complete!');
 }

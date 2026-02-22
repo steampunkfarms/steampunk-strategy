@@ -442,3 +442,148 @@ items, and vendor details that simple regex can't handle.
   the filename/type should be recorded for later retrieval
 - The Bridge UI already shows pending transactions — once imported, Frederick
   can verify them from the Expenses page
+
+---
+
+## Step 7 — Commingled Purchase Detection
+
+Farm and personal purchasing accounts overlap. The scanner should flag
+suspected cross-account purchases for the annual reconciliation queue.
+
+### How it works
+
+1. Check which email/account the order came from against the PurchasingAccount registry
+2. Look at the line items — do they look like farm or personal purchases?
+3. If an item on a farm account looks personal (or vice versa), flag it
+
+### Personal-on-farm keywords (things that probably aren't farm expenses)
+
+```typescript
+const PERSONAL_KEYWORDS = [
+  /\b(kindle|ebook|book|novel|magazine)\b/i,
+  /\b(headphone|earbuds|speaker|bluetooth)\b/i,
+  /\b(phone case|screen protector|charger cable)\b/i,
+  /\b(clothing|shirt|pants|shoes|boots)\b/i,   // Unless work boots
+  /\b(vitamins|personal care|shampoo|conditioner|lotion)\b/i, // Human, not animal
+  /\b(kitchen|cookware|appliance|coffee|tea)\b/i,
+  /\b(gift card|birthday|christmas|holiday)\b/i,
+  /\b(game|gaming|toy|puzzle)\b/i,             // Unless enrichment toys
+  /\b(furniture|decor|curtain|rug)\b/i,        // Unless barn furniture
+  /\b(streaming|subscription|netflix|spotify)\b/i,
+];
+```
+
+### Farm-on-personal keywords (things that are probably farm expenses)
+
+```typescript
+const FARM_KEYWORDS = [
+  /\b(hay|straw|feed|grain|pellet)\b/i,
+  /\b(pee pad|puppy pad|diaper|belly band)\b/i,
+  /\b(dog food|cat food|kibble|cat litter)\b/i,
+  /\b(fencing|gate|panel|trough|bucket)\b/i,
+  /\b(shovel|rake|pitchfork|wheelbarrow)\b/i,
+  /\b(vet|veterinar|medication|dewormer)\b/i,
+  /\b(barn|stable|coop|pen|shelter)\b/i,
+  /\b(animal|livestock|equine|pig|goat)\b/i,
+  /\b(hoof|farrier|grooming)\b/i,
+  /\b(bleach|disinfect|cleaning supply)\b/i,  // Industrial cleaning
+  /\b(infrared|heat lamp|waterer|de-?icer)\b/i,
+];
+```
+
+### Detection logic
+
+```typescript
+async function checkCommingled(
+  item: ExtractedLineItem,
+  account: PurchasingAccount,
+  transaction: ExtractedTransaction
+): Promise<{ flagged: boolean; direction?: string; reason?: string; confidence?: number }> {
+
+  if (account.owner === 'farm') {
+    // Check if this looks personal
+    for (const pattern of PERSONAL_KEYWORDS) {
+      if (pattern.test(item.description)) {
+        return {
+          flagged: true,
+          direction: 'personal_on_farm',
+          reason: `"${item.description}" on farm account (${account.name}) — likely personal`,
+          confidence: 0.70,
+        };
+      }
+    }
+  } else if (account.owner.startsWith('personal')) {
+    // Check if this looks like a farm expense
+    for (const pattern of FARM_KEYWORDS) {
+      if (pattern.test(item.description)) {
+        return {
+          flagged: true,
+          direction: 'farm_on_personal',
+          reason: `"${item.description}" on personal account (${account.name}) — likely farm`,
+          confidence: 0.75,
+        };
+      }
+    }
+  }
+
+  return { flagged: false };
+}
+```
+
+### What to do with flagged items
+
+When an item is flagged, add it to the reconciliation queue:
+
+```typescript
+await fetch('/api/reconciliation/items', {
+  method: 'POST',
+  body: JSON.stringify({
+    fiscalYear: new Date(transaction.date).getFullYear(),
+    items: [{
+      date: transaction.date,
+      amount: item.totalPrice,
+      description: item.description,
+      vendor: transaction.vendorName,
+      orderRef: transaction.invoiceNumber ?? transaction.gmailMessageId,
+      direction: detection.direction,
+      account: account.slug,
+      source: 'gmail_scan',
+      transactionId: createdTransaction.id,
+      confidence: detection.confidence,
+      flagReason: detection.reason,
+    }],
+  }),
+});
+```
+
+Also flag the transaction itself so it shows up in the review queue:
+
+```typescript
+await prisma.transaction.update({
+  where: { id: createdTransaction.id },
+  data: {
+    status: 'flagged',
+    flagReason: `commingled: ${detection.reason}`,
+  },
+});
+```
+
+### Expected scanner output additions
+
+```
+Commingled items flagged: 14
+  Personal on farm accounts:
+    Amazon (farm): "Kindle Paperwhite 2024" — $139.99
+    Amazon (farm): "AirPods Pro Case" — $12.99
+    Chewy (farm): "Cat Fancy Magazine" — $24.99
+    ...
+  Farm on personal accounts:
+    Amazon (personal): "50-Pack Pee Pads XL" — $34.99
+    Amazon (personal): "Hay Net Slow Feeder 2pk" — $22.50
+    Chewy (personal): "Purina Senior Dog Food 40lb" — $42.99
+    ...
+
+All flagged items added to FY2025 reconciliation queue.
+Frederick should review at /api/reconciliation/sessions/2025
+```
+
