@@ -252,6 +252,9 @@ export async function getVendors() {
           donorPaidBills: true,
         },
       },
+      donorArrangements: {
+        where: { isActive: true },
+      },
     },
     orderBy: { name: 'asc' },
   });

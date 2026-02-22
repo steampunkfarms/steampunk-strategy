@@ -146,7 +146,7 @@ async function main() {
   // --- Seed Vendors ---
   const vendors = [
     { name: "Elston's Feed & Ranch Supply", slug: 'elstons', type: 'feed_supplier', acceptsDonorPayment: true, notes: 'Primary hay supplier. Donors can call to pre-pay hay bills.' },
-    { name: 'Star Milling Co.', slug: 'star-milling', type: 'feed_supplier', acceptsDonorPayment: true, notes: 'Bulk grain/feed. Donors can call to pre-pay invoices.' },
+    { name: 'Star Milling Co.', slug: 'star-milling', type: 'feed_supplier', acceptsDonorPayment: true, paymentTerms: 'on_delivery', notes: 'Bulk grain/feed. Ironwood Pig Sanctuary has a card on file — Star charges Ironwood $1,200/month before running our card for the remainder. Only one Ironwood credit per calendar month regardless of number of deliveries.' },
     { name: 'Amazon', slug: 'amazon', type: 'supplies', acceptsDonorPayment: false, notes: 'Wish list items, general supplies. Receipts via email.' },
     { name: 'Chewy', slug: 'chewy', type: 'supplies', acceptsDonorPayment: false, notes: 'Pet food, supplements, vet supplies. Receipts via email.' },
     { name: 'Tractor Supply Co.', slug: 'tractor-supply', type: 'supplies', acceptsDonorPayment: false, notes: 'Fencing, tools, farm supplies.' },
@@ -160,6 +160,29 @@ async function main() {
     });
   }
   console.log(`  ✓ ${vendors.length} vendors seeded`);
+
+  // --- Vendor Donor Arrangements ---
+  const starMilling = await prisma.vendor.findUnique({ where: { slug: 'star-milling' } });
+  if (starMilling) {
+    await prisma.vendorDonorArrangement.upsert({
+      where: { id: 'ironwood-star-milling' }, // stable ID for upsert
+      update: {},
+      create: {
+        id: 'ironwood-star-milling',
+        vendorId: starMilling.id,
+        donorName: 'Ironwood Pig Sanctuary',
+        donorEmail: 'office@ironwoodpigs.org',
+        donorPhone: '(520) 579-8847',
+        donorAddress: 'PO Box 35490, Tucson, AZ 85740',
+        amount: 1200.00,
+        frequency: 'monthly',
+        method: 'pre_charge',
+        oncePerPeriod: true,
+        description: 'Ironwood has a credit card on file at Star Milling. Star charges $1,200 to Ironwood before running the farm\'s card for the remainder. Only applies once per calendar month — if there are two deliveries in the same month, the second delivery is 100% farm expense.',
+      },
+    });
+    console.log('  ✓ Ironwood → Star Milling donor arrangement seeded');
+  }
 
   console.log('\n🎯 Seed complete!');
 }

@@ -13,6 +13,7 @@ import {
   MapPin,
   Package,
   CreditCard,
+  Handshake,
 } from 'lucide-react';
 import { getVendors } from '@/lib/queries';
 
@@ -122,6 +123,12 @@ function VendorCard({ vendor }: { vendor: VendorWithCounts }) {
     other: 'Other',
   };
 
+  const methodLabels: Record<string, string> = {
+    pre_charge: 'Card on file',
+    direct_payment: 'Donor calls to pay',
+    standing_order: 'Standing order',
+  };
+
   return (
     <div className="console-card p-5 panel-hover">
       <div className="flex items-start gap-4">
@@ -166,6 +173,49 @@ function VendorCard({ vendor }: { vendor: VendorWithCounts }) {
 
           {vendor.notes && (
             <p className="text-xs text-slate-400 mt-2">{vendor.notes}</p>
+          )}
+
+          {/* Standing donor arrangements */}
+          {vendor.donorArrangements.length > 0 && (
+            <div className="mt-3 pt-3 border-t border-console-border space-y-2">
+              {vendor.donorArrangements.map((arr) => (
+                <div key={arr.id} className="rounded-lg bg-gauge-green/5 border border-gauge-green/20 p-3">
+                  <div className="flex items-center gap-2 mb-1">
+                    <Handshake className="w-3.5 h-3.5 text-gauge-green" />
+                    <span className="text-xs font-semibold text-gauge-green">Standing Arrangement</span>
+                  </div>
+                  <p className="text-xs text-slate-300">
+                    <strong className="text-slate-200">{arr.donorName}</strong> pre-pays{' '}
+                    <strong className="text-gauge-green font-mono">
+                      ${Number(arr.amount).toLocaleString()}
+                    </strong>
+                    /{arr.frequency}
+                    {arr.oncePerPeriod && (
+                      <span className="text-slate-500"> (once per {arr.frequency === 'monthly' ? 'calendar month' : 'period'})</span>
+                    )}
+                  </p>
+                  <div className="flex flex-wrap items-center gap-3 mt-1.5 text-[11px] text-slate-500">
+                    <span className="flex items-center gap-1">
+                      <CreditCard className="w-3 h-3" />
+                      {methodLabels[arr.method] ?? arr.method}
+                    </span>
+                    {arr.donorEmail && (
+                      <span className="flex items-center gap-1">
+                        <Mail className="w-3 h-3" /> {arr.donorEmail}
+                      </span>
+                    )}
+                    {arr.donorPhone && (
+                      <span className="flex items-center gap-1">
+                        <Phone className="w-3 h-3" /> {arr.donorPhone}
+                      </span>
+                    )}
+                  </div>
+                  {arr.description && (
+                    <p className="text-[11px] text-slate-500 mt-1.5 italic">{arr.description}</p>
+                  )}
+                </div>
+              ))}
+            </div>
           )}
 
           {/* Activity counts */}

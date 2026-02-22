@@ -145,6 +145,7 @@ model Vendor {
   documents       Document[]
   donorPaidBills  DonorPaidBill[]
   costTrackers    CostTracker[]
+  donorArrangements VendorDonorArrangement[]
 
   // Meta
   isActive        Boolean   @default(true) @map("is_active")
@@ -152,6 +153,43 @@ model Vendor {
   updatedAt       DateTime  @updatedAt @map("updated_at")
 
   @@map("vendors")
+}
+
+// =============================================================================
+// VENDOR DONOR ARRANGEMENTS — Standing donor pre-payment agreements
+// e.g., Ironwood Pig Sanctuary has a card on file at Star Milling,
+// Star charges Ironwood $1,200/month before running the farm's card
+// =============================================================================
+
+model VendorDonorArrangement {
+  id              String    @id @default(uuid())
+  vendorId        String    @map("vendor_id")
+  vendor          Vendor    @relation(fields: [vendorId], references: [id])
+
+  // Donor info
+  donorName       String    @map("donor_name")       // "Ironwood Pig Sanctuary"
+  donorEmail      String?   @map("donor_email")      // "office@ironwoodpigs.org"
+  donorPhone      String?   @map("donor_phone")      // "(520) 579-8847"
+  donorAddress    String?   @map("donor_address")     // Mailing address for thank-yous
+  donorId         String?   @map("donor_id")          // Studiolo donor ID if linked
+
+  // Arrangement terms
+  amount          Decimal   @db.Decimal(10, 2)        // $1,200.00
+  frequency       String    // "monthly" | "quarterly" | "per_invoice" | "annual"
+  method          String    // "pre_charge" (card on file) | "direct_payment" (donor calls) | "standing_order"
+  description     String?   // Human-readable explanation of how it works
+
+  // Once-per-period logic: only apply once per calendar period
+  // When frequency="monthly", only the first invoice in a calendar month gets the credit
+  oncePerPeriod   Boolean   @default(true) @map("once_per_period")
+
+  isActive        Boolean   @default(true) @map("is_active")
+  createdAt       DateTime  @default(now()) @map("created_at")
+  updatedAt       DateTime  @updatedAt @map("updated_at")
+
+  @@map("vendor_donor_arrangements")
+  @@index([vendorId])
+  @@index([isActive])
 }
 
 // =============================================================================
