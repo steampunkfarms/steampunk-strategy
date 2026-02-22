@@ -79,21 +79,38 @@ from:(alerts@bank OR statements@bank) subject:(statement OR alert OR transaction
 
 ## Step 3 — For each matching email, extract:
 
+Emails from Amazon, Chewy, and Tractor Supply often contain MULTIPLE line
+items spanning different expense categories. A single TSC receipt might have
+equine feed, cat litter, and wood shavings. The scanner must extract LINE
+ITEMS, not just the total.
+
 ```typescript
+interface ExtractedLineItem {
+  description: string;     // "Purina Senior Active Horse Feed 50lb"
+  quantity: number;
+  unitPrice: number;
+  totalPrice: number;
+  categorySlug: string;    // auto-assigned via keyword matching
+  confidence: number;      // 0-1, how sure the category match is
+}
+
 interface ExtractedTransaction {
   // From email metadata
   senderEmail: string;
   senderName: string;
   subject: string;
-  date: string;          // email date
+  date: string;
   gmailMessageId: string;
 
   // From email body / attachments (use Claude API to extract)
-  vendorName: string;    // map to vendor slug
-  amount: number;
+  vendorName: string;
+  vendorSlug: string;
+  totalAmount: number;
   invoiceNumber?: string;
-  description: string;
-  paymentMethod?: string; // "card", "check", "ach", etc.
+  paymentMethod?: string;
+
+  // Line items (critical for mixed-category receipts)
+  lineItems: ExtractedLineItem[];
 
   // Attachment info
   hasAttachment: boolean;
@@ -102,6 +119,61 @@ interface ExtractedTransaction {
 
   // Classification
   type: 'invoice' | 'receipt' | 'payment_confirmation' | 'shipping' | 'statement';
+}
+```
+
+### Line item → category mapping
+
+Use keyword matching to auto-assign categories. When a keyword matches,
+assign the subcategory. The PARENT category rolls up for 990 reporting.
+
+```typescript
+const CATEGORY_KEYWORDS: Array<{ pattern: RegExp; slug: string }> = [
+  // Feed — by species/type
+  { pattern: /\b(hay|timothy|orchard|bermuda|alfalfa)\b/i, slug: 'feed-hay' },
+  { pattern: /\b(grain|pellet|mash|crumble|scratch)\b.*\b(bulk|ton|pallet)\b/i, slug: 'feed-grain-bulk' },
+  { pattern: /\b(horse|equine|mare|gelding|pony)\b.*\b(feed|grain|pellet)\b/i, slug: 'feed-equine' },
+  { pattern: /\b(feed|grain|pellet)\b.*\b(horse|equine)\b/i, slug: 'feed-equine' },
+  { pattern: /\b(pig|hog|swine|potbelly)\b.*\b(feed|grain|pellet)\b/i, slug: 'feed-pig' },
+  { pattern: /\b(feed|grain)\b.*\b(pig|hog|swine)\b/i, slug: 'feed-pig' },
+  { pattern: /\b(goat|caprine)\b.*\b(feed|grain|pellet)\b/i, slug: 'feed-goat' },
+  { pattern: /\b(feed|grain)\b.*\b(goat)\b/i, slug: 'feed-goat' },
+  { pattern: /\b(dog food|kibble|canine)\b/i, slug: 'feed-dog' },
+  { pattern: /\b(cat food|kitten food|feline)\b/i, slug: 'feed-cat' },
+  { pattern: /\b(supplement|mineral|salt block|electrolyte|probiotic)\b/i, slug: 'feed-supplements' },
+  { pattern: /\b(treat|snack|cookie)\b.*\b(horse|dog|cat|pig|goat)\b/i, slug: 'feed-treats' },
+
+  // Animal care supplies
+  { pattern: /\b(pee pad|wee pad|puppy pad|training pad|potty pad)\b/i, slug: 'care-pads-diapers' },
+  { pattern: /\b(diaper|belly band|wrap)\b/i, slug: 'care-pads-diapers' },
+  { pattern: /\b(bed|sleeping pad|crate pad|blanket|mat)\b.*\b(dog|pet|animal)\b/i, slug: 'care-bedding' },
+  { pattern: /\b(dog bed|pet bed|orthopedic bed|crate mat)\b/i, slug: 'care-bedding' },
+  { pattern: /\b(cat litter|kitty litter|clumping|litter box)\b/i, slug: 'care-cat-litter' },
+  { pattern: /\b(syringe|bandage|gauze|wound|first aid|thermometer)\b/i, slug: 'care-infirmary' },
+  { pattern: /\b(shampoo|brush|comb|nail clip|grooming)\b/i, slug: 'care-grooming' },
+  { pattern: /\b(toy|ball|chew|kong|enrichment|puzzle)\b/i, slug: 'care-enrichment' },
+  { pattern: /\b(bowl|feeder|waterer|trough|bucket)\b/i, slug: 'care-feeders' },
+  { pattern: /\b(fence|fencing|gate|panel|corral|pen)\b/i, slug: 'care-fencing' },
+  { pattern: /\b(bleach|cleaner|disinfect|mop|broom|soap)\b/i, slug: 'care-cleaning' },
+  { pattern: /\b(shaving|bedding|straw|wood chip|pine)\b/i, slug: 'care-bedding' },
+  { pattern: /\b(shovel|rake|pitchfork|wheelbarrow|hose)\b/i, slug: 'care-general' },
+
+  // Vet
+  { pattern: /\b(vet|veterinar|animal hospital|clinic)\b/i, slug: 'vet-routine' },
+  { pattern: /\b(medication|rx|prescription|antibiotic|dewormer)\b/i, slug: 'vet-medications' },
+
+  // Shelter
+  { pattern: /\b(rent|lease)\b/i, slug: 'shelter-lease' },
+  { pattern: /\b(repair|maintenance|plumbing|electrical|roof)\b/i, slug: 'shelter-maintenance' },
+];
+
+function categorizeLineItem(description: string): { slug: string; confidence: number } {
+  for (const rule of CATEGORY_KEYWORDS) {
+    if (rule.pattern.test(description)) {
+      return { slug: rule.slug, confidence: 0.85 };
+    }
+  }
+  return { slug: 'care-general', confidence: 0.3 }; // Low confidence = flag for review
 }
 ```
 
@@ -141,7 +213,9 @@ function matchVendor(senderEmail: string, senderName: string, subject: string): 
 
 ## Step 4 — Import into The Bridge database
 
-For each extracted transaction, create records:
+For vendors with simple invoices (Elston's, Star Milling) — one transaction
+per email. For mixed-receipt vendors (Amazon, Chewy, Tractor Supply) —
+one transaction per LINE ITEM so each lands in the right expense category.
 
 ```typescript
 import { PrismaClient } from '@prisma/client';
@@ -149,64 +223,89 @@ const prisma = new PrismaClient();
 
 async function importTransaction(data: ExtractedTransaction) {
   // 1. Resolve vendor
-  const vendorSlug = matchVendor(data.senderEmail, data.senderName, data.subject);
-  const vendor = vendorSlug
-    ? await prisma.vendor.findUnique({ where: { slug: vendorSlug } })
+  const vendor = data.vendorSlug
+    ? await prisma.vendor.findUnique({ where: { slug: data.vendorSlug } })
     : null;
 
-  // 2. Try to match expense category from vendor type
-  const categorySlug = vendor?.type === 'feed_supplier' ? 'feed-grain'
-    : vendor?.type === 'veterinary' ? 'veterinary'
-    : vendor?.type === 'supplies' ? 'admin' // default, needs manual review
-    : null;
-  const category = categorySlug
-    ? await prisma.expenseCategory.findUnique({ where: { slug: categorySlug } })
-    : null;
+  // 2. Simple invoices (Elston's, Star Milling) — one record per email
+  if (['elstons', 'star-milling'].includes(data.vendorSlug)) {
+    const categorySlug = data.vendorSlug === 'elstons' ? 'feed-hay' : 'feed-grain-bulk';
+    const category = await prisma.expenseCategory.findUnique({ where: { slug: categorySlug } });
 
-  // 3. Create transaction
-  const transaction = await prisma.transaction.create({
-    data: {
-      date: new Date(data.date),
-      amount: data.amount,
-      type: data.type === 'payment_confirmation' ? 'revenue' : 'expense',
-      description: data.description,
-      reference: data.invoiceNumber ?? data.gmailMessageId,
-      paymentMethod: data.paymentMethod ?? 'card',
-      vendorId: vendor?.id ?? null,
-      categoryId: category?.id ?? null,
-      source: 'gmail_import',
-      fiscalYear: new Date(data.date).getFullYear(),
-      status: 'pending', // Always pending — needs manual verification
-      createdBy: 'gmail-scanner',
-    },
-  });
-
-  // 4. If there's an attachment, create a Document record
-  if (data.hasAttachment && data.attachmentFilename) {
-    await prisma.document.create({
+    const tx = await prisma.transaction.create({
       data: {
-        filename: data.attachmentFilename,
-        mimeType: data.attachmentMimeType ?? 'application/pdf',
-        fileSize: 0, // Will be updated when file is actually downloaded
-        type: data.type === 'invoice' ? 'invoice' : 'receipt',
+        date: new Date(data.date),
+        amount: data.totalAmount,
+        type: 'expense',
+        description: `${data.vendorName} — ${data.invoiceNumber || data.subject}`,
+        reference: data.invoiceNumber ?? data.gmailMessageId,
+        paymentMethod: data.paymentMethod ?? 'card',
         vendorId: vendor?.id ?? null,
-        transactionId: transaction.id,
-        status: 'pending', // Needs OCR/parsing
-        source: 'gmail',
-        uploadedBy: 'gmail-scanner',
+        categoryId: category?.id ?? null,
+        source: 'gmail_import',
+        fiscalYear: new Date(data.date).getFullYear(),
+        status: 'pending',
+        createdBy: 'gmail-scanner',
       },
     });
+
+    // Check Star Milling arrangement
+    if (data.vendorSlug === 'star-milling') {
+      console.log(`  ⚡ Star Milling invoice $${data.totalAmount} — check Ironwood arrangement`);
+    }
+
+    return [tx];
   }
 
-  // 5. Check for Star Milling + Ironwood arrangement
-  if (vendorSlug === 'star-milling' && data.type !== 'payment_confirmation') {
-    // Call the arrangement check API
-    const checkUrl = `${process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'}/api/arrangements/check?vendorId=star-milling&date=${data.date}&amount=${data.amount}`;
-    console.log(`  ⚡ Star Milling invoice detected — check arrangement: ${checkUrl}`);
-    console.log(`     Farm paid: $${data.amount}. Check if Ironwood $1,200 credit applies this month.`);
+  // 3. Mixed-receipt vendors (Amazon, Chewy, TSC) — one record per line item
+  const transactions = [];
+
+  if (data.lineItems.length > 0) {
+    for (const item of data.lineItems) {
+      const category = await prisma.expenseCategory.findUnique({
+        where: { slug: item.categorySlug },
+      });
+
+      const tx = await prisma.transaction.create({
+        data: {
+          date: new Date(data.date),
+          amount: item.totalPrice,
+          type: 'expense',
+          description: `${data.vendorName}: ${item.description} (x${item.quantity})`,
+          reference: data.gmailMessageId,
+          paymentMethod: data.paymentMethod ?? 'card',
+          vendorId: vendor?.id ?? null,
+          categoryId: category?.id ?? null,
+          source: 'gmail_import',
+          fiscalYear: new Date(data.date).getFullYear(),
+          status: item.confidence < 0.5 ? 'needs_review' : 'pending',
+          createdBy: 'gmail-scanner',
+        },
+      });
+      transactions.push(tx);
+    }
+  } else {
+    // No line items extracted — import as single transaction
+    const tx = await prisma.transaction.create({
+      data: {
+        date: new Date(data.date),
+        amount: data.totalAmount,
+        type: 'expense',
+        description: `${data.vendorName} — ${data.subject}`,
+        reference: data.gmailMessageId,
+        paymentMethod: data.paymentMethod ?? 'card',
+        vendorId: vendor?.id ?? null,
+        categoryId: null, // Unknown — flag for review
+        source: 'gmail_import',
+        fiscalYear: new Date(data.date).getFullYear(),
+        status: 'needs_review',
+        createdBy: 'gmail-scanner',
+      },
+    });
+    transactions.push(tx);
   }
 
-  return transaction;
+  return transactions;
 }
 ```
 
@@ -278,16 +377,34 @@ Gmail Invoice Scan — Feb 21, 2026
 Scanned: 47 emails matching financial queries
 Skipped: 12 (marketing/promo), 8 (already imported)
 
-Imported 27 transactions:
-  Elston's Hay & Grain .... 6 invoices ($4,230.00 total)
-  Star Milling Co. ........ 4 invoices ($3,847.50 total)
-    ⚡ Feb invoice: Ironwood $1,200 credit applies
-    ⚡ Feb 2nd delivery: Ironwood already applied this month
-  Amazon .................. 8 orders ($1,247.33 total)
-  Chewy ................... 5 orders ($892.15 total)
-  Tractor Supply .......... 2 receipts ($341.80 total)
-  Unknown vendor .......... 2 (flagged for manual review)
+Imported 54 transactions from 27 emails:
 
+  Elston's Hay & Grain ........ 6 invoices, 6 transactions
+    feed-hay: $4,230.00
+  Star Milling Co. ............ 4 invoices, 4 transactions
+    feed-grain-bulk: $3,847.50
+    ⚡ Feb: Ironwood $1,200 credit applied
+    ⚡ Feb 2nd delivery: Ironwood already applied — full farm expense
+  Tractor Supply .............. 8 receipts, 23 transactions (line items)
+    feed-equine: $1,240.00 (specialty bagged feeds)
+    feed-pig: $380.00 (senior pig feed)
+    feed-goat: $165.00
+    feed-cat: $420.00 (barn cat food)
+    care-cat-litter: $340.00
+    care-general: $185.00
+    ⚠ 3 items low-confidence category — flagged for review
+  Chewy ...................... 5 orders, 9 transactions
+    feed-dog: $620.00
+    feed-cat: $185.00
+    care-bedding: $87.15
+  Amazon .................... 4 orders, 12 transactions
+    care-pads-diapers: $245.00
+    care-bedding: $189.00 (dog beds, infirmary pads)
+    care-cleaning: $127.33
+    care-general: $98.00
+    ⚠ 2 items low-confidence — flagged for review
+
+Needs review: 5 transactions (low-confidence category match)
 Documents created: 19 (pending OCR/parsing)
 Star Milling arrangements: 2 checked, 1 Ironwood credit applied
 

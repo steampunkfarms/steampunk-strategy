@@ -6,41 +6,81 @@ async function main() {
   console.log('🌱 Seeding The Bridge database...');
 
   // --- Expense Categories ---
+  // Designed around actual barn operations, not just 990 lines.
+  // Parent categories roll up to 990 reporting; subcategories give
+  // operational visibility into what's actually eating the budget.
   const categories = [
     { name: 'Feed & Grain', slug: 'feed-grain', icon: 'Wheat', color: 'brass-gold', irs990Line: 'Part IX, Line 25', children: [
-      { name: 'Hay', slug: 'feed-grain-hay' },
-      { name: 'Grain & Pellets', slug: 'feed-grain-pellets' },
-      { name: 'Supplements', slug: 'feed-grain-supplements' },
-      { name: 'Treats', slug: 'feed-grain-treats' },
+      // Bulk delivery — Elston's, Star Milling
+      { name: 'Hay (bulk delivery)', slug: 'feed-hay' },
+      { name: 'Grain & Pellets (bulk delivery)', slug: 'feed-grain-bulk' },
+      // Specialty bagged feeds — mostly Tractor Supply runs
+      { name: 'Equine Feed (specialty/bagged)', slug: 'feed-equine' },
+      { name: 'Pig Feed (senior/specialty)', slug: 'feed-pig' },
+      { name: 'Goat Feed (digestive/dental)', slug: 'feed-goat' },
+      { name: 'Dog Food', slug: 'feed-dog' },
+      { name: 'Cat Food', slug: 'feed-cat' },
+      { name: 'Supplements & Minerals', slug: 'feed-supplements' },
+      { name: 'Treats', slug: 'feed-treats' },
+    ]},
+    { name: 'Animal Care Supplies', slug: 'animal-care', icon: 'Heart', color: 'gauge-pink', irs990Line: 'Part IX, Line 25', children: [
+      // The "everything else" that keeps 60+ animals comfortable
+      { name: 'Pee Pads & Diapers', slug: 'care-pads-diapers' },
+      { name: 'Bedding & Sleeping Pads', slug: 'care-bedding' },
+      { name: 'Cat Litter', slug: 'care-cat-litter' },
+      { name: 'Infirmary Supplies', slug: 'care-infirmary' },
+      { name: 'Grooming & Hygiene', slug: 'care-grooming' },
+      { name: 'Enrichment & Toys', slug: 'care-enrichment' },
+      { name: 'Bowls, Feeders & Waterers', slug: 'care-feeders' },
+      { name: 'Fencing & Containment', slug: 'care-fencing' },
+      { name: 'Cleaning Supplies', slug: 'care-cleaning' },
+      { name: 'General Barn Supplies', slug: 'care-general' },
     ]},
     { name: 'Veterinary', slug: 'veterinary', icon: 'Stethoscope', color: 'gauge-green', irs990Line: 'Part IX, Line 25', children: [
-      { name: 'Routine Care', slug: 'vet-routine' },
-      { name: 'Emergency', slug: 'vet-emergency' },
-      { name: 'Medications', slug: 'vet-medications' },
-      { name: 'Farrier', slug: 'vet-farrier' },
+      { name: 'Routine Care & Checkups', slug: 'vet-routine' },
+      { name: 'Emergency & Urgent', slug: 'vet-emergency' },
+      { name: 'Medications & Rx', slug: 'vet-medications' },
+      { name: 'Farrier & Hoof Care', slug: 'vet-farrier' },
+      { name: 'Dental', slug: 'vet-dental' },
+      { name: 'Lab Work & Diagnostics', slug: 'vet-lab' },
+      { name: 'End-of-Life Care', slug: 'vet-end-of-life' },
     ]},
-    { name: 'Shelter & Facilities', slug: 'shelter', icon: 'Home', color: 'tardis-glow' },
+    { name: 'Shelter & Facilities', slug: 'shelter', icon: 'Home', color: 'tardis-glow', children: [
+      { name: 'Lease / Rent', slug: 'shelter-lease' },
+      { name: 'Maintenance & Repairs', slug: 'shelter-maintenance' },
+      { name: 'Capital Improvements', slug: 'shelter-improvements' },
+    ]},
     { name: 'Utilities', slug: 'utilities', icon: 'Zap', color: 'gauge-amber', children: [
       { name: 'Electric', slug: 'utilities-electric' },
       { name: 'Water', slug: 'utilities-water' },
       { name: 'Propane', slug: 'utilities-propane' },
-      { name: 'Trash/Waste', slug: 'utilities-waste' },
-      { name: 'Internet/Phone', slug: 'utilities-telecom' },
+      { name: 'Trash / Waste Removal', slug: 'utilities-waste' },
+      { name: 'Internet / Phone', slug: 'utilities-telecom' },
     ]},
     { name: 'Soap Production (COGS)', slug: 'soap-cogs', icon: 'Droplets', color: 'gauge-blue', children: [
-      { name: 'Raw Materials', slug: 'soap-materials' },
+      { name: 'Raw Materials (oils, lye, additives)', slug: 'soap-materials' },
       { name: 'Packaging', slug: 'soap-packaging' },
       { name: 'Labels & Printing', slug: 'soap-labels' },
       { name: 'Shipping Supplies', slug: 'soap-shipping' },
     ]},
-    { name: 'Office & Admin', slug: 'admin', icon: 'FileText', color: 'brass-muted' },
+    { name: 'Fundraising', slug: 'fundraising', icon: 'Megaphone', color: 'brass-gold', irs990Line: 'Part IX, Line 25', children: [
+      { name: 'Fundraising Services', slug: 'fundraising-services' },
+      { name: 'Postage & Shipping', slug: 'fundraising-postage' },
+      { name: 'Marketing & Outreach', slug: 'fundraising-marketing' },
+      { name: 'Event Costs', slug: 'fundraising-events' },
+    ]},
+    { name: 'Office & Admin', slug: 'admin', icon: 'FileText', color: 'brass-muted', children: [
+      { name: 'Government Fees & Filings', slug: 'admin-gov-fees' },
+      { name: 'Bank Fees', slug: 'admin-bank-fees' },
+      { name: 'Admin Services', slug: 'admin-services' },
+      { name: 'Office Supplies', slug: 'admin-supplies' },
+    ]},
     { name: 'Insurance', slug: 'insurance', icon: 'Shield', color: 'gauge-green' },
     { name: 'Technology', slug: 'technology', icon: 'Monitor', color: 'tardis-glow', children: [
-      { name: 'Software/SaaS', slug: 'tech-saas' },
+      { name: 'Software / SaaS', slug: 'tech-saas' },
       { name: 'Hardware', slug: 'tech-hardware' },
       { name: 'Hosting & Domains', slug: 'tech-hosting' },
     ]},
-    { name: 'Marketing & Outreach', slug: 'marketing', icon: 'Megaphone', color: 'brass-gold' },
     { name: 'Transportation', slug: 'transportation', icon: 'Truck', color: 'brass-warm', children: [
       { name: 'Fuel', slug: 'transport-fuel' },
       { name: 'Vehicle Maintenance', slug: 'transport-maintenance' },
