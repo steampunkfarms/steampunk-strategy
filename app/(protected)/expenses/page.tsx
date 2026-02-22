@@ -1,3 +1,5 @@
+export const dynamic = 'force-dynamic';
+
 import Link from 'next/link';
 import { Receipt, Plus, Upload, Filter, TrendingUp, ArrowUpDown } from 'lucide-react';
 import { getTransactions, getExpenseCategories, getExpenseSummary } from '@/lib/queries';
