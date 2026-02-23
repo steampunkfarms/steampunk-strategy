@@ -43,7 +43,7 @@ transactions that were flagged as commingled during the year.
 ### 2. Run the Gmail scanner (if not already done)
 
 The scanner detects suspected commingled items and adds them to the queue
-automatically. See GMAIL_SCANNING_INSTRUCTIONS.md, Step 7.
+automatically. See docs/gmail-scanning-instructions.md, Step 7.
 
 ### 3. Add manual items
 

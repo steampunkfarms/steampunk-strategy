@@ -935,7 +935,7 @@ steampunk-strategy/
 ├── middleware.ts                          Auth guard
 ├── CLAUDE.md                             AI assistant instructions
 ├── FAMILY_OF_SITES.md                    Cross-site inventory
-├── GMAIL_SCANNING_INSTRUCTIONS.md        Scanner guide
+├── docs/gmail-scanning-instructions.md   Scanner guide
 ├── vercel.json                           6 cron jobs
 ├── next.config.js                        Server actions config
 ├── tailwind.config.js                    TARDIS theme
