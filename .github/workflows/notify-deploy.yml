@@ -1,0 +1,25 @@
+name: Notify Deploy
+
+on:
+  push:
+    branches: [main]
+
+jobs:
+  notify:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Ping Orchestrator
+        run: |
+          curl -s -X POST \
+            "${{ secrets.ORCHESTRATOR_WEBHOOK_URL }}/api/webhooks/deploy" \
+            -H "Authorization: Bearer ${{ secrets.ORCHESTRATOR_CRON_SECRET }}" \
+            -H "Content-Type: application/json" \
+            -d '{
+              "app": "strategy",
+              "repo": "${{ github.repository }}",
+              "branch": "${{ github.ref_name }}",
+              "commitSha": "${{ github.sha }}",
+              "commitMsg": ${{ toJson(github.event.head_commit.message) }},
+              "pushedBy": "${{ github.actor }}",
+              "githubRunId": "${{ github.run_id }}"
+            }'
