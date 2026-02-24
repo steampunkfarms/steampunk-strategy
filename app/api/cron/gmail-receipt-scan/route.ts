@@ -215,7 +215,33 @@ export async function GET(request: Request) {
 
         // Flag Star Milling invoices for Ironwood arrangement check
         if (vendorSlug === 'star-milling' && !isRevenue) {
-          console.log(`[Gmail Scan] Star Milling invoice detected — check Ironwood arrangement for ${txDate.toISOString().split('T')[0]}, amount: $${amount}`);
+          console.log(`[Gmail Scan] Star Milling invoice detected — check Ironwood arrangement for ${txDate.toISOString().split('T')[0]}, amount: ${amount}`);
+        }
+
+        // RaiseRight: also create deposit/enrollment records
+        if (vendorSlug === 'raiseright') {
+          const subLower = headers.subject.toLowerCase();
+          if ((subLower.includes('deposit') || subLower.includes('earning')) && amount) {
+            const period = `${txDate.getFullYear()}-${String(txDate.getMonth() + 1).padStart(2, '0')}`;
+            const existingDeposit = await prisma.raiserightDeposit.findFirst({
+              where: { depositDate: txDate, amount },
+            });
+            if (!existingDeposit) {
+              await prisma.raiserightDeposit.create({
+                data: {
+                  depositDate: txDate,
+                  amount,
+                  period,
+                  source: 'gmail_scan',
+                  sourceId: messageId,
+                  notes: `Auto-detected from email: ${headers.subject.slice(0, 100)}`,
+                },
+              });
+              console.log(`[Gmail Scan] RaiseRight deposit detected: ${amount} for ${period}`);
+            }
+          } else if (subLower.includes('enroll') || subLower.includes('new participant')) {
+            console.log(`[Gmail Scan] RaiseRight enrollment notification: ${headers.subject}`);
+          }
         }
       } catch (e) {
         const errorMsg = e instanceof Error ? e.message : String(e);

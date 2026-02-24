@@ -11,6 +11,7 @@ import {
   Building2,
   Activity,
   Eye,
+  CreditCard,
   LogOut,
   ChevronRight,
   Gauge,
@@ -31,6 +32,12 @@ const navigation = [
       { name: 'Expenses', href: '/expenses', icon: Receipt },
       { name: 'Documents', href: '/documents', icon: FileText },
       { name: 'Vendors', href: '/vendors', icon: Building2 },
+    ],
+  },
+  {
+    label: 'Revenue',
+    items: [
+      { name: 'Retail Charity', href: '/retail-charity', icon: CreditCard },
     ],
   },
   {

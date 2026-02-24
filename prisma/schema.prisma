@@ -637,3 +637,118 @@ model AuditLog {
   @@index([createdAt])
   @@index([userId])
 }
+
+// =============================================================================
+// RAISERIGHT — Gift card fundraising earnings tracking
+// Data sourced from manual CSV exports and Gmail notification scanning.
+// No API available — RaiseRight does not offer one.
+// =============================================================================
+
+// Individual CSV upload batches
+model RaiserightImport {
+  id              String    @id @default(uuid())
+  filename        String
+  reportType      String    @map("report_type") // "earnings_summary" | "order_history" | "deposit_slip" | "participant_list"
+  periodStart     DateTime? @map("period_start")
+  periodEnd       DateTime? @map("period_end")
+  recordCount     Int       @map("record_count")
+  totalEarnings   Decimal?  @map("total_earnings") @db.Decimal(10, 2)
+  status          String    @default("imported") // "imported" | "reviewed" | "archived"
+  notes           String?
+
+  // Relations
+  earnings        RaiserightEarning[]
+  orders          RaiserightOrder[]
+
+  importedAt      DateTime  @default(now()) @map("imported_at")
+  importedBy      String?   @map("imported_by")
+
+  @@map("raiseright_imports")
+  @@index([reportType])
+  @@index([importedAt])
+}
+
+// Per-participant earnings (from "Earnings Summary by Participant" CSV)
+model RaiserightEarning {
+  id              String    @id @default(uuid())
+  importId        String    @map("import_id")
+  import          RaiserightImport @relation(fields: [importId], references: [id], onDelete: Cascade)
+
+  participantName String    @map("participant_name")
+  participantEmail String?  @map("participant_email")
+  earnings        Decimal   @db.Decimal(10, 2)
+  orderCount      Int?      @map("order_count")
+  period          String    // "2026-02" or "2026-Q1" — normalized from CSV date range
+  fiscalYear      Int       @map("fiscal_year")
+
+  createdAt       DateTime  @default(now()) @map("created_at")
+
+  @@map("raiseright_earnings")
+  @@index([period])
+  @@index([fiscalYear])
+  @@index([participantName])
+}
+
+// Individual orders (from "Order History by Participant" CSV)
+model RaiserightOrder {
+  id              String    @id @default(uuid())
+  importId        String    @map("import_id")
+  import          RaiserightImport @relation(fields: [importId], references: [id], onDelete: Cascade)
+
+  orderDate       DateTime  @map("order_date")
+  participantName String    @map("participant_name")
+  brandName       String    @map("brand_name")
+  denomination    Decimal   @db.Decimal(10, 2)     // Face value of the card
+  earningRate     Decimal   @map("earning_rate") @db.Decimal(5, 4) // e.g., 0.0400 for 4%
+  earnings        Decimal   @db.Decimal(10, 2)
+  productType     String?   @map("product_type")   // "egift" | "physical" | "reload"
+  poNumber        String?   @map("po_number")
+
+  createdAt       DateTime  @default(now()) @map("created_at")
+
+  @@map("raiseright_orders")
+  @@index([orderDate])
+  @@index([brandName])
+  @@index([participantName])
+}
+
+// Monthly deposit records (from "Monthly Deposit Slip" CSV or Gmail notifications)
+model RaiserightDeposit {
+  id              String    @id @default(uuid())
+  depositDate     DateTime  @map("deposit_date")
+  amount          Decimal   @db.Decimal(10, 2)
+  period          String    // "2026-02"
+  orderCount      Int?      @map("order_count")
+  participantCount Int?     @map("participant_count")
+  source          String    @default("csv") // "csv" | "gmail_scan" | "manual"
+  sourceId        String?   @map("source_id") // Gmail message ID or import ID
+  notes           String?
+
+  // Link to the transaction record once reconciled
+  transactionId   String?   @unique @map("transaction_id")
+
+  createdAt       DateTime  @default(now()) @map("created_at")
+
+  @@map("raiseright_deposits")
+  @@index([depositDate])
+  @@index([period])
+}
+
+// Participant roster snapshot (from "Participant Summary" CSV)
+model RaiserightParticipant {
+  id              String    @id @default(uuid())
+  name            String
+  email           String?   @unique
+  enrolledAt      DateTime? @map("enrolled_at")
+  lastOrderDate   DateTime? @map("last_order_date")
+  totalEarnings   Decimal   @default(0) @map("total_earnings") @db.Decimal(10, 2)
+  totalOrders     Int       @default(0) @map("total_orders")
+  status          String    @default("active") // "active" | "dormant" | "new"
+
+  updatedAt       DateTime  @updatedAt @map("updated_at")
+  createdAt       DateTime  @default(now()) @map("created_at")
+
+  @@map("raiseright_participants")
+  @@index([status])
+  @@index([lastOrderDate])
+}

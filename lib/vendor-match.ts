@@ -14,6 +14,7 @@ const VENDOR_PATTERNS: Record<string, string[]> = {
   'square': ['square'],
   'paypal': ['paypal'],
   'patreon': ['patreon'],
+  'meta-platforms': ['meta platforms', 'meta platforms inc', 'facebook payments', 'meta pay'],
   'ironwood-pigs': ['ironwood', 'ironwoodpigs', 'ironwood pig sanctuary'],
 };
 

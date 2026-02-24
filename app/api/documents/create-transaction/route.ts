@@ -17,6 +17,15 @@ const VENDOR_TYPE_CATEGORY: Record<string, string> = {
   services: 'professional-services',
 };
 
+// Revenue source → income category slug mapping
+const INCOME_SOURCE_CATEGORY: Record<string, string> = {
+  facebook_activity: 'social-media-revenue',
+  facebook_content: 'social-media-revenue',
+  instagram: 'social-media-revenue',
+  ad_revenue: 'advertising-revenue',
+  affiliate: 'affiliate-revenue',
+};
+
 /**
  * POST /api/documents/create-transaction
  *
@@ -82,11 +91,23 @@ export async function POST(request: Request) {
       vendorSlug = doc.vendor.slug;
     }
 
+    // --- Determine transaction type ---
+    const isIncome = extracted.transactionType === 'income'
+      || extracted.documentType === 'remittance'
+      || extracted.documentType === 'payout_statement';
+
     // --- Category inference ---
     let categoryId: string | null = null;
     if (overrides?.categorySlug) {
       const cat = await prisma.expenseCategory.findUnique({ where: { slug: overrides.categorySlug } });
       if (cat) categoryId = cat.id;
+    } else if (isIncome && extracted.incomeSource) {
+      // Try income-specific category first
+      const catSlug = INCOME_SOURCE_CATEGORY[extracted.incomeSource];
+      if (catSlug) {
+        const cat = await prisma.expenseCategory.findUnique({ where: { slug: catSlug } });
+        if (cat) categoryId = cat.id;
+      }
     } else if (vendorId) {
       const vendor = vendorId === doc.vendorId && doc.vendor
         ? doc.vendor
@@ -112,9 +133,17 @@ export async function POST(request: Request) {
     const fiscalYear = txDate.getFullYear();
 
     const vendorName = extracted.vendor?.name ?? 'Unknown';
-    const docTypeLabel = extracted.documentType ?? doc.docType;
     const refNum = extracted.referenceNumber ? ` #${extracted.referenceNumber}` : '';
-    const description = `${vendorName} — ${docTypeLabel}${refNum}`;
+
+    // Build description based on income vs expense
+    let description: string;
+    if (isIncome) {
+      const program = extracted.incomeProgram ?? extracted.incomeSource ?? 'payout';
+      description = `${vendorName} — ${program}${refNum}`;
+    } else {
+      const docTypeLabel = extracted.documentType ?? doc.docType;
+      description = `${vendorName} — ${docTypeLabel}${refNum}`;
+    }
 
     const flags: string[] = [];
     if (confidence < 0.85) {
@@ -122,6 +151,14 @@ export async function POST(request: Request) {
     }
     if (!vendorMatched) {
       flags.push(`Vendor not matched: "${vendorName}"`);
+    }
+
+    // For income with multi-period line items, flag for period allocation review
+    const hasMultiPeriod = isIncome
+      && extracted.lineItems?.length > 1
+      && extracted.lineItems.some(li => li.periodStart);
+    if (hasMultiPeriod) {
+      flags.push('Multi-period payout — review period allocation');
     }
 
     const status = flags.length > 0 ? 'flagged' : 'pending';
@@ -132,7 +169,7 @@ export async function POST(request: Request) {
       data: {
         date: txDate,
         amount: txAmount,
-        type: 'expense',
+        type: isIncome ? 'income' : 'expense',
         description,
         reference: extracted.referenceNumber ?? null,
         paymentMethod: extracted.paymentMethod ?? null,
@@ -143,7 +180,7 @@ export async function POST(request: Request) {
         fiscalYear,
         status,
         flagReason,
-        taxDeductible: true, // Farm expenses are generally deductible
+        taxDeductible: !isIncome, // Expenses deductible; income is not
       },
     });
 
@@ -155,10 +192,41 @@ export async function POST(request: Request) {
       },
     });
 
-    // --- CostTracker entries for hay/grain line items ---
+    // --- Journal note for multi-period income breakdown ---
+    if (isIncome && extracted.lineItems?.length > 0) {
+      const periodLines = extracted.lineItems
+        .filter(li => li.periodStart)
+        .map(li => {
+          const start = li.periodStart ?? '?';
+          const end = li.periodEnd ?? '?';
+          const ref = li.payoutRef ? ` (ref: ${li.payoutRef})` : '';
+          return `${start} → ${end}: ${li.total.toFixed(2)} — ${li.description}${ref}`;
+        });
+
+      if (periodLines.length > 0) {
+        const source = extracted.incomeSource ?? 'unknown';
+        const program = extracted.incomeProgram ?? '';
+        const noteContent = [
+          `Period breakdown for ${vendorName} ${source} payout:`,
+          ...periodLines,
+          program ? `\nProgram: ${program}` : '',
+        ].filter(Boolean).join('\n');
+
+        await prisma.journalNote.create({
+          data: {
+            content: noteContent,
+            type: 'note',
+            transactionId: transaction.id,
+            vendorSlug: vendorSlug ?? undefined,
+          },
+        });
+      }
+    }
+
+    // --- CostTracker entries for hay/grain line items (expenses only) ---
     const costTrackerEntries: Array<{ id: string; item: string; unitCost: number; seasonalFlag: string | null }> = [];
 
-    if (vendorSlug && extracted.lineItems?.length) {
+    if (!isIncome && vendorSlug && extracted.lineItems?.length) {
       const vendor = await prisma.vendor.findUnique({ where: { slug: vendorSlug } });
 
       if (vendor && ['feed_supplier'].includes(vendor.type)) {
@@ -254,11 +322,17 @@ export async function POST(request: Request) {
         details: JSON.stringify({
           source: 'receipt_scan',
           documentId,
+          transactionType: isIncome ? 'income' : 'expense',
           vendorMatched,
           vendorSlug,
           confidence,
           costTrackerEntries: costTrackerEntries.length,
           flags,
+          ...(isIncome ? {
+            incomeSource: extracted.incomeSource,
+            incomeProgram: extracted.incomeProgram,
+            periodCount: extracted.lineItems?.filter(li => li.periodStart).length ?? 0,
+          } : {}),
         }),
       },
     });

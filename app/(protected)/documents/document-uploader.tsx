@@ -300,7 +300,12 @@ export default function DocumentUploader({ onComplete }: { onComplete?: () => vo
 
               <div>
                 <label className="text-[11px] text-slate-500 uppercase tracking-wider block mb-1">Type</label>
-                <span className="badge badge-blue text-[10px]">{extracted.documentType}</span>
+                <div className="flex items-center gap-2">
+                  <span className="badge badge-blue text-[10px]">{extracted.documentType}</span>
+                  {extracted.transactionType === 'income' && (
+                    <span className="badge badge-green text-[10px]">INCOME</span>
+                  )}
+                </div>
               </div>
 
               <div>
@@ -329,6 +334,22 @@ export default function DocumentUploader({ onComplete }: { onComplete?: () => vo
                 </div>
               </div>
             </div>
+
+            {/* Income source/program */}
+            {extracted.transactionType === 'income' && (extracted.incomeSource || extracted.incomeProgram) && (
+              <div className="flex items-center gap-3 text-xs">
+                {extracted.incomeSource && (
+                  <span className="text-slate-400">
+                    Source: <span className="text-brass-warm">{extracted.incomeSource.replace(/_/g, ' ')}</span>
+                  </span>
+                )}
+                {extracted.incomeProgram && (
+                  <span className="text-slate-400">
+                    Program: <span className="text-brass-warm">{extracted.incomeProgram}</span>
+                  </span>
+                )}
+              </div>
+            )}
 
             {/* Subtotals */}
             {(extracted.subtotal || extracted.tax) && (
@@ -364,8 +385,14 @@ export default function DocumentUploader({ onComplete }: { onComplete?: () => vo
                       <thead>
                         <tr className="bg-console-light">
                           <th className="px-3 py-1.5 text-left text-slate-500 font-medium">Item</th>
-                          <th className="px-3 py-1.5 text-right text-slate-500 font-medium">Qty</th>
-                          <th className="px-3 py-1.5 text-right text-slate-500 font-medium">Unit Price</th>
+                          {extracted.transactionType === 'income' ? (
+                            <th className="px-3 py-1.5 text-left text-slate-500 font-medium">Period</th>
+                          ) : (
+                            <>
+                              <th className="px-3 py-1.5 text-right text-slate-500 font-medium">Qty</th>
+                              <th className="px-3 py-1.5 text-right text-slate-500 font-medium">Unit Price</th>
+                            </>
+                          )}
                           <th className="px-3 py-1.5 text-right text-slate-500 font-medium">Total</th>
                         </tr>
                       </thead>
@@ -373,12 +400,22 @@ export default function DocumentUploader({ onComplete }: { onComplete?: () => vo
                         {extracted.lineItems.map((item, i) => (
                           <tr key={i}>
                             <td className="px-3 py-1.5 text-slate-300">{item.description}</td>
-                            <td className="px-3 py-1.5 text-right text-slate-400 font-mono">
-                              {item.quantity ?? '—'}{item.unit ? ` ${item.unit}` : ''}
-                            </td>
-                            <td className="px-3 py-1.5 text-right text-slate-400 font-mono">
-                              {item.unitPrice != null ? formatCurrency(item.unitPrice) : '—'}
-                            </td>
+                            {extracted.transactionType === 'income' ? (
+                              <td className="px-3 py-1.5 text-slate-400 text-[10px] font-mono">
+                                {item.periodStart && item.periodEnd
+                                  ? `${item.periodStart} → ${item.periodEnd}`
+                                  : '—'}
+                              </td>
+                            ) : (
+                              <>
+                                <td className="px-3 py-1.5 text-right text-slate-400 font-mono">
+                                  {item.quantity ?? '—'}{item.unit ? ` ${item.unit}` : ''}
+                                </td>
+                                <td className="px-3 py-1.5 text-right text-slate-400 font-mono">
+                                  {item.unitPrice != null ? formatCurrency(item.unitPrice) : '—'}
+                                </td>
+                              </>
+                            )}
                             <td className="px-3 py-1.5 text-right text-slate-200 font-mono">
                               {formatCurrency(item.total)}
                             </td>

@@ -32,6 +32,9 @@ const VENDOR_MAP: Record<string, string> = {
   'patreon': 'patreon',
   'ironwoodpigs': 'ironwood-pigs',
   'ironwood': 'ironwood-pigs',
+  'raiseright': 'raiseright',
+  'shopwithscrip': 'raiseright',
+  'glscrip': 'raiseright',
 };
 
 export function matchVendorSlug(senderEmail: string, senderName: string, subject: string): string | null {
@@ -187,6 +190,8 @@ export const FINANCIAL_QUERIES = [
   'from:(elstonhayandgrain.com OR starmilling.com OR chewy.com OR amazon.com OR tractorsupply.com) subject:(invoice OR bill OR order OR receipt OR confirmation)',
   // Payment confirmations
   'from:(noreply@zeffy.com OR stripe.com OR square.com OR paypal.com OR patreon.com) subject:(payment OR receipt OR confirmation OR donation)',
+  // RaiseRight notifications (deposits, signups, order confirmations)
+  'from:(raiseright.com OR shopwithscrip.com OR glscrip.com) subject:(deposit OR earning OR enrollment OR order OR statement)',
   // Broader catch-all with attachments
   '(invoice OR receipt OR "payment confirmation" OR "order confirmation") has:attachment',
 ];

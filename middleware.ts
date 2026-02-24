@@ -12,6 +12,7 @@ export async function middleware(request: NextRequest) {
     pathname.startsWith('/api/webhooks') ||
     pathname.startsWith('/api/cron') ||
     pathname.startsWith('/api/health') ||
+    pathname.startsWith('/api/raiseright/stats') ||
     pathname.startsWith('/_next') ||
     pathname === '/favicon.ico'
   ) {
