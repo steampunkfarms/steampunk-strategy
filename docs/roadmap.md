@@ -35,6 +35,7 @@ None currently active.
 ### Meta Comment Harvester + Facebook Matching (#19–20)
 **Priority:** High — SocialIdentityQueue + Link/Skip/New UI
 **Note:** Reconcile process needs redesign. Page-scoped user ID matching.
+**Full spec:** `docs/specs/social-enrichment-pipeline.md` — covers 6 interaction channels (comments, DMs, mentions, likes, Business Discovery, lead forms) with API endpoints, matching logic, and compliance notes. Comments are highest-signal, lowest-effort starting point. Postmaster `engagementScanner.ts` already pulls comments — extend to populate Studiolo donor fields (Memory Ledger, Relationship Notes, Animals Connected To).
 **Repo:** steampunk-studiolo
 
 ### Donor Directory — Merge from Search Results
@@ -74,6 +75,21 @@ None currently active.
 1. **Donor profile gift list** — `SendReceiptButton` exists but isn't imported into `GiftHistoryTable` rows. Wire it inline on un-receipted gifts.
 2. **`/receipts` queue page** — only `/receipts/[giftId]` view exists. Either redirect `/receipts` to `/atelier/queue` or build a proper receipt queue at `/receipts` showing all `receiptSent = false` gifts.
 3. **Stewardship thank-you queue** — shows pending count + quick-log modal but no receipt send. Add `SendReceiptButton` to the `StewardshipQueue` thank-you tab items.
+**Repo:** steampunk-studiolo
+
+### Donor BI Dashboard — Advanced Reporting & Visualizations
+**Priority:** Medium-High — directly informs fundraising strategy
+**What exists:** `/reports` page (retention, repeat rate, time-to-thank, YoY, segments, monthly trends), `/metrics` page (DRM pipeline, recurring donors, segment distribution), 14+ report API endpoints (network density, family/employer clusters, donor-animal connections, commerce metrics). Custom SVG charts in `MetricsCharts.tsx` — functional but limited.
+**Gaps to fill:**
+1. **Charting upgrade** — Replace hand-coded SVG with Recharts (already in TARDIS). Enables: line charts with tooltips, stacked area charts, interactive legends, responsive resizing.
+2. **Donor Lifetime Value (LTV)** — Calculate per-donor LTV from gift history. Segment by acquisition source, first-gift amount, giving frequency. Show LTV distribution curve + top-N donors.
+3. **Cohort analysis** — Group donors by first-gift month/year. Track retention curves (what % of Jan 2025 cohort gave again in Feb, Mar, etc.). Identify which acquisition periods produce the stickiest donors.
+4. **Acquisition channel attribution** — Where did each donor come from? (Zeffy, Stripe, Patreon, Facebook fundraiser, Cleanpunk purchase, direct mail, event). Pie chart + conversion funnel per channel.
+5. **Giving pattern heatmap** — Calendar heatmap showing gift density by day-of-week × month. Identify seasonal peaks, giving Tuesday impact, recurring gift clustering.
+6. **Interactive drill-down** — Click any segment/bar/slice → see the actual donor list. "Show me the 12 lapsed donors from Q3" without leaving the dashboard.
+7. **Board-ready exports** — One-click PDF report with key metrics, charts, narrative summary (Claude-generated). CSV export for any data table. Useful for board meetings, grant applications, annual reports.
+8. **Predictive indicators** — At-risk recurring donors (payment failures, declining frequency), projected monthly revenue, churn probability scores.
+**Placement:** New tab on existing `/reports` page or standalone `/intelligence` page. Link in sidebar under Overview section alongside existing Reports/Metrics.
 **Repo:** steampunk-studiolo
 
 ### PayPal Gmail Enrichment (#25)
@@ -124,6 +140,24 @@ None currently active.
 4. **Document assembly:** Generates completed application on Steampunk Farms letterhead as PDF. Checks submission method (email vs. USPS vs. portal upload) and ensures all required attachments are included (990, board list, budget, program narrative, etc.).
 5. **Submission tracking:** Tracks status (draft → submitted → pending → awarded/declined), stores copies of all submitted materials, logs follow-up dates.
 6. **Compliance evidence pack:** Auto-assembles transparency docs (The Fine Print data, annual reports, donor impact stats) as supporting materials that demonstrate organizational efficiency.
+
+**API integrations for grant discovery:**
+- **GiveButter API** — Search their platform for matching campaigns, trending causes, peer fundraising intelligence. Env var: `GIVEBUTTER_API_KEY` (key obtained, store in Vercel).
+- **Benevity API** (`developer.benevity.org`) — Corporate giving programs, workplace giving matches, employer match discovery. Could surface which companies match employee donations to animal sanctuaries.
+- **Give Lively** (`givelively.org`) — APIs or Zapier connectors for cross-platform donation data, campaign performance benchmarks.
+- **Trustpilot API** — Not for grants directly, but for social proof cultivation. Aggregate reviews/ratings to strengthen grant applications ("community trust score"). Could also optimize off-Studiolo donation cultivation practices.
+
+**Grant source scrapers (periodic cron or on-demand):**
+- `grants.ca.gov` — California state grants filtered by nonprofit applicant type
+- `grantadvisor.org/funders` — Funder profiles with application experience ratings
+- `tgci.com/funding-sources/california` — California foundations, top funders, corporate givers
+- `humanepro.org/grant-listings` — Animal welfare-specific grant listings (highest signal for us)
+- Claude parses each source → extracts grant name, funder, deadline, eligibility, amount range → inserts into GMS `Grant` table → deduplicates against existing records
+
+**Contact → Intro Letter tool:**
+- Paste contact info or a webpage URL → GMS scrapes the page for org details, mission, funding focus
+- Claude drafts a tailored intro letter: short Steampunk Farms bio, mission alignment points, links to online presence (Rescue Barn, The Fine Print transparency data, Cogworks)
+- Letter generated on Steampunk Farms letterhead as PDF, ready to email or print
 **Repo:** steampunk-studiolo (GMS module) + steampunk-strategy (calendar integration via Google Calendar API)
 
 ### Narrative Arc Tracking (#3) + AI Learning from Edits (#4)
@@ -164,6 +198,35 @@ None currently active.
 ### Sentiment Alerting
 **Priority:** Medium — auto-flag donors with negative sentiment trend for proactive outreach
 **Scope:** Detect declining sentiment patterns, create attention queue items
+
+### The Living Studiolo — AI-Narrative DRM Modules
+**Priority:** Long-term / visionary — these are the differentiators that make our CRM unprecedented
+**Philosophy:** Turn Studiolo from a database into a semi-autonomous, story-aware system. AI-driven whimsy with human oversight to maintain authenticity. Each module is independently buildable.
+**What already exists (foundation):** Sentiment analysis + cue harvesting (Handoff 004), HUG compliance validator, friction detection, attention queue, donor cabinet tiers (Corrispondente → Confidente → Intimo → Famiglia), Atelier receipt personalization, voice engine with 5-layer prompt stack.
+
+**7 modules (each can ship independently):**
+
+1. **Sentient Cabinet Simulator** — Predictive dashboard where AI forecasts donor responses to proposed dispatches based on engagement history. Visual "cabinet map" showing layered intimacy progress per donor, with "hidden rooms" that unlock virtually before real dispatches. Warns if over-sending risks "mystique erosion." *Builds on:* existing cabinet tier fields + sentiment scores + gift history.
+
+2. **Echo Listener** — NLP on aggregated, anonymized reply corpus to evolve the Studiolo's shared language. Suggests new dispatch types or tone shifts (e.g., "goat stories get 3x reply rate — prioritize system-wide"). Builds a "collective memory" and surfaces rare Epistola ideas. *Builds on:* cue harvesting + DonorInboxMessage corpus + voice engine context-assembler.
+
+3. **Whimsy Generator** — Custom AI module for small, unpredictable HUG gestures: one-off poem about a donor's favorite animal, a riddle as a Bollettino attachment, AI-suggested handwritten note prompts. Scarcity-controlled (one per donor per quarter). Blends digital and analog. *Builds on:* animal affinity pipeline + voice engine + Atelier dispatch types.
+
+4. **Relational Depth Oracle** — Relationship health scoring based on HUG metrics (reply reciprocity, cue richness, engagement cadence). Recommends "nudge paths" — sequenced touches leading toward deeper cabinets. ML-modeled "belonging trajectories" predict loyalty spikes and suggest interventions. *Builds on:* sentiment analysis + friction detection + cabinet tiers.
+
+5. **Mystique Guardian** — Rules-based AI watchdog enforcing restraint. Blocks over-frequent sends, flags generic language, alerts on "urgency theater." Includes a "reveal simulator" to preview how unlock pacing feels over time. Ensures scarcity feels organic, not arbitrary. *Builds on:* HUG validator + send frequency tracking + voice guardrails.
+
+6. **Eternal Ledger Scribe** — Long-term AI that archives and revives lapsed relationships. Generates re-engagement dispatches referencing ancient cues ("We still think of you when the goats gather at the fence at sunset"). Predicts rekindling windows using lifecycle models. *Builds on:* lapsed donor detection + cue archive + attention queue.
+
+7. **Veil Piercer** — Detects unspoken donor needs by inferring life events from reply tone shifts and (with opt-in) social media signals. Proactive care: flags a lost parent or pet, pushes a notification with preloaded contextual message for Curator to review, edit, send in near real-time. *Social integration spec:* Meta Graph API friend-level profile access (requires donor opt-in + consent flow) to scan for life event cues. Ethical boundary: all inference is surfaced to human Curator for approval, never auto-sent. *Builds on:* sentiment analysis + Meta API integration + attention queue + push notifications.
+   - **Social enrichment tooling:** Consider scraping services (e.g., ScapeCreators or similar) for Facebook comment/post harvesting at scale — load Memory Ledger, Relationship Notes, and Animals Connected To fields from supporter comments on our posts. Also evaluate Reddit API for community mentions/sentiment. Pinterest API (`developers.pinterest.com/docs/api/v5/`) more relevant to Postmaster (pin → sub-post parsing) than donor enrichment.
+
+**Phased approach:**
+- **Phase A:** Mystique Guardian (closest to existing HUG validator — extend, don't rebuild) + Relational Depth Oracle (scoring layer on existing data)
+- **Phase B:** Echo Listener (batch analysis of reply corpus) + Eternal Ledger Scribe (lapsed reactivation sequences)
+- **Phase C:** Whimsy Generator (creative AI module) + Sentient Cabinet Simulator (predictive dashboard)
+- **Phase D:** Veil Piercer (social listening — requires consent framework + Meta permissions review)
+**Repo:** steampunk-studiolo
 
 ---
 
@@ -212,6 +275,12 @@ None currently active.
 2. **Platform-specific media picker** — UI in Content Storm to add 2-5 media URLs, assign each to platforms, mark one as primary.
 3. **Instagram carousel API** — Requires sequential container creation per image, then a single publish call referencing all containers. Different from single-image flow.
 4. **Platform mapping logic** — Facebook gets all images as album. Instagram gets carousel or single. TikTok/YouTube get video only. Fallback to primary if platform doesn't support multi.
+**Repo:** steampunk-postmaster
+
+### Pinterest + Reddit API Integration
+**Priority:** Low — exploratory
+**Pinterest API** (`developers.pinterest.com/docs/api/v5/`): Pin parsing for Content Storm sub-post generation. A pin with multiple images could map to carousel renditions or individual platform posts. More relevant to Content Storm than donor enrichment.
+**Reddit API** (`reddit.com/dev/api`): Monitor sanctuary-related subreddits (r/rescueanimals, r/AnimalRescue, etc.) for mentions, community sentiment, and content amplification opportunities. Could also surface grant leads posted in nonprofit subreddits.
 **Repo:** steampunk-postmaster
 
 ### TikTok + UTM/Click Tracking (#7, #10)
@@ -312,6 +381,51 @@ The Bray expansion, Academy Levels 3–4, Mercantile phases, Surrender Deflectio
 **Priority:** Medium — polish, not launch-blocking
 **Scope:** Both sites' account pages feel like raw "user" admin panels. Rebrand as a personal hub — suppress "user" language in favor of "My Orders", "My Impact", etc. Show recent orders in reverse chronological order at the top (the thing people come to check). Cleanpunk: order history + reorder links. Rescue Barn: donation history, active recurring gifts, campaign participation. Both: friendly welcome with first name, not email/ID.
 **Repos:** steampunk-rescuebarn + cleanpunk-shop
+
+### Sanctuary Commons — AI-Curated Community Layer
+**Priority:** Post-launch, phased — transforms Rescue Barn from static site to living community
+**What it is:** Every page on Rescue Barn becomes a contextual discussion space. Authenticated users see threaded comments tied to wherever they are — Resources, TNR guides, Academy lessons, Bray posts, animal profiles. AI (Claude) runs background crons to curate, moderate, extract knowledge, and feed insights back to admin.
+
+**Named communities (inter-linked, cross-referenceable):**
+- **The Corral** — General sanctuary-wide forum (default)
+- **The Forge** — TNR / feral-to-barn-cat technical advice (high-signal, practical)
+- **The Academy** — Per-lesson-group + per-lesson + per-worksheet discussions
+- **The Bray** — One thread per blog post
+- **The Pasture** — Vetted-only (fosters/volunteers/partners) via existing middleware tier
+- **The Punkyard** — Fun / memes / success stories / photo sharing
+
+**Moderation pipeline (zero tolerance, automated + human escalation):**
+- On-submit Claude safety call scores toxicity 0–1
+- Auto-approve < 0.3, pending review 0.3–0.7, auto-mute > 0.7 + formal warning
+- 3 strikes → 7-day suspension, 5 → permanent ban (logged in Studiolo donor profile)
+- Report button → admin queue in Studiolo
+
+**AI cron jobs (Postmaster, daily + hourly for hot pages):**
+1. **Thread Refactor** — Collapse duplicates, create logical sub-threads, generate "Community Wisdom" summary cards at top of page
+2. **Content Extraction** — TNR/Resources: extract new trapping scenarios → proposed guide additions with diff preview for admin. Academy: per-lesson sentiment, criticism themes, user-suggested improvements → "Revise Lesson X" dashboard card
+3. **Knowledge Harvest** — Best answers auto-tagged "Verified Tip", surfaced in Community Knowledge Base sidebar
+4. **Social Amplification** — High-engagement threads (karma threshold) → Postmaster storm generator → polished social posts
+
+**v1:** Basic threaded comments on all pages + full moderation pipeline + Studiolo admin queue
+**v2:** AI crons + Barn Sage RAG chatbot (page-specific, answers from site content + approved threads) + Wisdom Cards + karma/flair system ("Barn Kitten" → "TNR Wrangler" → "Forge Elder")
+**v3:** Live "Hayloft Hours" AMA rooms, Academy co-creation (user-submitted worksheet revisions/quiz questions), photo/video proof uploads with AI animal tagging, premium subscriber lounge, auto-content PRs to the site itself
+
+**Architecture fit:** Supabase tables (shared auth already in place), RLS + `is_admin()` + new `is_vetted()`, Supabase Realtime for instant updates, Postmaster as AI brain, insights push to Studiolo via internal API. Zero PII leakage — donor linking server-side in Studiolo only.
+**Repos:** steampunk-rescuebarn (UI, tables) + steampunk-postmaster (AI crons) + steampunk-studiolo (admin queue, donor linking)
+
+### Steampunk for You (SFY) — Resource Hub for Small Sanctuaries & Adopters
+**Priority:** Long-term / visionary — post-Rescue Barn stabilization
+**Status question:** May be absorbed by Resources section + Advocacy Academy + Sanctuary Commons as they develop. Revisit whether SFY needs to be a distinct entity or is just a curated view of existing content.
+**What it is:** A public resource hub sharing the tools, knowledge, and templates Steampunk Farms has built — aimed at other small sanctuaries trying to professionalize operations, people interested in adopting farmed animals, and related community integrations. Turns our internal infrastructure into outward-facing value.
+**Potential content:**
+- Sanctuary startup guides (501(c)(3) filing, insurance, zoning)
+- TNR resource templates (already on Rescue Barn, could be expanded)
+- Donor management best practices (anonymized HUG methodology)
+- Financial transparency templates (based on The Fine Print)
+- Advocacy Academy curriculum licensing or adaptation
+- Directory of partner sanctuaries, adoption resources, supply vendors
+**Revenue model:** Free core resources + premium templates/courses + consulting referrals. Could integrate with Sanctuary Commons community for peer support.
+**Repos:** Could be a section of steampunk-rescuebarn (`/steampunk-for-you`) or a standalone site
 
 ### RaiseRight
 Habit-formation onboarding redesign (#118), Impact page needs Krystal's 60-second how-to video (#119)
