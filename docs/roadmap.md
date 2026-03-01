@@ -569,7 +569,17 @@ Habit-formation onboarding redesign (#118), Impact page needs Krystal's 60-secon
 - M7/M8: Strategy cron auth enforced in all environments (removed production-only guard)
 - M15/M16: Patreon + PayPal webhooks return 500 on processing error (enables retry)
 
-**Deferred:** Prisma 7 / Tailwind 4 / ESLint 10 major version upgrades added to roadmap as low-priority post-launch items. Remaining security audit items (C2/C3/C4, H1/H4-H7/H11-H16, M1-M20) tracked in Priority One.
+**Full Audit Fixes (additional pass):**
+- C1 (Code Quality): Hardened Studiolo `ai-extract` against prompt injection — system prompt separation, XML-delimited user content, input length limits, type validation
+- E1: Committed 35+ uncommitted Atelier feature files (receipt automation, tax summaries, send engine — 3,860 lines)
+- E2: Created Studiolo `.env.example` with all 35 env vars
+- E4: Updated Postmaster `.env.example` with 24 missing vars
+- E7: Deleted 7 merged branches + 3 stale stashes across 4 repos
+- E9: Added security headers to Studiolo, Strategy, Cleanpunk (X-Frame-Options, X-Content-Type-Options, Referrer-Policy)
+- E12: Added `.nvmrc` (Node 20) to all 5 repos
+- Restored accidentally-deleted Studiolo middleware.ts
+
+**Deferred:** Prisma 7 / Tailwind 4 / ESLint 10 major version upgrades added to roadmap as low-priority post-launch items. Remaining security + audit items tracked in Priority One (cross-site-audit.md + FULL_AUDIT_REPORT.md).
 
 ### Session 8 — Audit Fixes + Cleanup
 **Completed:** 2026-03-01
