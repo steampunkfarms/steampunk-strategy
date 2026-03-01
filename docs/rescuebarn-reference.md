@@ -138,7 +138,7 @@ All tables have RLS enabled. Admin access uses `is_admin(auth.uid())` SECURITY D
 | `VERCEL_OIDC_TOKEN` | Vercel OIDC auth |
 | Social: `FACEBOOK_*`, `INSTAGRAM_*`, `X_*` | Social media integrations |
 | Google: `GOOGLE_CLIENT_*`, `GOOGLE_REFRESH_TOKEN` | Google OAuth/API |
-| `SQUARE_ACCESS_TOKEN/APPLICATION_ID/ENVIRONMENT` | Square integration |
+| ~~`SQUARE_ACCESS_TOKEN/APPLICATION_ID/ENVIRONMENT`~~ | Square (retired — removed from all repos) |
 | `PATREON_WEBHOOK_SECRET` | Patreon webhooks |
 | `ZAPIER_WEBHOOK_SECRET` | Zapier automation |
 
@@ -148,7 +148,7 @@ All tables have RLS enabled. Admin access uses `is_admin(auth.uid())` SECURITY D
 
 **Consumes:** Postmaster public API → resident animal data (1hr ISR). Shared Supabase instance with Cleanpunk Shop.
 
-**External links:** Zeffy (`give.steampunkfarms.org`) for fee-free donations · Square Online subdomains (`soap.`, `store.`, `seeds.`) · Patreon (`storytellers.steampunkfarms.org`) · Amazon Wish List (`amazon.steampunkfarms.org`).
+**External links:** Zeffy (`give.steampunkfarms.org`) for fee-free donations · Square Online subdomains (`soap.`, `store.`, `seeds.`) — legacy/retired · Patreon (`storytellers.steampunkfarms.org`) · Amazon Wish List (`amazon.steampunkfarms.org`).
 
 **Sibling sites:** Studiolo (steampunkstudiolo.org, admin hub) · Postmaster (postmaster.steampunkstudiolo.org, content automation) · Cleanpunk Shop (cleanpunk.shop, soap storefront) · TARDIS/Strategy (steampunk-strategy, compliance/financial).
 

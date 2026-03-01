@@ -74,9 +74,9 @@
 | Subdomain | Service | Purpose |
 |-----------|---------|---------|
 | `give.steampunkfarms.org` | Zeffy | Fee-free donations |
-| `soap.steampunkfarms.org` | Square Online | Legacy soap shop |
-| `store.steampunkfarms.org` | Square Online | General mercantile |
-| `seeds.steampunkfarms.org` | Square Online | Seed fundraiser |
+| `soap.steampunkfarms.org` | Square Online | Legacy/retired — replaced by Cleanpunk Shop |
+| `store.steampunkfarms.org` | Square Online | Legacy/retired |
+| `seeds.steampunkfarms.org` | Square Online | Legacy/retired |
 | `amazon.steampunkfarms.org` | Amazon | Wish list redirect |
 | `storytellers.steampunkfarms.org` | TBD (Patreon?) | Membership/community |
 
@@ -149,7 +149,7 @@
 | Rescue Barn | Supabase | Auth, user roles, newsletter | Supabase SDK |
 | Cleanpunk Shop | Supabase | Customer auth | Supabase SDK (shared project) |
 | Cleanpunk Shop | Medusa | Products, orders, inventory | Medusa JS SDK |
-| Studiolo | Square | Sales data | Square API sync |
+| Studiolo | Square | Historical sales data only | Retired — replaced by Medusa daily sync from Cleanpunk Shop |
 | Studiolo | Gmail/Outlook | Donor email history | Graph API + Gmail API |
 | Postmaster | Social Platforms | Social media posts | Direct API (FB, IG, X) |
 
@@ -216,7 +216,7 @@ All managed through Postmaster (direct API posting to FB, IG, X):
 |---------|---------|---------|
 | **Zeffy** | Fee-free donations | Rescue Barn (give.steampunkfarms.org) |
 | **Stripe** | Payment processing | Studiolo (tracking), Cleanpunk Shop (checkout), Rescue Barn (subscriptions) |
-| **Square** | POS + online | Studiolo (tracking), Cleanpunk Shop (payments), legacy subdomains |
+| **Square** | POS + online (retired) | Historical data only — removed from all repos, replaced by Medusa/Stripe |
 | **Patreon** | Recurring membership | Postmaster (webhooks), Studiolo (sync) |
 | **PayPal** | Donations | Postmaster (webhooks), Studiolo (import) |
 | **Microsoft 365** | Staff email, calendar, contacts | Studiolo (Graph API) |

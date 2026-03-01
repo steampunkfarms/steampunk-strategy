@@ -74,7 +74,7 @@ When building specs or Claude Code handoffs, `view` the relevant reference card(
 | `tardis.steampunkstudiolo.org` | TARDIS (Vercel) |
 | `home.cleanpunk.shop` | Cleanpunk Shop (Vercel) |
 | `give.steampunkfarms.org` | Zeffy (donations — migrating to Rescue Barn/Stripe) |
-| `soap/store/seeds.steampunkfarms.org` | Square Online (legacy) |
+| `soap/store/seeds.steampunkfarms.org` | Square Online (legacy/retired) |
 | `amazon.steampunkfarms.org` | Amazon Wish List |
 | `shop.volcanvalleyapple.farm` | → cleanpunk.shop/partner/vvaf |
 | `shop.clairemontwater.store` | → cleanpunk.shop/partner/cws |
@@ -121,7 +121,7 @@ When building specs or Claude Code handoffs, `view` the relevant reference card(
 | Patreon → Postmaster | → Studiolo | Member events | Webhook chain |
 | PayPal → Postmaster | → Studiolo | Payment events | Webhook chain |
 | Studiolo | Gmail/Outlook | Donor email scanning | Graph API + Gmail API |
-| Studiolo | Square/Stripe/Zeffy | Transaction sync | Platform APIs |
+| Studiolo | Stripe/Zeffy | Transaction sync | Platform APIs (Square retired) |
 | Postmaster | FB/IG/X | Social posts | Direct API |
 | Orchestrator | All 5 apps | Cron dispatch | HTTP + INTERNAL_SECRET |
 | GitHub Actions | Orchestrator | Deploy events | Webhook |
@@ -155,7 +155,7 @@ When building specs or Claude Code handoffs, `view` the relevant reference card(
 |---------|---------|---------|
 | Zeffy | Rescue Barn | Fee-free donations (migrating to Stripe) |
 | Stripe | Cleanpunk + Studiolo + Rescue Barn | Payments + tracking |
-| Square | Cleanpunk + Studiolo | POS + legacy storefronts (leaving all sites ASAP) |
+| Square | — | Retired — removed from all repos, replaced by Medusa/Stripe. Historical data only |
 | Patreon | Postmaster → Studiolo | Membership webhook chain |
 | PayPal | Postmaster → Studiolo | Donation webhook chain |
 | Microsoft 365 | Studiolo | Graph API (email, contacts, friction) |

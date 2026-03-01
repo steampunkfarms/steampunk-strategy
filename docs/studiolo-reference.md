@@ -118,7 +118,7 @@ All crons export `GET` (Vercel requirement). Auth via `CRON_SECRET` or `INTERNAL
 
 **Dedup/Merge:** 3-tier matching (transaction ID → email → fuzzy name). Preview before merge. Cross-channel consolidation scripts. DataHealthDashboard monitors quality.
 
-**Multi-Channel Intelligence:** 8+ import paths (Zeffy, PayPal, Stripe, Square, Gmail scan for Zelle/Venmo, Every.org webhooks, GoFundMe, Benevity CSV, Meta fundraisers). Each resolves to Donor via `afterGiftCreated()` hook. Channel-specific importers with platform-aware parsing.
+**Multi-Channel Intelligence:** 8+ import paths (Zeffy, PayPal, Stripe, Gmail scan for Zelle/Venmo, Every.org webhooks, GoFundMe, Benevity CSV, Meta fundraisers). Each resolves to Donor via `afterGiftCreated()` hook. Channel-specific importers with platform-aware parsing.
 
 **Stewardship Touch System:** Touch records log every donor interaction (call, email, visit, gift). `composedVia` tracks origin (PERSONAL_COMPOSE, AUTOMATED, BULK_COMPOSE, MANUAL_LOG). CommsJournalEntry stores full email content. Emails send via Graph API through Padrona's mailbox, appearing in Outlook Sent Items.
 
@@ -137,7 +137,7 @@ All crons export `GET` (Vercel requirement). Auth via `CRON_SECRET` or `INTERNAL
 **Microsoft 365:** `AZURE_AD_CLIENT_ID`, `AZURE_AD_CLIENT_SECRET`, `AZURE_AD_TENANT_ID`
 **Google:** `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET`, `GOOGLE_REFRESH_TOKEN`
 **Social:** `FACEBOOK_ACCESS_TOKEN`, `FACEBOOK_PAGE_ID`, `INSTAGRAM_ACCOUNT_ID`, `X_API_KEY`, `X_API_SECRET`, `X_ACCESS_TOKEN`, `X_ACCESS_TOKEN_SECRET`
-**Payments:** `PAYPAL_CLIENT_ID`, `PAYPAL_CLIENT_SECRET`, `PAYPAL_SANDBOX`, `STRIPE_SECRET_KEY`, `SQUARE_ACCESS_TOKEN`
+**Payments:** `PAYPAL_CLIENT_ID`, `PAYPAL_CLIENT_SECRET`, `PAYPAL_SANDBOX`, `STRIPE_SECRET_KEY`
 **Integrations:** `PATREON_WEBHOOK_SECRET`, `GOFUNDME_CLIENT_ID`, `GOFUNDME_CLIENT_SECRET`, `GOFUNDME_ORG_ID`, `EVERYORG_WEBHOOK_SECRET`
 **Webhooks:** `SHARED_WEBHOOK_SECRET`, `CLEANPUNK_WEBHOOK_SECRET`, `ZAPIER_WEBHOOK_SECRET`
 **Cross-Site:** `POSTMASTER_PUBLIC_API_URL` (defaults to `https://postmaster.steampunkstudiolo.org`)
@@ -162,7 +162,7 @@ All crons export `GET` (Vercel requirement). Auth via `CRON_SECRET` or `INTERNAL
 | Zeffy | Read | Import + reconciliation crons |
 | PayPal | Read | API sync + Gmail scan fallback |
 | Stripe | Read | API sync |
-| Square | Read | API sync (transactions + Cleanpunk products) |
+| Square | Read | Retired — historical transaction data only (replaced by Medusa daily sync from Cleanpunk Shop) |
 | Patreon | Read | Gmail scan + webhook |
 | Every.org | Read | Webhook receiver |
 | GoFundMe | Read | API + webhook |
@@ -181,7 +181,7 @@ No dedicated TARDIS financial management system exists in Studiolo. Financial da
 - **Gift model** serves as the unified financial record (amount, date, channel, source, campaign, tax year)
 - **Per-channel importers** in `app/api/import/` normalize transactions from 8+ platforms
 - **Zeffy reconciliation** crons handle monthly payment matching
-- **Commerce metrics** aggregate across Square, Stripe, PayPal, Patreon, GoDaddy
+- **Commerce metrics** aggregate across Stripe, PayPal, Patreon, GoDaddy (Square historical data only)
 - **Budget tracking** via BudgetItem/BudgetSnapshot models at `app/api/budget/`
 - **Fee analysis** at `/api/commerce/fee-report`
 - **Dedup system** prevents double-counting across channels
