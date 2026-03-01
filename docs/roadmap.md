@@ -69,11 +69,6 @@ None currently active.
 **Scope:** New expense categories, /api/sync/stripe-mercantile, SalesTaxSummary model, CDTFA compliance task seed
 **Repo:** steampunk-strategy
 
-### Square Component Removal (#26)
-**Priority:** Verify during testing — all Square leaving all sites
-**Repos:** all
-**Rescue Barn status:** Confirmed no `process.env.SQUARE` usage in src — env vars are dead weight, safe to remove.
-
 ---
 
 ## 🟡 Deferred — Lower Priority
@@ -174,7 +169,7 @@ GA4 + FB Pixel (#3), Visual polish (#4), Accessibility sweep 8 items (#8–15)
 **Resolved this session:**
 - #7 TARDIS_API_URL: ✅ local `.env.local` set, `.env.local.example` updated. **Needs Vercel env var added** (Production + Preview) → `TARDIS_API_URL=https://tardis.steampunkstudiolo.org`
 - #6 `vercel env pull`: Not a code bug — just a Vercel↔local sync gap. Once TARDIS_API_URL is in Vercel, `vercel env pull` will produce a complete file.
-- Square env vars (`SQUARE_ACCESS_TOKEN`, `SQUARE_APPLICATION_ID`, `SQUARE_ENVIRONMENT`) confirmed dead in Rescue Barn — zero `process.env.SQUARE` references in src. Safe to remove from `.env.local` and Vercel when convenient.
+- Square env vars: removed across all repos (Square Component Removal #26 completed 2026-03-01).
 
 ### Post-Launch
 The Bray expansion, Academy Levels 3–4, Mercantile phases, Surrender Deflection, Shelter Visibility, Piggie Smalls' Hub
@@ -195,6 +190,10 @@ Habit-formation onboarding redesign (#118), Impact page needs Krystal's 60-secon
 ---
 
 ## 🟢 Completed (Archive)
+
+### Square Component Removal (#26)
+**Completed:** 2026-03-01
+**Scope:** Removed all Square API integration across all repos. Studiolo: deleted Square sync route (541 lines), intelligence endpoint, SquareSyncPanel, SoapCustomerImport, CSV parser, cleanpunk-intelligence.ts, enrichment scripts. TARDIS: removed Square from Gmail vendor map + queries, vendor-match.ts, .env.example, schema comment. Cleanpunk Shop: deleted seed-from-square route. Postmaster: removed Square from Gmail scanner + payment detection. CleanpunkOrder table preserved as frozen historical data. Replaced by Medusa → Studiolo daily cron.
 
 ### Gmail Compliance Notice Scanner (TARDIS Phase B, #94)
 **Completed:** 2026-03-01

@@ -11,7 +11,6 @@ const VENDOR_PATTERNS: Record<string, string[]> = {
   'chewy': ['chewy', 'chewy.com'],
   'zeffy': ['zeffy'],
   'stripe': ['stripe'],
-  'square': ['square'],
   'paypal': ['paypal'],
   'patreon': ['patreon'],
   'meta-platforms': ['meta platforms', 'meta platforms inc', 'facebook payments', 'meta pay'],

@@ -27,7 +27,6 @@ const VENDOR_MAP: Record<string, string> = {
   'tractor supply': 'tractor-supply',
   'zeffy': 'zeffy',
   'stripe': 'stripe',
-  'square': 'square',
   'paypal': 'paypal',
   'patreon': 'patreon',
   'ironwoodpigs': 'ironwood-pigs',
@@ -189,7 +188,7 @@ export const FINANCIAL_QUERIES = [
   // Invoices & bills from known vendors
   'from:(elstonhayandgrain.com OR starmilling.com OR chewy.com OR amazon.com OR tractorsupply.com) subject:(invoice OR bill OR order OR receipt OR confirmation)',
   // Payment confirmations
-  'from:(noreply@zeffy.com OR stripe.com OR square.com OR paypal.com OR patreon.com) subject:(payment OR receipt OR confirmation OR donation)',
+  'from:(noreply@zeffy.com OR stripe.com OR paypal.com OR patreon.com) subject:(payment OR receipt OR confirmation OR donation)',
   // RaiseRight notifications (deposits, signups, order confirmations)
   'from:(raiseright.com OR shopwithscrip.com OR glscrip.com) subject:(deposit OR earning OR enrollment OR order OR statement)',
   // Broader catch-all with attachments
