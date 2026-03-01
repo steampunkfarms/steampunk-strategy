@@ -2,7 +2,7 @@
 
 > Deferred work items and active handoffs. Reviewed at each planning session.
 > Location: steampunk-strategy/docs/roadmap.md
-> Last updated: 2026-03-01 (session 9 — health audit fixes)
+> Last updated: 2026-03-01 (session 9 — security audit fixes)
 
 ---
 
@@ -13,6 +13,37 @@ None currently active.
 ---
 
 ## 🔴 Priority One — Do Next
+
+### Security Hardening — Remaining Audit Items
+
+**Priority:** High — pre-launch blocker for webhook-facing endpoints
+**Source:** Cross-site security audit (2026-03-01), `/Users/ericktronboll/Projects/cross-site-audit.md`
+**Fixed this session:** C1 (CRON_SECRET exposure), H2/H3/H8/H9/H10/H17/H18 (timing attacks, fail-open, session leak), M7/M8/M15/M16 (cron auth, webhook errors)
+
+**Still open — Critical:**
+- **C2:** PayPal webhook signature verification (Postmaster) — needs webhook ID from PayPal dashboard
+- **C3:** Cleanpunk admin auth replacement — single shared SHA256 password, no MFA, no audit trail. Replace with Supabase Auth or Azure AD.
+- **C4 + H14:** Enable RLS on 6 Cleanpunk Supabase tables (cart_events, cart_emails, abandoned_cart_sends, product_drafts, ingredients, enhancement_tracker)
+
+**Still open — High:**
+- **H1:** Patreon webhook MD5→SHA256 HMAC (verify Patreon supports it)
+- **H4-H6:** Studiolo webhook signature verification (inbound, subscribers, GoFundMe) — need to coordinate with each sender
+- **H7:** Every.org webhook: remove query-param auth path, use header only
+- **H11-H12:** Add middleware.ts to Studiolo + Postmaster (default-deny for protected routes)
+- **H13:** Cleanpunk admin cookie: set httpOnly + secure in all environments
+- **H16:** Studiolo PayPal native webhooks skip secret check — add signature verification
+
+**Still open — Medium (batch later):**
+- M1: Restrict CORS to family domains (Postmaster public API)
+- M2-M4: Middleware + signIn callback validation (Rescue Barn, Studiolo, Postmaster)
+- M5: Donation dedup improvement (externalId as primary key)
+- M6: Concurrent cron run protection (distributed lock)
+- M9-M11: Cleanpunk wishlist RLS, traffic table policies, newsletter is_admin() fix
+- M13-M14: Cleanpunk CSRF, Postmaster engagement HMAC
+- M17-M20: Schema validation, token refresh, storm builder RLS, session timeout
+
+**Repos:** All 4 + Supabase dashboard
+**Approach:** Tackle criticals first (C2/C3/C4), then middleware (H11/H12), then batch remaining
 
 ### Receipt OCR End-to-End Test
 **Status:** Pipeline fully built, awaiting test data
@@ -518,7 +549,7 @@ Habit-formation onboarding redesign (#118), Impact page needs Krystal's 60-secon
 
 ## 🟢 Completed (Archive)
 
-### Session 9 — Health Audit Fixes
+### Session 9 — Health & Security Audit Fixes
 **Completed:** 2026-03-01
 
 **Cleanpunk CHECKPOINTS Secret Removal:** Removed `CHECKPOINTS/` directory from git tracking (`git rm -r --cached`). Directory contained live Medusa admin token (`sk_2abc...`) in 3 files. Added `CHECKPOINTS/` to `.gitignore`. Token rotation recommended.
@@ -527,7 +558,18 @@ Habit-formation onboarding redesign (#118), Impact page needs Krystal's 60-secon
 
 **Rescue Barn Lint Errors (13→0):** Fixed all 13 ESLint errors: 5 unescaped entities (`&apos;`), 3 `no-explicit-any` (eslint-disable placement fix + type narrowing), 3 setState-in-useEffect (moved to lazy initializers / event handlers), 1 `<a>`→`<Link>` for Next.js routing, 1 `require()`→ESM `import` in tailwind.config.ts.
 
-**Deferred:** Prisma 7 / Tailwind 4 / ESLint 10 major version upgrades added to roadmap as low-priority post-launch items.
+**Security Hardening (12 findings fixed across 4 repos):**
+- C1: Removed NEXT_PUBLIC_CRON_SECRET from Postmaster — rewired to existing server action proxy
+- H2: Patreon webhook fail closed when secret missing
+- H3: USPS webhook fail closed when secret missing (Cleanpunk)
+- H8/H9: Replaced string `===` with `crypto.timingSafeEqual()` in all cron + webhook auth (23 routes across 3 repos). New `lib/safe-compare.ts` utility in Strategy, Studiolo, Postmaster.
+- H10: Removed Azure AD accessToken from Studiolo client session (kept in server-only JWT)
+- H17: Zapier webhook fail closed when WEBHOOK_SECRET missing
+- H18: All cron auth now rejects when no secrets configured (`validTokens.length === 0` guard)
+- M7/M8: Strategy cron auth enforced in all environments (removed production-only guard)
+- M15/M16: Patreon + PayPal webhooks return 500 on processing error (enables retry)
+
+**Deferred:** Prisma 7 / Tailwind 4 / ESLint 10 major version upgrades added to roadmap as low-priority post-launch items. Remaining security audit items (C2/C3/C4, H1/H4-H7/H11-H16, M1-M20) tracked in Priority One.
 
 ### Session 8 — Audit Fixes + Cleanup
 **Completed:** 2026-03-01
