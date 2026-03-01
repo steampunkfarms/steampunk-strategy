@@ -753,3 +753,50 @@ model RaiserightParticipant {
   @@index([status])
   @@index([lastOrderDate])
 }
+
+model CostCenter {
+  id            String    @id @default(uuid())
+  vendor        String
+  service       String
+  category      String
+  monthlyBudget Decimal?  @map("monthly_budget") @db.Decimal(10, 2)
+  allocatedTo   String?   @map("allocated_to")
+  active        Boolean   @default(true)
+  expenses      Expense[]
+  createdAt     DateTime  @default(now()) @map("created_at")
+  updatedAt     DateTime  @updatedAt @map("updated_at")
+
+  @@map("cost_centers")
+  @@unique([vendor, service])
+  @@index([category])
+  @@index([active])
+}
+
+model Expense {
+  id           String     @id @default(uuid())
+  costCenterId String     @map("cost_center_id")
+  costCenter   CostCenter @relation(fields: [costCenterId], references: [id], onDelete: Cascade)
+  date         DateTime
+  amountUsd    Decimal    @map("amount_usd") @db.Decimal(10, 2)
+  description  String
+  rawData      Json?      @map("raw_data")
+  invoiceUrl   String?    @map("invoice_url")
+  allocatedTo  String?    @map("allocated_to")
+  createdAt    DateTime   @default(now()) @map("created_at")
+
+  @@map("expenses")
+  @@index([costCenterId])
+  @@index([date])
+  @@index([allocatedTo])
+}
+
+model MonthlyCostSnapshot {
+  id        String   @id @default(uuid())
+  month     DateTime
+  totalUsd  Decimal  @map("total_usd") @db.Decimal(10, 2)
+  byVendor  Json     @map("by_vendor")
+  createdAt DateTime @default(now()) @map("created_at")
+
+  @@map("monthly_cost_snapshots")
+  @@unique([month])
+}

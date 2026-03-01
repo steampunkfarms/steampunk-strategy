@@ -562,6 +562,62 @@ SEASONAL PRICING: Hay prices follow a predictable annual cycle driven by harvest
   }
   console.log(`  ✓ ${purchasingAccounts.length} purchasing accounts seeded`);
 
+  // ── Cost Centers (from discover-cost-centers.sh output) ──
+  const costCenters: { vendor: string; service: string; category: string; allocatedTo: string | null }[] = [
+    // AI/ML
+    { vendor: 'Anthropic', service: 'Claude AI API', category: 'AI/ML', allocatedTo: 'Shared' },
+    // Payments
+    { vendor: 'Stripe', service: 'Payment Processing', category: 'Payments', allocatedTo: 'Shared' },
+    { vendor: 'PayPal', service: 'Payment Processing', category: 'Payments', allocatedTo: 'Shared' },
+    { vendor: 'Square', service: 'Payment Processing', category: 'Payments', allocatedTo: 'Shared' },
+    // Database
+    { vendor: 'Neon', service: 'PostgreSQL Database', category: 'Database', allocatedTo: 'Shared' },
+    { vendor: 'Supabase', service: 'PostgreSQL + Auth', category: 'Database', allocatedTo: 'Shared' },
+    { vendor: 'Redis', service: 'Cache/Queue', category: 'Database', allocatedTo: 'Cleanpunk Shop' },
+    // Email
+    { vendor: 'SendGrid', service: 'Transactional Email', category: 'Email', allocatedTo: 'Cleanpunk Shop' },
+    { vendor: 'Resend', service: 'Transactional Email', category: 'Email', allocatedTo: 'Rescue Barn' },
+    // Hosting
+    { vendor: 'Vercel', service: 'Vercel Platform', category: 'Hosting', allocatedTo: 'Shared' },
+    { vendor: 'Vercel', service: 'Vercel Blob Storage', category: 'Hosting', allocatedTo: 'Shared' },
+    { vendor: 'Vercel', service: 'Cron Jobs', category: 'Hosting', allocatedTo: 'Shared' },
+    { vendor: 'Vercel', service: 'Speed Insights', category: 'Hosting', allocatedTo: 'Rescue Barn' },
+    { vendor: 'Vercel', service: 'Web Analytics', category: 'Hosting', allocatedTo: 'Rescue Barn' },
+    // Auth
+    { vendor: 'Microsoft', service: 'Azure AD / Entra ID', category: 'Auth', allocatedTo: 'Shared' },
+    { vendor: 'Microsoft', service: 'MS Graph API', category: 'Auth', allocatedTo: 'Shared' },
+    { vendor: 'Google', service: 'Google OAuth', category: 'Auth', allocatedTo: 'Shared' },
+    // Social
+    { vendor: 'Meta', service: 'Facebook Graph API', category: 'Social', allocatedTo: 'Shared' },
+    { vendor: 'Meta', service: 'Instagram API', category: 'Social', allocatedTo: 'Shared' },
+    { vendor: 'Meta', service: 'Meta Business Suite', category: 'Social', allocatedTo: 'Postmaster' },
+    { vendor: 'X (Twitter)', service: 'X/Twitter API', category: 'Social', allocatedTo: 'Shared' },
+    { vendor: 'Ayrshare', service: 'Social Media API', category: 'Social', allocatedTo: 'Postmaster' },
+    // Commerce
+    { vendor: 'Medusa', service: 'E-commerce Backend', category: 'Commerce', allocatedTo: 'Cleanpunk Shop' },
+    // API
+    { vendor: 'Google', service: 'Gmail API', category: 'API', allocatedTo: 'Shared' },
+    { vendor: 'Google', service: 'YouTube Data API', category: 'API', allocatedTo: 'Postmaster' },
+    // Fundraising
+    { vendor: 'Patreon', service: 'Creator Platform', category: 'Fundraising', allocatedTo: 'Shared' },
+    { vendor: 'GoFundMe', service: 'Crowdfunding', category: 'Fundraising', allocatedTo: 'Studiolo' },
+    { vendor: 'Every.org', service: 'Donation Platform', category: 'Fundraising', allocatedTo: 'Studiolo' },
+    // Infrastructure / Logistics
+    { vendor: 'GitHub', service: 'Code Hosting', category: 'Infrastructure', allocatedTo: 'Shared' },
+    { vendor: 'GoDaddy', service: 'Domain / DNS', category: 'Infrastructure', allocatedTo: 'Postmaster' },
+    { vendor: 'PirateShip', service: 'Shipping', category: 'Logistics', allocatedTo: 'Cleanpunk Shop' },
+    { vendor: 'USPS', service: 'Postal Service', category: 'Logistics', allocatedTo: 'Cleanpunk Shop' },
+  ];
+
+  for (const cc of costCenters) {
+    await prisma.costCenter.upsert({
+      where: { vendor_service: { vendor: cc.vendor, service: cc.service } },
+      update: { category: cc.category, allocatedTo: cc.allocatedTo },
+      create: cc,
+    });
+  }
+  console.log(`  ✓ ${costCenters.length} cost centers seeded`);
+
   console.log('\n🎯 Seed complete!');
 }
 
