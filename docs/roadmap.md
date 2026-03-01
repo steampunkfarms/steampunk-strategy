@@ -2,7 +2,7 @@
 
 > Deferred work items and active handoffs. Reviewed at each planning session.
 > Location: steampunk-strategy/docs/roadmap.md
-> Last updated: 2026-03-01 (session 7 — batch implementation sprint)
+> Last updated: 2026-03-01 (session 9 — health audit fixes)
 
 ---
 
@@ -328,6 +328,18 @@ None currently active.
 
 ---
 
+## 🟡 Deferred — Cross-Site Infrastructure
+
+### Major Version Upgrades — Prisma 7 / Tailwind 4 / ESLint 10
+
+**Priority:** Low — defer until post-launch stabilization
+**What:** Prisma 6.3→7.x (new query engine, breaking migration changes), Tailwind 3.4→4.x (new config format, CSS-first approach), ESLint 9→10.x (flat config already done for some repos). Each is a multi-repo migration affecting 4-5 codebases.
+**Risk:** High blast radius pre-launch. Tailwind 4 especially requires full CSS audit. Prisma 7 may need migration rewrites.
+**Plan:** Tackle one at a time, starting with whichever repo is least active. Create handoff spec per upgrade.
+**Repos:** All 5 Steampunk repos
+
+---
+
 ## 🟡 Deferred — Cleanpunk Shop
 
 ### Pre-Launch (This Week)
@@ -505,6 +517,17 @@ Habit-formation onboarding redesign (#118), Impact page needs Krystal's 60-secon
 ---
 
 ## 🟢 Completed (Archive)
+
+### Session 9 — Health Audit Fixes
+**Completed:** 2026-03-01
+
+**Cleanpunk CHECKPOINTS Secret Removal:** Removed `CHECKPOINTS/` directory from git tracking (`git rm -r --cached`). Directory contained live Medusa admin token (`sk_2abc...`) in 3 files. Added `CHECKPOINTS/` to `.gitignore`. Token rotation recommended.
+
+**Postmaster ESLint Config:** Created `eslint.config.mjs` (flat config, ESLint 9) extending `eslint-config-next/core-web-vitals` + `typescript`. Matched Studiolo's pragmatic rules: `no-unescaped-entities` off, `no-explicit-any` warn. Auto-fixed 7 `prefer-const` errors. Lint now runs cleanly.
+
+**Rescue Barn Lint Errors (13→0):** Fixed all 13 ESLint errors: 5 unescaped entities (`&apos;`), 3 `no-explicit-any` (eslint-disable placement fix + type narrowing), 3 setState-in-useEffect (moved to lazy initializers / event handlers), 1 `<a>`→`<Link>` for Next.js routing, 1 `require()`→ESM `import` in tailwind.config.ts.
+
+**Deferred:** Prisma 7 / Tailwind 4 / ESLint 10 major version upgrades added to roadmap as low-priority post-launch items.
 
 ### Session 8 — Audit Fixes + Cleanup
 **Completed:** 2026-03-01
