@@ -21,12 +21,6 @@ None currently active.
 **When unblocked:** Photograph Elston's invoice + Tractor Supply receipt, test on /documents page
 **Repo:** steampunk-strategy
 
-### Gmail Compliance Notice Scanner (TARDIS Phase B, #94)
-**Priority:** High — government notices need detection + critical alert routing
-**Scope:** Extend existing gmail-receipt-scan cron to detect government notices, renewal deadlines, compliance letters. Classifier for known sender map (CA SOS, IRS, FTB, CDTFA, etc.). Critical alert routing.
-**Prerequisite:** Orchestrator registration deployed ✅
-**Repo:** steampunk-strategy
-
 ---
 
 ## 🟡 Priority Two — High Value, Needs Handoff Spec
@@ -201,6 +195,10 @@ Habit-formation onboarding redesign (#118), Impact page needs Krystal's 60-secon
 ---
 
 ## 🟢 Completed (Archive)
+
+### Gmail Compliance Notice Scanner (TARDIS Phase B, #94)
+**Completed:** 2026-03-01
+**Scope:** Extended gmail-receipt-scan cron with compliance detection pass. New `lib/compliance-scanner.ts` with 13-domain sender map (IRS, CA FTB, CA SOS, CA AG, CA CDTFA, Candid, Charity Navigator, SD County), email classifier with urgency escalation (critical/warning/info), regex deadline extraction, ComplianceTask matching by authority slug, and auto-creation of ComplianceCompletion records. Also added Orchestrator dual-auth (INTERNAL_SECRET) to raiseright-reminders cron.
 
 ### Dual-Fire Cron Cleanup
 **Completed:** 2026-03-01
