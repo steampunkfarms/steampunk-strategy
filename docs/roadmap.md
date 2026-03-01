@@ -2,7 +2,7 @@
 
 > Deferred work items and active handoffs. Reviewed at each planning session.
 > Location: steampunk-strategy/docs/roadmap.md
-> Last updated: 2026-03-01 (session 6 — handoffs 001-004 complete)
+> Last updated: 2026-03-01 (session 7 — batch implementation sprint)
 
 ---
 
@@ -25,21 +25,8 @@ None currently active.
 
 ## 🟡 Priority Two — High Value, Needs Handoff Spec
 
-### Animal Affinity Pipeline (Studiolo #28)
-**Priority:** Medium (downgraded — mostly built)
-**What exists:** Full pipeline: Cleanpunk webhook → product→animal mapping via `cleanpunk-constants.ts` → Postmaster roster cross-ref → Donor model boolean flags + `cleanpunkAnimalAffinities[]` → compose context includes `cleanpunkIntelligence.animalAffinities` → voice engine `context-assembler.ts` injects into AI prompt. Platform context has `[ANIMAL_BOND:...]` memory cue tags.
-**Gap:** `DonorAnimal` junction table not auto-populated from Cleanpunk purchases. Animal relationships only stored as flat string array on Donor, not in the M:N table that powers `/animals/[id]` relationship views.
-**Fix:** Small — add `DonorAnimal.upsert()` call in `sync/cleanpunk-purchases/route.ts` after interest flag computation. Match animal name → Animal record via Postmaster roster. Source = `CLEANPUNK_PURCHASE`.
-**Repo:** steampunk-studiolo
-
-### Meta Comment Harvester + Facebook Matching (#19–20)
-**Priority:** High — SocialIdentityQueue + Link/Skip/New UI
-**Note:** Reconcile process needs redesign. Page-scoped user ID matching.
-**Full spec:** `docs/specs/social-enrichment-pipeline.md` — covers 6 interaction channels (comments, DMs, mentions, likes, Business Discovery, lead forms) with API endpoints, matching logic, and compliance notes. Comments are highest-signal, lowest-effort starting point. Postmaster `engagementScanner.ts` already pulls comments — extend to populate Studiolo donor fields (Memory Ledger, Relationship Notes, Animals Connected To).
-**Repo:** steampunk-studiolo
-
 ### Barn Cat Program — Intake, Sponsorship, Adoption Pipeline
-**Priority:** High — revenue opportunity ($15-25k/yr), funding application pending
+**Priority:** Post-launch — revenue opportunity ($15-25k/yr), funding application pending. Deferred: requires collecting historical paperwork + Krystal review before digitizing.
 **What it is:** Full lifecycle management for barn cats separate from farmed animals. Cats come from shelters, get vetted onsite, then placed with adopters (mostly in groups as working barn cats). Sponsors often send $1,000+ per cat. Half send checks (USPS return address = campaign data). Need robust accounting of all cats taken in for a pending funding opportunity.
 
 **Data capture (multi-source intake):**
@@ -74,11 +61,6 @@ None currently active.
 - **v3:** Full revenue analytics + direct mail campaign builder from check-scan addresses
 **Repos:** steampunk-rescuebarn (public pages, adoption UI) + steampunk-postmaster (animal records, Content Storm) + steampunk-studiolo (donors, orgs, gifts, check scanning) + steampunk-strategy (Gmail scanning for intake emails)
 
-### Donor Directory — Merge from Search Results
-**Priority:** Medium — time-saver for duplicate cleanup
-**Scope:** When searching the donor directory and spotting duplicate records in results, allow selecting 2+ records and initiating a merge directly from the search results screen. Currently merging requires navigating to the matching page. Add multi-select checkboxes + "Merge Selected" action to donor search results.
-**Repo:** steampunk-studiolo
-
 ---
 
 ## 🟡 Priority Three — Important, Revisit Soon
@@ -102,15 +84,6 @@ None currently active.
 1. **Anniversary → Touch conversion:** Alerts detect milestones but never auto-queue a gratitude dispatch (e.g., Epistola on giving anniversary). Add cron or hook that converts anniversary alerts into queued touches with HUG-appropriate templates. Include first-reply celebration and repeat-gift counter ("this is your 10th gift").
 2. **Friction → Auto-follow-up:** Friction alerts (lapsed replies, unanswered outreach) exist but don't auto-create follow-up touches. Add configurable rule: "if no reply in X days, queue a gentle follow-up" with Padrona voice.
 3. **Receipt personalization:** Atelier thank-you email uses 4 fixed merge fields. Enhance with animal-specific gratitude ("your gift helped feed [named animal]") using donor's `cleanpunkAnimalAffinities` or campaign species group. Repeat-gift acknowledgment variation for loyal donors.
-**Repo:** steampunk-studiolo
-
-### Atelier "Three Doors" — Wire Send Button into Natural Workflows
-**Priority:** Medium — backend complete, just UI wiring
-**What's built:** Full Atelier pipeline (queue, preview, PDF gen, Graph send, automation toggle, tax summaries). Working queue at `/atelier/queue`. `SendReceiptButton` component exists.
-**Gaps:** The send button isn't at the 3 natural entry points Padrona uses:
-1. **Donor profile gift list** — `SendReceiptButton` exists but isn't imported into `GiftHistoryTable` rows. Wire it inline on un-receipted gifts.
-2. **`/receipts` queue page** — only `/receipts/[giftId]` view exists. Either redirect `/receipts` to `/atelier/queue` or build a proper receipt queue at `/receipts` showing all `receiptSent = false` gifts.
-3. **Stewardship thank-you queue** — shows pending count + quick-log modal but no receipt send. Add `SendReceiptButton` to the `StewardshipQueue` thank-you tab items.
 **Repo:** steampunk-studiolo
 
 ### Donor BI Dashboard — Advanced Reporting & Visualizations
@@ -155,10 +128,6 @@ None currently active.
 
 ### Gmail Label Discovery (#23)
 **Priority:** Medium — improve email categorization accuracy
-**Repo:** steampunk-studiolo
-
-### Patreon Welcome Email (#8)
-**Priority:** Easy win — next week
 **Repo:** steampunk-studiolo
 
 ### Zeffy Phase-Out (#100)
@@ -364,11 +333,11 @@ None currently active.
 ## 🟡 Deferred — Cleanpunk Shop
 
 ### Pre-Launch (This Week)
-- #1 DNS switch
+- #1 DNS switch — `NEXT_PUBLIC_SITE_URL` fixed to `https://home.cleanpunk.shop`, Vercel domain config needed
 - #7 Test order pipeline (minor fix needed)
-- #8 Partner overrides formatting (rich text not rendering)
+- ~~#8 Partner overrides formatting~~ ✅ Fixed: added HTML output instruction to AI prompt
 - #2 USPS registration (explore PirateShip workaround)
-- #5 Review invitation email (blocked by USPS/workaround)
+- ~~#5 Review invitation email~~ ✅ Unblocked: manual "Mark Delivered" button added to admin shipments page — cron sends delivery + review emails on next run
 
 ### Post-Launch High Priority
 PirateShip/Shippo API (#9), GA4 (#19), Pre-Order Engine (#23), Campaign Builder fix (#24), Storm Builder gaps (#29–32), Product video (#38), Review aggregation (#39), Monthly drop banners (#43), "Funds X animals" counter (#44), Reorder from history (#50), Sanctuary Stories integration (#60)
@@ -384,6 +353,11 @@ GA4 + FB Pixel (#3), Visual polish (#4), Accessibility sweep 8 items (#8–15)
 - #7 TARDIS_API_URL: ✅ local `.env.local` set, `.env.local.example` updated. **Needs Vercel env var added** (Production + Preview) → `TARDIS_API_URL=https://tardis.steampunkstudiolo.org`
 - #6 `vercel env pull`: Not a code bug — just a Vercel↔local sync gap. Once TARDIS_API_URL is in Vercel, `vercel env pull` will produce a complete file.
 - Square env vars: removed across all repos (Square Component Removal #26 completed 2026-03-01).
+
+### ACH Direct Debit on /donate (Stripe)
+**Priority:** High — lower fees (0.8% capped at $5 vs 2.9% + $0.30 for cards), enables off_session recurring
+**Scope:** Add `us_bank_account` as payment method on Rescue Barn `/donate` form alongside card. Use Stripe Financial Connections for instant bank verification. Set `setup_future_usage: 'off_session'` on PaymentIntent to enable recurring donations without donor re-auth. Update `/api/donate/create-intent` to pass `payment_method_types: ['card', 'us_bank_account']` and switch from CardElement to PaymentElement on frontend. Add microdeposit fallback verification flow. Surface fee savings messaging to donors.
+**Repo:** steampunk-rescuebarn
 
 ### Post-Launch
 The Bray expansion, Academy Levels 3–4, Mercantile phases, Surrender Deflection, Shelter Visibility, Piggie Smalls' Hub
@@ -533,6 +507,21 @@ Habit-formation onboarding redesign (#118), Impact page needs Krystal's 60-secon
 ---
 
 ## 🟢 Completed (Archive)
+
+### Session 7 — Batch Implementation Sprint
+**Completed:** 2026-03-01
+
+**Animal Affinity Pipeline (Studiolo #28):** Added `DonorAnimal.upsert()` with FAVORITE role in `sync/cleanpunk-purchases/route.ts`. Fetches all Animal records once per sync run, maps by name, upserts junction table entries for each Cleanpunk animal affinity. Compound unique key `donorId_animalId_role` prevents duplicates.
+
+**Meta Comment Harvester Upgrade (#19–20):** Upgraded Studiolo social harvest cron from weekly Facebook-only to daily Facebook + Instagram. Added `fetchRecentInstagramMedia` processing, changed lookback from 7 to 2 days, upgraded auto-match from single `facebookHandle` check to OR across 4 platform ID fields (facebookHandle, facebookNumericId, instagramHandle, instagramNumericId). Updated schedule in both vercel.json and Orchestrator job registry. Manual "Harvest Now" button retained.
+
+**Donor Directory Merge from Search (#80):** Added GitMerge icon + "Merge" button to donor directory header, linking to `/matching` with current search query pre-populated.
+
+**Patreon Welcome Email (#8):** Wired end-to-end. Added `initialTouchType` prop to TouchNowModal, URL param detection (`?welcome=true`) in DonorActions via useEffect + useSearchParams, and "Welcome" button on dashboard's unwelcomed patrons card. ComposeEmailModal already handles WELCOME touch type with tier-specific template matching.
+
+**Atelier Three Doors (#107):** Wired SendReceiptButton into Door 1 (GiftHistoryTable — expanded Gift interface with receipt fields, inline button per row) and Door 3 (StewardshipQueue ThankYouRow). Door 2 (`/atelier/queue`) was already working.
+
+**Cleanpunk Pre-Launch Fixes:** Fixed partner override rich text (added HTML output instruction to AI prompt in `generate-override/route.ts`). Fixed `NEXT_PUBLIC_SITE_URL` in `.env.local` (was rescuebarn, now `home.cleanpunk.shop`). Added manual "Mark Delivered" button to admin shipments page (new API route + ShipmentTracker UI) to unblock review invitation emails without USPS API registration.
 
 ### Square Component Removal (#26)
 **Completed:** 2026-03-01
