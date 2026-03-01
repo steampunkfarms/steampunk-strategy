@@ -12,6 +12,7 @@ import {
   Activity,
   Eye,
   CreditCard,
+  CircleDollarSign,
   LogOut,
   ChevronRight,
   Gauge,
@@ -30,6 +31,7 @@ const navigation = [
     label: 'Finances',
     items: [
       { name: 'Expenses', href: '/expenses', icon: Receipt },
+      { name: 'Cost Centers', href: '/cost-centers', icon: CircleDollarSign },
       { name: 'Documents', href: '/documents', icon: FileText },
       { name: 'Vendors', href: '/vendors', icon: Building2 },
     ],

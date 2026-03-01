@@ -354,6 +354,83 @@ export async function getTransparencySummary() {
 }
 
 // =============================================================================
+// COST CENTERS
+// =============================================================================
+
+export async function getCostCenters() {
+  return prisma.costCenter.findMany({
+    where: { active: true },
+    include: {
+      expenses: {
+        orderBy: { date: 'desc' },
+        take: 5,
+      },
+      _count: {
+        select: { expenses: true },
+      },
+    },
+    orderBy: [{ category: 'asc' }, { vendor: 'asc' }],
+  });
+}
+
+export async function getCostCenterSummary() {
+  const [costCenters, recentExpenses, totalSpend] = await Promise.all([
+    prisma.costCenter.findMany({
+      where: { active: true },
+      include: {
+        _count: { select: { expenses: true } },
+        expenses: {
+          orderBy: { date: 'desc' },
+          take: 1,
+          select: { amountUsd: true, date: true, description: true },
+        },
+      },
+      orderBy: [{ category: 'asc' }, { vendor: 'asc' }],
+    }),
+    prisma.expense.findMany({
+      orderBy: { date: 'desc' },
+      take: 10,
+      include: { costCenter: { select: { vendor: true, service: true, category: true } } },
+    }),
+    prisma.expense.aggregate({
+      _sum: { amountUsd: true },
+    }),
+  ]);
+
+  // Group by category
+  const byCategory = new Map<string, typeof costCenters>();
+  for (const cc of costCenters) {
+    const group = byCategory.get(cc.category) ?? [];
+    group.push(cc);
+    byCategory.set(cc.category, group);
+  }
+
+  // Group by allocatedTo
+  const bySite = new Map<string, number>();
+  for (const cc of costCenters) {
+    const site = cc.allocatedTo ?? 'Unallocated';
+    bySite.set(site, (bySite.get(site) ?? 0) + 1);
+  }
+
+  return {
+    costCenters,
+    byCategory: Object.fromEntries(byCategory),
+    bySite: Object.fromEntries(bySite),
+    recentExpenses,
+    totalSpend: totalSpend._sum.amountUsd?.toNumber() ?? 0,
+    totalCostCenters: costCenters.length,
+  };
+}
+
+export async function getCostCenterExpenses(costCenterId: string) {
+  return prisma.expense.findMany({
+    where: { costCenterId },
+    orderBy: { date: 'desc' },
+    take: 50,
+  });
+}
+
+// =============================================================================
 // AUDIT LOG — Recent activity
 // =============================================================================
 
