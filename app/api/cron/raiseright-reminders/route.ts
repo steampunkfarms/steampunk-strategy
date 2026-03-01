@@ -16,10 +16,11 @@ import { flagDormantParticipants } from '@/lib/raiseright';
  * 4. Create audit log entries for visibility on the dashboard
  */
 export async function GET(request: Request) {
-  // Verify cron secret
+  // Verify cron secret — accept either Vercel CRON_SECRET or Orchestrator INTERNAL_SECRET
   const authHeader = request.headers.get('authorization');
-  if (process.env.NODE_ENV === 'production' && process.env.CRON_SECRET) {
-    if (authHeader !== `Bearer ${process.env.CRON_SECRET}`) {
+  if (process.env.NODE_ENV === 'production') {
+    const validTokens = [process.env.CRON_SECRET, process.env.INTERNAL_SECRET].filter(Boolean);
+    if (validTokens.length > 0 && !validTokens.some(t => authHeader === `Bearer ${t}`)) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
   }

@@ -12,6 +12,15 @@ import {
   isAmazonPersonal,
   FINANCIAL_QUERIES,
 } from '@/lib/gmail';
+import {
+  COMPLIANCE_QUERIES,
+  classifyComplianceEmail,
+  extractDeadline,
+  matchComplianceTask,
+  isComplianceDuplicate,
+  createComplianceAlert,
+  type ComplianceNotice,
+} from '@/lib/compliance-scanner';
 
 export const dynamic = 'force-dynamic';
 export const maxDuration = 60; // Vercel Pro: 60s max for cron
@@ -24,10 +33,11 @@ interface ScanResult {
 }
 
 export async function GET(request: Request) {
-  // Verify cron secret in production
+  // Verify cron secret — accept either Vercel CRON_SECRET or Orchestrator INTERNAL_SECRET
   const authHeader = request.headers.get('authorization');
-  if (process.env.NODE_ENV === 'production' && process.env.CRON_SECRET) {
-    if (authHeader !== `Bearer ${process.env.CRON_SECRET}`) {
+  if (process.env.NODE_ENV === 'production') {
+    const validTokens = [process.env.CRON_SECRET, process.env.INTERNAL_SECRET].filter(Boolean);
+    if (validTokens.length > 0 && !validTokens.some(t => authHeader === `Bearer ${t}`)) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
   }
@@ -250,8 +260,89 @@ export async function GET(request: Request) {
       }
     }
 
+    // ── Compliance Notice Scanning ────────────────────────────────────────
+    const complianceResults: ComplianceNotice[] = [];
+    const complianceMessageIds = new Set<string>();
+
+    for (const query of COMPLIANCE_QUERIES) {
+      const fullQuery = `${query} after:${afterStr}`;
+      try {
+        const listRes = await gmail.users.messages.list({
+          userId: 'me',
+          q: fullQuery,
+          maxResults: 30,
+        });
+        if (listRes.data.messages) {
+          for (const msg of listRes.data.messages) {
+            // Skip messages already processed as financial
+            if (msg.id && !messageIds.has(msg.id)) {
+              complianceMessageIds.add(msg.id);
+            }
+          }
+        }
+      } catch (e) {
+        console.error(`[Gmail Compliance] Query failed: ${query}`, e);
+      }
+    }
+
+    for (const msgId of complianceMessageIds) {
+      try {
+        // Check dedup first (cheaper than fetching message)
+        if (await isComplianceDuplicate(msgId)) continue;
+
+        const msgRes = await gmail.users.messages.get({
+          userId: 'me',
+          id: msgId,
+          format: 'full',
+        });
+
+        const msg = msgRes.data;
+        if (!msg.payload?.headers) continue;
+
+        const headers = parseEmailHeaders(msg.payload.headers as Array<{ name: string; value: string }>);
+
+        // Get body text
+        let bodyText = '';
+        if (msg.payload.parts) {
+          bodyText = getTextFromParts(msg.payload.parts as Parameters<typeof getTextFromParts>[0]);
+        } else if (msg.payload.body?.data) {
+          bodyText = decodeBody(msg.payload.body as { data?: string });
+        }
+
+        // Classify
+        const classification = classifyComplianceEmail(headers.subject, headers.senderEmail, bodyText);
+        if (!classification.isCompliance) continue;
+
+        // Match to existing ComplianceTask
+        const matchedTask = classification.authority
+          ? await matchComplianceTask(classification.authority, headers.subject)
+          : null;
+
+        // Extract deadline
+        const deadline = extractDeadline(headers.subject, bodyText);
+
+        const notice: ComplianceNotice = {
+          messageId: msgId,
+          authority: classification.authority ?? 'Unknown',
+          noticeType: classification.noticeType,
+          urgency: classification.urgency,
+          subject: headers.subject,
+          senderEmail: headers.senderEmail,
+          receivedDate: new Date(headers.date),
+          extractedDeadline: deadline,
+          bodySnippet: bodyText.slice(0, 500),
+          matchedTaskSlug: matchedTask?.slug ?? null,
+        };
+
+        await createComplianceAlert(notice);
+        complianceResults.push(notice);
+      } catch (e) {
+        console.error(`[Gmail Compliance] Error processing ${msgId}:`, e);
+      }
+    }
+
     // Summary log
-    console.log(`[Gmail Scan] Complete — Scanned: ${result.scannedCount}, Imported: ${result.imported.length}, Skipped: ${result.skipped.length}, Errors: ${result.errors.length}`);
+    console.log(`[Gmail Scan] Complete — Financial: scanned=${result.scannedCount}, imported=${result.imported.length}, skipped=${result.skipped.length}, errors=${result.errors.length} | Compliance: scanned=${complianceMessageIds.size}, detected=${complianceResults.length}`);
 
     return NextResponse.json({
       success: true,
@@ -260,10 +351,20 @@ export async function GET(request: Request) {
         imported: result.imported.length,
         skipped: result.skipped.length,
         errors: result.errors.length,
+        complianceScanned: complianceMessageIds.size,
+        complianceDetected: complianceResults.length,
       },
       imported: result.imported,
       skipped: result.skipped,
       errors: result.errors,
+      compliance: complianceResults.map(n => ({
+        authority: n.authority,
+        noticeType: n.noticeType,
+        urgency: n.urgency,
+        subject: n.subject,
+        deadline: n.extractedDeadline?.toISOString().split('T')[0] ?? null,
+        matchedTask: n.matchedTaskSlug,
+      })),
     });
   } catch (e) {
     console.error('[Gmail Scan] Fatal error:', e);

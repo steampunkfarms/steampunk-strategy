@@ -14,13 +14,6 @@ None currently active.
 
 ## 🔴 Priority One — Do Next
 
-### Dual-Fire Cron Cleanup
-**Status:** Low risk, verify when convenient
-**Issue:** TARDIS vercel.json still fires gmail-receipt-scan + raiseright-reminders directly. Orchestrator also fires them. Gmail scanner has dedup protection.
-**Action:** Check Orchestrator dashboard for successful TARDIS job runs. If clean, remove 2 remaining crons from TARDIS vercel.json.
-**Repo:** steampunk-strategy
-**Note:** Not urgent — dedup prevents double-processing. Do this during a routine check.
-
 ### Receipt OCR End-to-End Test
 **Status:** Pipeline fully built, awaiting test data
 **Blocked by:** Historical documents in briefcase (in daughter's car)
@@ -208,6 +201,10 @@ Habit-formation onboarding redesign (#118), Impact page needs Krystal's 60-secon
 ---
 
 ## 🟢 Completed (Archive)
+
+### Dual-Fire Cron Cleanup
+**Completed:** 2026-03-01
+**Scope:** Removed last 2 crons from TARDIS vercel.json (gmail-receipt-scan, raiseright-reminders). Orchestrator is now the sole scheduler for all 23 jobs across 5 apps. vercel.json is now empty `{}`.
 
 ### Handoff 004 — MS Graph Parts 5–9
 **Completed:** 2026-03-01
