@@ -53,10 +53,12 @@ None currently active.
 **Priority:** Easy win — next week
 **Repo:** steampunk-studiolo
 
-### Lapsed Zeffy Monthly Donor Recapture
-**Priority:** Medium — replaces killed Zeffy past-due recovery workflow
-**Scope:** When lapsed Zeffy monthly donor detected, trigger recapture into Rescue Barn's Stripe-based donation system.
-**Decision:** Zeffy recovery is dead. Org migrating donations to Rescue Barn / Stripe.
+### Zeffy Phase-Out (#100)
+**Priority:** Medium — active migration
+**Decision (2026-03-01):** Zeffy is being phased out. No new campaigns marketed on Zeffy. `rescuebarn.steampunkfarms.org/donate` (Stripe, nonprofit fee structure approved) is the primary donation landing. Rescue Barn campaign pages (`/campaigns/cluck-crew`, `/campaigns/goats-that-stare-at-hay`, etc.) mirror old Zeffy campaigns as landing zones. `give.steampunkfarms.org` will redirect to `rescuebarn.steampunkfarms.org/donate` at Rescue Barn launch.
+**Keep:** Zapier webhook flow for incoming Zeffy donations (monthly donors still active until re-platformed).
+**Remove:** Zeffy CSV import tool from Studiolo `/imports` page (no longer needed).
+**Future:** Once all monthly donors re-platformed to Rescue Barn/Stripe, remove remaining Zeffy webhook handling + Zapier integration.
 **Repos:** steampunk-studiolo + steampunk-rescuebarn
 
 ### 990 Preparation Rollup (TARDIS Phase D, #96)

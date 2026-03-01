@@ -159,7 +159,7 @@ All crons export `GET` (Vercel requirement). Auth via `CRON_SECRET` or `INTERNAL
 |---|---|---|
 | Microsoft 365 / Outlook | Bidirectional | Graph API (contacts, email send/receive, friction scan) |
 | Gmail | Read | OAuth API (donor inbox scan, Zelle/Venmo/PayPal detection) |
-| Zeffy | Read | Import + reconciliation crons |
+| Zeffy | Read | Import + reconciliation crons (phasing out — migrating donors to Rescue Barn/Stripe) |
 | PayPal | Read | API sync + Gmail scan fallback |
 | Stripe | Read | API sync |
 | Square | Read | Retired — historical transaction data only (replaced by Medusa daily sync from Cleanpunk Shop) |

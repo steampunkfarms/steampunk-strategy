@@ -148,7 +148,9 @@ All tables have RLS enabled. Admin access uses `is_admin(auth.uid())` SECURITY D
 
 **Consumes:** Postmaster public API → resident animal data (1hr ISR). Shared Supabase instance with Cleanpunk Shop.
 
-**External links:** Zeffy (`give.steampunkfarms.org`) for fee-free donations · Square Online subdomains (`soap.`, `store.`, `seeds.`) — legacy/retired · Patreon (`storytellers.steampunkfarms.org`) · Amazon Wish List (`amazon.steampunkfarms.org`).
+**External links:** Zeffy (`give.steampunkfarms.org`) — phasing out, will redirect to `/donate` at launch · Square Online subdomains (`soap.`, `store.`, `seeds.`) — legacy/retired · Patreon (`storytellers.steampunkfarms.org`) · Amazon Wish List (`amazon.steampunkfarms.org`).
+
+**Donations:** Primary donation page is `/donate` (Stripe, nonprofit fee structure). Campaign pages (`/campaigns/cluck-crew`, `/campaigns/goats-that-stare-at-hay`, etc.) serve as species-specific donation landing zones, mirroring retired Zeffy campaigns. `give.steampunkfarms.org` will redirect to `/donate` at site launch.
 
 **Sibling sites:** Studiolo (steampunkstudiolo.org, admin hub) · Postmaster (postmaster.steampunkstudiolo.org, content automation) · Cleanpunk Shop (cleanpunk.shop, soap storefront) · TARDIS/Strategy (steampunk-strategy, compliance/financial).
 

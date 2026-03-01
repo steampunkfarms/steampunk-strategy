@@ -73,7 +73,7 @@
 
 | Subdomain | Service | Purpose |
 |-----------|---------|---------|
-| `give.steampunkfarms.org` | Zeffy | Fee-free donations |
+| `give.steampunkfarms.org` | Zeffy | Fee-free donations (phasing out → redirect to `/donate` at RB launch) |
 | `soap.steampunkfarms.org` | Square Online | Legacy/retired — replaced by Cleanpunk Shop |
 | `store.steampunkfarms.org` | Square Online | Legacy/retired |
 | `seeds.steampunkfarms.org` | Square Online | Legacy/retired |
@@ -214,7 +214,7 @@ All managed through Postmaster (direct API posting to FB, IG, X):
 
 | Service | Purpose | Used By |
 |---------|---------|---------|
-| **Zeffy** | Fee-free donations | Rescue Barn (give.steampunkfarms.org) |
+| **Zeffy** | Fee-free donations (phasing out — migrating to Rescue Barn/Stripe) | Rescue Barn (give.steampunkfarms.org → redirect at launch) |
 | **Stripe** | Payment processing | Studiolo (tracking), Cleanpunk Shop (checkout), Rescue Barn (subscriptions) |
 | **Square** | POS + online (retired) | Historical data only — removed from all repos, replaced by Medusa/Stripe |
 | **Patreon** | Recurring membership | Postmaster (webhooks), Studiolo (sync) |

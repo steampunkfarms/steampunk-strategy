@@ -73,7 +73,7 @@ When building specs or Claude Code handoffs, `view` the relevant reference card(
 | `postmaster.steampunkstudiolo.org` | Postmaster (Vercel) |
 | `tardis.steampunkstudiolo.org` | TARDIS (Vercel) |
 | `home.cleanpunk.shop` | Cleanpunk Shop (Vercel) |
-| `give.steampunkfarms.org` | Zeffy (donations — migrating to Rescue Barn/Stripe) |
+| `give.steampunkfarms.org` | Zeffy (phasing out → will redirect to `rescuebarn.steampunkfarms.org/donate` at launch) |
 | `soap/store/seeds.steampunkfarms.org` | Square Online (legacy/retired) |
 | `amazon.steampunkfarms.org` | Amazon Wish List |
 | `shop.volcanvalleyapple.farm` | → cleanpunk.shop/partner/vvaf |
