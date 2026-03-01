@@ -37,7 +37,8 @@ export default async function RetailCharityDashboard() {
   const stats = await getRaiserightDashboardStats();
 
   const hasData = stats.totalEarnings > 0 || stats.activeParticipants > 0;
-  const needsImport = !stats.lastImportDate || (Date.now() - new Date(stats.lastImportDate).getTime()) > 7 * 24 * 60 * 60 * 1000;
+  const now = new Date();
+  const needsImport = !stats.lastImportDate || (now.getTime() - new Date(stats.lastImportDate).getTime()) > 7 * 24 * 60 * 60 * 1000;
 
   return (
     <div className="space-y-8">

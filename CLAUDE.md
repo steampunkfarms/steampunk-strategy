@@ -13,11 +13,11 @@
 ## Architecture
 
 ### Stack
-- Next.js 15 (App Router, Turbopack dev) + React 19 + TypeScript 5.7
+- Next.js 16.1.6 (App Router, Turbopack dev) + React 19 + TypeScript 5.7
 - Prisma 6.3 + Neon PostgreSQL
 - NextAuth 4.24 + Azure AD (Entra ID)
 - Tailwind 3.4 + shadcn/ui + Radix primitives
-- Claude AI (Anthropic SDK) for document parsing & categorization
+- Claude AI (Anthropic SDK 0.78) for document parsing & categorization
 - Recharts for financial visualizations
 - Lucide icons
 
@@ -105,3 +105,59 @@ A key differentiator: donors sometimes call vendors (Elston's Feed, Star Milling
 5. **Phase 5:** Cross-site monitoring, Vercel API integration
 6. **Phase 6:** Transparency API → Rescue Barn integration
 7. **Phase 7:** COGS tracking for Cleanpunk, cost creep detection
+
+
+---
+
+## Cross-Site Reference Library & Handoff System
+
+This repo serves double duty: it's both the TARDIS codebase AND the central reference library for all 5 Steampunk Farms web properties. A consolidated Claude project space handles all planning, specs, and handoffs across the family of sites.
+
+### Reference Library
+
+```
+docs/
+├── family-of-sites-full.md        # Cross-site architecture, domains, data flows, shared resources
+├── cleanpunk-shop-reference.md    # Stack, schema, routes, APIs, patterns
+├── studiolo-reference.md          # Stack, schema, routes, APIs, patterns
+├── postmaster-reference.md        # Stack, schema, routes, APIs, patterns
+├── rescuebarn-reference.md        # Stack, schema, routes, APIs, patterns
+├── voice-postmaster.md            # Prompt layers, series voices, HUG compliance
+├── voice-studiolo.md              # 5-layer stack, dispatch types, closing system
+├── roadmap.md                     # Deferred work items — CHECK BEFORE STARTING NEW WORK
+└── handoffs/                      # Claude Code handoff specs from planning sessions
+```
+
+### Handoff Protocol
+
+When a handoff spec exists in `docs/handoffs/`, it was written by a planning session in the consolidated Claude project space. The spec will specify:
+- **Target repo(s):** Which codebase(s) to modify (may be this repo or others under /Users/ericktronboll/Projects/)
+- **Files affected:** Exact paths to create/modify
+- **Database changes:** Prisma migrations or Supabase schema changes if any
+- **Cross-site implications:** What other repos need to know or change
+- **Acceptance criteria:** How to verify the work is complete
+- **Deferred items:** Anything explicitly out of scope for this handoff
+
+**Before starting any handoff:**
+1. Read the handoff spec in full
+2. Read `docs/roadmap.md` for any deferred items that intersect with the work
+3. Read the relevant site reference card(s) for current architecture
+4. If the work touches voice/AI composition, read the relevant voice doc
+
+**After completing a handoff:**
+1. Update the handoff spec with completion status
+2. If new patterns were established, note them for the reference card update
+3. If deferred items were encountered, add them to `docs/roadmap.md`
+
+### Sibling Repos (all under /Users/ericktronboll/Projects/)
+
+| Repo Folder | App | Can Be Modified By Handoff |
+|-------------|-----|---------------------------|
+| steampunk-rescuebarn | Rescue Barn (public site) | Yes |
+| steampunk-studiolo | Studiolo (donor CRM) | Yes |
+| steampunk-postmaster | Postmaster (content engine) | Yes |
+| cleanpunk-shop | Cleanpunk Shop (e-commerce) | Yes |
+| steampunk-strategy | TARDIS (this repo) + docs library | Yes |
+| steampunk-orchestrator | Orchestrator (planned) | Yes |
+
+All repos are under `github.com/steampunkfarms/`. All Next.js 16.1.6 + React 19.2.4.
