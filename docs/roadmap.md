@@ -2,7 +2,7 @@
 
 > Deferred work items and active handoffs. Reviewed at each planning session.
 > Location: steampunk-strategy/docs/roadmap.md
-> Last updated: 2026-03-01 (session 9 — security audit fixes)
+> Last updated: 2026-03-01 (session 10 — config optimization)
 
 ---
 
@@ -361,6 +361,18 @@ None currently active.
 
 ## 🟡 Deferred — Cross-Site Infrastructure
 
+### Shared TypeScript Package (Stazia #9)
+**Priority:** Post-launch — premature at current scale
+**What:** Create `packages/steampunk-shared` Turborepo workspace with shared types (animal profiles, auth types, Claude prompt templates) and utils (`safeCompare`, revalidation helpers).
+**Why deferred:** Only ~50 lines of actual duplication across 6 repos. A shared package adds build complexity (Turborepo config, workspace resolution, publish/link workflow) for minimal current gain. Revisit when duplication exceeds ~200 lines or when 3+ repos need the same new type.
+**Depends on:** Nothing — can be done standalone when justified.
+
+### Unified ISR Revalidation Tags (Stazia #6)
+
+**Priority:** Post-launch — depends on shared package
+**What:** Add shared `revalidateTag("residents")` helper so one cache purge propagates across all consumer sites.
+**Why deferred:** Requires shared package (#9 above) to avoid more duplication. Current per-site revalidation works fine at this traffic level.
+
 ### Major Version Upgrades — Prisma 7 / Tailwind 4 / ESLint 10
 
 **Priority:** Low — defer until post-launch stabilization
@@ -548,6 +560,27 @@ Habit-formation onboarding redesign (#118), Impact page needs Krystal's 60-secon
 ---
 
 ## 🟢 Completed (Archive)
+
+### Session 10 — Configuration Optimization (Stazia's 14-Item List)
+
+**Completed:** 2026-03-01
+
+**Done (code changes, committed + pushed to all 6 repos):**
+
+- **#2 .env.example parity:** Created for Cleanpunk storefront (35+ vars) and Rescue Barn (expanded 4→20 vars, un-gitignored). Updated Studiolo + Postmaster + Strategy with pooler URL docs.
+- **#3 Node version lock:** All 6 repos pinned to `20.18.0` in `.nvmrc` (was `20` in 5 repos, missing in Orchestrator).
+- **#7 Claude cost control (partial):** Created `lib/claude.ts` in Strategy — Anthropic SDK built-in retry (`maxRetries: 3`) + structured usage logging (`[Claude] model=... input=... output=... caller=...`). Wired into document parse route. Pattern ready for adoption by other repos.
+- **#8 Neon connection pooling:** Added `directUrl = env("DIRECT_URL")` to Prisma schemas in Strategy, Studiolo, Postmaster. Updated .env.examples with pooler vs direct URL documentation. Local envs set.
+- **#12 Dependabot:** Added `.github/dependabot.yml` to all 6 repos — weekly Monday PRs, non-major patches grouped, 5 PR limit. Cleanpunk config covers both storefront + backend workspaces.
+- **E5 (audit):** Rescue Barn `.env.example` now tracked in git (fixed `.gitignore` exclusion pattern).
+
+**Deferred to post-launch:** #9 Shared TypeScript Package, #6 Unified ISR Revalidation Tags (added to Deferred — Cross-Site Infrastructure section).
+
+**Dashboard-only (user action):** #1 Vercel Environment Groups, #4 Domain standardization, #8 Enable Neon pooler endpoints in Vercel env vars + DIRECT_URL, #13 Deployment Protection, #14 Cron secret rotation policy.
+
+**Not adopted (architecture too large for current team/traffic):** #10 Root monorepo for all 6 repos, #11 GitHub Actions matrix via Orchestrator. #5 Edge Config for residents deferred pending cost analysis.
+
+**Stazia's Horizon doc** saved to `docs/horizon.md` for future reference (Horizon 1–3 feature opportunities).
 
 ### Session 9 — Health & Security Audit Fixes
 **Completed:** 2026-03-01
