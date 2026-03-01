@@ -2,6 +2,7 @@ export const dynamic = 'force-dynamic';
 
 import { NextResponse } from 'next/server';
 import Anthropic from '@anthropic-ai/sdk';
+import { createMessage } from '@/lib/claude';
 import { prisma } from '@/lib/prisma';
 import { RECEIPT_EXTRACTION_PROMPT, parseExtractionResponse } from '@/lib/receipt-parser';
 import { matchVendorByName } from '@/lib/vendor-match';
@@ -80,8 +81,7 @@ export async function POST(request: Request) {
         };
 
     // Call Claude Vision
-    const anthropic = new Anthropic();
-    const response = await anthropic.messages.create({
+    const response = await createMessage({
       model: MODEL,
       max_tokens: 2000,
       messages: [
@@ -96,7 +96,7 @@ export async function POST(request: Request) {
           ],
         },
       ],
-    });
+    }, 'document-parse');
 
     // Extract text from response
     const responseText = response.content
