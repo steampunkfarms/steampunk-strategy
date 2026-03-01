@@ -38,6 +38,42 @@ None currently active.
 **Full spec:** `docs/specs/social-enrichment-pipeline.md` — covers 6 interaction channels (comments, DMs, mentions, likes, Business Discovery, lead forms) with API endpoints, matching logic, and compliance notes. Comments are highest-signal, lowest-effort starting point. Postmaster `engagementScanner.ts` already pulls comments — extend to populate Studiolo donor fields (Memory Ledger, Relationship Notes, Animals Connected To).
 **Repo:** steampunk-studiolo
 
+### Barn Cat Program — Intake, Sponsorship, Adoption Pipeline
+**Priority:** High — revenue opportunity ($15-25k/yr), funding application pending
+**What it is:** Full lifecycle management for barn cats separate from farmed animals. Cats come from shelters, get vetted onsite, then placed with adopters (mostly in groups as working barn cats). Sponsors often send $1,000+ per cat. Half send checks (USPS return address = campaign data). Need robust accounting of all cats taken in for a pending funding opportunity.
+
+**Data capture (multi-source intake):**
+1. **Gmail scanning** — Scan for emails indicating shelter cat intake: shelter name, cat name(s), date, medical info, transport details. Auto-create Animal records with `type: 'barn_cat'` in Postmaster.
+2. **Check scanning** — User scans sponsor checks → Claude Vision extracts: donor name, amount, address, memo line (cat name?), check number. Creates Gift record in Studiolo + links to cat's Animal record. USPS address captured for direct mail campaigns.
+3. **PDF medical records** — Upload vet records, shelter intake forms, known provenance docs → parse with Claude Vision → attach to cat's Animal record.
+4. **Shelter relationships** — Each shelter becomes an Org in Studiolo. Capture: rescue coordinators, onsite staff, transporters as contacts. Track which shelters send cats, volume, relationship health.
+
+**Rescue Barn — Barn Cats section (`/the-barn/barn-cats` or `/animals/barn-cats`):**
+- Separate from farmed animal pages (different audience, different funding)
+- Current residents: photo, name, story, sponsor status, adoption availability
+- Adoption interface: browse available cats/groups, interest form, transport coordination
+- Success stories: placed cats in their new barns
+- Marketing integration: auto-post new arrivals to Facebook/Instagram via Postmaster Content Storm
+
+**Studiolo integration:**
+- Barn cat sponsors tracked as donors with `source: 'cat_sponsorship'`
+- Shelter orgs with contact relationships
+- Check-scan intake for USPS addresses → direct mail campaign list
+- Revenue reporting: cat sponsorship revenue vs. costs (vet, food, transport)
+
+**Adoption workflow:**
+- Present available cats on website (individual or group placements)
+- Interest form → admin review in Studiolo
+- Coordinate transport (may involve shelter staff, volunteers, or adopter pickup)
+- Post-placement follow-up (photo request, satisfaction check)
+- Marketing: Facebook/IG posts for available cats, placement announcements
+
+**Phased:**
+- **v1:** Gmail intake scanning + manual cat record creation in Postmaster + Barn Cats page on Rescue Barn + check scanning for sponsor data
+- **v2:** Adoption interface + shelter org management + automated Content Storm posts for new arrivals
+- **v3:** Full revenue analytics + direct mail campaign builder from check-scan addresses
+**Repos:** steampunk-rescuebarn (public pages, adoption UI) + steampunk-postmaster (animal records, Content Storm) + steampunk-studiolo (donors, orgs, gifts, check scanning) + steampunk-strategy (Gmail scanning for intake emails)
+
 ### Donor Directory — Merge from Search Results
 **Priority:** Medium — time-saver for duplicate cleanup
 **Scope:** When searching the donor directory and spotting duplicate records in results, allow selecting 2+ records and initiating a merge directly from the search results screen. Currently merging requires navigating to the matching page. Add multi-select checkboxes + "Merge Selected" action to donor search results.
@@ -92,6 +128,27 @@ None currently active.
 **Placement:** New tab on existing `/reports` page or standalone `/intelligence` page. Link in sidebar under Overview section alongside existing Reports/Metrics.
 **Repo:** steampunk-studiolo
 
+### Org Record Manual Enrichment
+**Priority:** Medium — quick UX win
+**Scope:** When viewing an Organization record via `/orgs/[id]`, add inline edit / enrich capabilities. Currently org records may be sparse (just a name from a gift import). Add: website URL scraper (paste URL → Claude extracts mission, contact info, size, industry), manual field editing for all org fields, notes/history log. Similar to how donor profiles have enrichment tools.
+**Repo:** steampunk-studiolo
+
+### Equipment Donation Search Tool — Corporate In-Kind Giving
+**Priority:** Medium — high-impact revenue diversification (one Polaris UTV = $15k+ value)
+**What it is:** Dedicated tool in Studiolo for discovering and applying to corporate equipment donation programs. Sanctuary needs range from large (utility vehicles, storm-proof barn structures) to mid (trucks, tractors) to small (irrigation, greenhouse supplies, fencing).
+**Known targets:**
+- **Large:** John Deere (Green Zone program), Kubota, Massey-Ferguson, Caterpillar, Polaris (applied previously — declined, retry with stronger application)
+- **Mid:** Dodge/Ram (sanctuary truck), Ford (Farm Bureau programs), Tractor Supply (community grants)
+- **Small/Local:** San Diego + SoCal businesses for irrigation, greenhouse, fencing, feed storage
+- **Infrastructure:** Storm-proof two-story barn with hay storage + fodder production + large doors for emergency animal shelter (hurricane/snow events)
+**Features:**
+1. **Program database** — Track corporate giving programs: company, program name, application URL, deadline, what they donate, eligibility, past application history (applied/awarded/declined + date)
+2. **Application tracker** — Status pipeline: Researching → Drafting → Submitted → Under Review → Awarded/Declined. Attach application materials, correspondence.
+3. **AI-assisted applications** — Same pattern as GMS: Claude drafts application using org data, 990 financials, animal census, facility needs assessment. Tailored to each company's language/values.
+4. **Needs assessment** — Maintain a prioritized wish list of equipment/infrastructure needs with estimated value, urgency, and which corporate programs might match.
+5. **Follow-up automation** — Calendar reminders for reapplication windows (many programs are annual). Auto-generate "lessons learned" from declined applications.
+**Repo:** steampunk-studiolo (could be a GMS sub-module or standalone `/equipment` page)
+
 ### PayPal Gmail Enrichment (#25)
 **Priority:** Medium — emails contain notes, addresses, donor data not in API/CSV
 **Repo:** steampunk-studiolo
@@ -111,6 +168,19 @@ None currently active.
 **Remove:** Zeffy CSV import tool from Studiolo `/imports` page (no longer needed).
 **Future:** Once all monthly donors re-platformed to Rescue Barn/Stripe, remove remaining Zeffy webhook handling + Zapier integration.
 **Repos:** steampunk-studiolo + steampunk-rescuebarn
+
+### Dev Infrastructure Cost Dashboard (TARDIS)
+**Priority:** Medium-High — visibility into monthly SaaS burn rate
+**What exists:** CostTracker + SeasonalBaseline models, expense categories with `tech-saas`/`tech-hosting`/`tech-hardware`, Gmail scanner cron (daily, matches vendors from VENDOR_MAP), `/expenses` transaction ledger, cost-creep scan API. Foundation is solid.
+**Gaps:**
+1. **SaaS vendors not seeded** — Add Vercel, Neon, Supabase, GitHub, Anthropic, Google Workspace, Medusa Cloud (if applicable) to vendor seed + VENDOR_MAP
+2. **Gmail queries missing SaaS** — Add `from:billing@vercel.com`, `from:noreply@neon.tech`, `from:noreply@supabase.com`, `from:billing@github.com`, `from:api-billing@anthropic.com` to FINANCIAL_QUERIES
+3. **No `/dev-costs` page** — Dashboard showing: monthly spend by vendor (Recharts line chart), YTD total vs. budget, recent invoices, usage trend alerts. Drill-down per vendor with invoice history.
+4. **No subscription model** — CostTracker is for unit prices (hay per bale). Need SaaSSubscription model for fixed monthly vs. usage-based costs. Track billing cycle, expected monthly cost, actual vs. budget variance.
+5. **No cost allocation across repos** — Vercel/Neon/GitHub shared across 6 projects. Need allocation rules to split costs proportionally.
+6. **No Q2 projection** — Extrapolate from current monthly trend + known rate changes.
+**MVP (fast):** Seed SaaS vendors + extend Gmail scanner + filter `/expenses` by tech category. Full dashboard later.
+**Repo:** steampunk-strategy
 
 ### 990 Preparation Rollup (TARDIS Phase D, #96)
 **Priority:** Important but not urgent — needs full fiscal year of clean transaction data
@@ -412,6 +482,26 @@ The Bray expansion, Academy Levels 3–4, Mercantile phases, Surrender Deflectio
 
 **Architecture fit:** Supabase tables (shared auth already in place), RLS + `is_admin()` + new `is_vetted()`, Supabase Realtime for instant updates, Postmaster as AI brain, insights push to Studiolo via internal API. Zero PII leakage — donor linking server-side in Studiolo only.
 **Repos:** steampunk-rescuebarn (UI, tables) + steampunk-postmaster (AI crons) + steampunk-studiolo (admin queue, donor linking)
+
+### Intelligent Sanctuary Ecosystem — Site-Wide AI Layer for Rescue Barn
+**Priority:** Long-term / visionary — umbrella for AI features across the public site
+**Philosophy:** Turn Rescue Barn from a static information site into a proactive, personalized, self-improving platform. AI anticipates user needs, tailors experiences, and automates ops. All AI calls server-side via `/api/ai` route, cached in Vercel KV, Supabase Realtime for live updates. Ethical guardrails: dignity checks on all outputs, no sensationalized suffering, opt-in personalization.
+**Cross-references:** Sanctuary Commons (community AI), Living Studiolo (donor AI), Donor BI Dashboard (analytics), Content Storm (social AI) — all tracked separately. This entry covers public-site AI features not captured elsewhere.
+
+**New capabilities (not yet tracked):**
+1. **AI Chat Widget** — Claude-powered chat on every public page. Context-aware: on `/resources/tnr` it answers trapping questions, on `/residents` it recommends animals, on `/support` it suggests donation amounts. Haiku for quick responses, Opus for complex analysis. Not the same as Barn Sage (community RAG) — this is site-wide, works for anonymous visitors.
+2. **Personalized Landing Page** — On load, use IP geolocation + user profile (if logged in) to generate dynamic hero content. "In San Diego? Here's how local supporters help feral cats." AI-curated featured resident story rotates based on visitor interests.
+3. **Resident Story Generator** — AI generates/updates narratives for each animal profile from Postmaster resident DB data. Users can request variations ("Tell Gizmo's story for kids"). Multimedia curation: Claude describes scenes + pairs with uploaded photos.
+4. **AI Resource Recommender** — Semantic search across resource library. "Need TNR tips for apartment buildings?" → returns customized guide. Auto-generates new resources from existing content (e.g., disaster prep checklist localized to San Diego).
+5. **Impact Simulator** — "Your $50 donation: feeds 5 pigs for a week." AI calculates real impact from current cost data (TARDIS expense tracking) + animal census. Visual output (infographic or animation). Drives conversion on `/support` page.
+6. **Accessibility AI** — Auto-generate alt text for all resident photos + uploaded media. Claude describes images ethically ("Thistle resting in afternoon sun" not "rescued from horrible conditions"). WCAG 2.1 AA compliance automation.
+7. **SEO + Viral Engine** — AI generates meta tags, Open Graph descriptions, blog topic suggestions from trending search terms. Auto-create shareable story cards for social ("This story aligns with your network — share to Instagram?").
+8. **Operations AI (admin)** — Predictive supply chain: forecast hay/feed needs from resident count + seasonal patterns + TARDIS cost data. Volunteer matcher: pair sign-up skills with current needs. Daily AI briefs: "Churn risk 15% — recommended interventions."
+
+**Phased:**
+- **MVP:** AI chat widget + personalized landing + resident stories + impact simulator
+- **Advanced:** Resource recommender + accessibility AI + SEO engine + operations AI
+**Repo:** steampunk-rescuebarn (public features) + steampunk-postmaster (AI processing) + steampunk-strategy (cost data for impact simulator)
 
 ### Steampunk for You (SFY) — Resource Hub for Small Sanctuaries & Adopters
 **Priority:** Long-term / visionary — post-Rescue Barn stabilization
