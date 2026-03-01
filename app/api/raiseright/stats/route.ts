@@ -1,6 +1,7 @@
 export const dynamic = 'force-dynamic';
 
 import { NextResponse } from 'next/server';
+import { safeCompare } from '@/lib/safe-compare';
 import { getRaiserightDashboardStats } from '@/lib/raiseright';
 
 /**
@@ -47,7 +48,8 @@ export async function GET(request: Request) {
     // Internal scope: full data for TARDIS dashboard
     // Verify auth via cron secret or session (lightweight check)
     const authHeader = request.headers.get('authorization');
-    const isAuthed = authHeader === `Bearer ${process.env.CRON_SECRET}`;
+    const secret = process.env.CRON_SECRET;
+    const isAuthed = !!secret && !!authHeader && safeCompare(authHeader, `Bearer ${secret}`);
 
     // For internal API calls without auth, still return data
     // (the route is behind Azure AD middleware anyway)

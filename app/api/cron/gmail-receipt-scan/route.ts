@@ -1,4 +1,5 @@
 import { NextResponse } from 'next/server';
+import { safeCompare } from '@/lib/safe-compare';
 import { prisma } from '@/lib/prisma';
 import {
   getGmailClient,
@@ -35,11 +36,9 @@ interface ScanResult {
 export async function GET(request: Request) {
   // Verify cron secret — accept either Vercel CRON_SECRET or Orchestrator INTERNAL_SECRET
   const authHeader = request.headers.get('authorization');
-  if (process.env.NODE_ENV === 'production') {
-    const validTokens = [process.env.CRON_SECRET, process.env.INTERNAL_SECRET].filter(Boolean);
-    if (validTokens.length > 0 && !validTokens.some(t => authHeader === `Bearer ${t}`)) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-    }
+  const validTokens = [process.env.CRON_SECRET, process.env.INTERNAL_SECRET].filter(Boolean);
+  if (validTokens.length === 0 || !authHeader || !validTokens.some(t => safeCompare(authHeader, `Bearer ${t}`))) {
+    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
   }
 
   try {
