@@ -101,10 +101,9 @@ None currently active.
 **Placement:** New tab on existing `/reports` page or standalone `/intelligence` page. Link in sidebar under Overview section alongside existing Reports/Metrics.
 **Repo:** steampunk-studiolo
 
-### Org Record Manual Enrichment
-**Priority:** Medium — quick UX win
-**Scope:** When viewing an Organization record via `/orgs/[id]`, add inline edit / enrich capabilities. Currently org records may be sparse (just a name from a gift import). Add: website URL scraper (paste URL → Claude extracts mission, contact info, size, industry), manual field editing for all org fields, notes/history log. Similar to how donor profiles have enrichment tools.
-**Repo:** steampunk-studiolo
+### ~~Org Record Manual Enrichment~~ ✅ Completed 2026-03-01
+
+~~**Scope:** Inline edit + URL scraper on `/orgs/[id]`. See Completed Archive.~~
 
 ### Equipment Donation Search Tool — Corporate In-Kind Giving
 **Priority:** Medium — high-impact revenue diversification (one Polaris UTV = $15k+ value)
@@ -205,10 +204,9 @@ None currently active.
 ### Content Library Cleanup (#57)
 **Priority:** Low — housekeeping, do when convenient
 
-### Ayrshare Ghost Cleanup (Postmaster)
-**Priority:** Low — dead references, no runtime impact
-**Scope:** Ayrshare was the planned social posting middleman but was replaced by direct Meta Graph API calls (`post/facebook/route.ts`, `post/instagram/route.ts`). Remove stale references: `.env.example` Ayrshare section, `AYRSHARE` enum in Prisma schema, `cdn.ayrshare.com` in `next.config.js`, all README mentions. No `AYRSHARE_API_KEY` is set in Vercel — purely dead docs/schema.
-**Repo:** steampunk-postmaster
+### ~~Ayrshare Ghost Cleanup (Postmaster)~~ ✅ Completed 2026-03-01
+
+~~**Scope:** Removed all Ayrshare references. See Completed Archive.~~
 
 ---
 
@@ -507,6 +505,17 @@ Habit-formation onboarding redesign (#118), Impact page needs Krystal's 60-secon
 ---
 
 ## 🟢 Completed (Archive)
+
+### Session 8 — Audit Fixes + Cleanup
+**Completed:** 2026-03-01
+
+**Studiolo Sidebar Nav:** Added 11 orphan pages to sidebar navigation — Performance + Releases in Overview, Budget in Revenue, Compliance + Feedback in Tools, new Reference section (AI Ethics, Ethics, Playbook, Roadmap, Tech Stack, Integrations). Deleted `/demo-login` stub page.
+
+**Cleanpunk `/us/` Link Fix:** Replaced 6 hardcoded `/us/` policy links with `LocalizedClientLink` (cookie banner, checkout review ×4) and dynamic `countryCode` param (terms page). Email/API links left as-is (absolute URLs required).
+
+**Ayrshare Ghost Cleanup (Postmaster):** Removed all Ayrshare references — `.env.example` section, `AYRSHARE` ConnectorType enum, `cdn.ayrshare.com` image pattern, full README Ayrshare docs. Replaced with Meta Graph API references. Note: enum removal needs `--accept-data-loss` on next `prisma db push`.
+
+**Org Record Manual Enrichment (Studiolo):** New `OrgEditPanel` client component on `/orgs/[id]` — toggle edit mode for all fields (name, legalName, type, EIN, website, city, state, notes) with save to existing PATCH API. New `/api/orgs/[id]/scrape-url` route — paste a website URL, Claude Haiku extracts org info (name, type, location, EIN, mission), click-to-apply each extracted field.
 
 ### Session 7 — Batch Implementation Sprint
 **Completed:** 2026-03-01
