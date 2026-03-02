@@ -175,6 +175,17 @@ export async function POST(request: Request) {
         externalId,
       };
 
+      // Check for duplicate externalId (excluding the current record for i=0)
+      const existing = await prisma.scanImport.findUnique({
+        where: { externalId },
+        select: { id: true },
+      });
+      if (existing && existing.id !== scanImportId) {
+        // Collision with a different record — make unique
+        scanData.externalId = `${externalId}-doc-${doc.id.slice(-6)}-${i}`;
+        scanData.parseNotes = [scanData.parseNotes, 'Possible duplicate of existing record'].filter(Boolean).join('; ');
+      }
+
       if (i === 0) {
         // Update the original ScanImport record
         await prisma.scanImport.update({
@@ -183,16 +194,6 @@ export async function POST(request: Request) {
         });
         createdIds.push(scanImportId);
       } else {
-        // Check for duplicate externalId before creating
-        const existing = await prisma.scanImport.findUnique({
-          where: { externalId },
-          select: { id: true },
-        });
-        if (existing) {
-          // Duplicate — append document suffix to make unique
-          scanData.externalId = `${externalId}-doc-${doc.id.slice(-6)}-${i}`;
-          scanData.parseNotes = [scanData.parseNotes, 'Possible duplicate of existing record'].filter(Boolean).join('; ');
-        }
         // Create additional ScanImport records for extra checks in the image
         const additional = await prisma.scanImport.create({
           data: {
