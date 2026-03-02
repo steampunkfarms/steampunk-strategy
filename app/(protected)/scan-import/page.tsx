@@ -50,6 +50,7 @@ export default async function ScanImportPage() {
     taxFormType: si.taxFormType,
     confidence: si.confidence ? Number(si.confidence) : null,
     parseNotes: si.parseNotes,
+    reviewNotes: si.reviewNotes,
     externalId: si.externalId,
     blobUrl: docMap.get(si.documentId) || null,
   }));

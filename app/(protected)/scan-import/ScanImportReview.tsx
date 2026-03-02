@@ -13,6 +13,8 @@ import {
   UserPlus,
   MapPin,
   AlertTriangle,
+  Pencil,
+  Save,
 } from 'lucide-react';
 
 interface PendingScanImport {
@@ -40,6 +42,7 @@ interface PendingScanImport {
   taxFormType: string | null;
   confidence: number | null;
   parseNotes: string | null;
+  reviewNotes: string | null;
   externalId: string;
   blobUrl: string | null;
 }
@@ -62,6 +65,11 @@ interface DonorResult {
   matchType?: 'name_and_address' | 'name_only' | 'address_only';
 }
 
+// Fields editable per scan type
+const CHECK_TYPES = new Set(['pledge_check', 'grant_check']);
+const GRANT_TYPES = new Set(['grant_award_letter']);
+const TAX_TYPES = new Set(['tax_document_1099']);
+
 const SCAN_TYPE_LABELS: Record<string, { label: string; color: string }> = {
   pledge_check: { label: 'Pledge Check', color: 'bg-green-900/30 text-green-300' },
   grant_check: { label: 'Grant Check', color: 'bg-blue-900/30 text-blue-300' },
@@ -69,6 +77,22 @@ const SCAN_TYPE_LABELS: Record<string, { label: string; color: string }> = {
   tax_document_1099: { label: 'Tax Doc', color: 'bg-gray-700/50 text-gray-300' },
   envelope_return_address: { label: 'Envelope', color: 'bg-amber-900/30 text-amber-300' },
 };
+
+const SCAN_TYPE_OPTIONS = [
+  { value: 'pledge_check', label: 'Pledge Check' },
+  { value: 'grant_check', label: 'Grant Check' },
+  { value: 'grant_award_letter', label: 'Grant Letter' },
+  { value: 'tax_document_1099', label: 'Tax Doc' },
+  { value: 'envelope_return_address', label: 'Envelope' },
+];
+
+type EditFields = Partial<Pick<PendingScanImport,
+  'payerName' | 'payerFirstName' | 'payerLastName' |
+  'payerStreet1' | 'payerStreet2' | 'payerCity' | 'payerState' | 'payerZip' |
+  'amount' | 'checkNumber' | 'checkDate' | 'memo' | 'payee' | 'bankName' |
+  'grantorName' | 'grantAmount' | 'grantPurpose' |
+  'taxYear' | 'taxFormType' | 'scanType'
+>>;
 
 export default function ScanImportReview({
   initialPending,
@@ -86,6 +110,121 @@ export default function ScanImportReview({
   const [pushResult, setPushResult] = useState<string | null>(null);
   const [pushReady, setPushReady] = useState(readyToPush);
   const [expandedImage, setExpandedImage] = useState<string | null>(null);
+
+  // Edit mode state
+  const [editing, setEditing] = useState<Record<string, boolean>>({});
+  const [editDraft, setEditDraft] = useState<Record<string, EditFields>>({});
+  const [saving, setSaving] = useState<Record<string, boolean>>({});
+
+  // Notes state (always visible, independent of edit mode)
+  const [notesDraft, setNotesDraft] = useState<Record<string, string>>({});
+  const [savingNotes, setSavingNotes] = useState<Record<string, boolean>>({});
+
+  const startEditing = (si: PendingScanImport) => {
+    setEditing(prev => ({ ...prev, [si.id]: true }));
+    setEditDraft(prev => ({
+      ...prev,
+      [si.id]: {
+        payerName: si.payerName,
+        payerFirstName: si.payerFirstName,
+        payerLastName: si.payerLastName,
+        payerStreet1: si.payerStreet1,
+        payerStreet2: si.payerStreet2,
+        payerCity: si.payerCity,
+        payerState: si.payerState,
+        payerZip: si.payerZip,
+        amount: si.amount,
+        checkNumber: si.checkNumber,
+        checkDate: si.checkDate ? si.checkDate.split('T')[0] : null,
+        memo: si.memo,
+        payee: si.payee,
+        bankName: si.bankName,
+        grantorName: si.grantorName,
+        grantAmount: si.grantAmount,
+        grantPurpose: si.grantPurpose,
+        taxYear: si.taxYear,
+        taxFormType: si.taxFormType,
+        scanType: si.scanType,
+      },
+    }));
+  };
+
+  const cancelEditing = (importId: string) => {
+    setEditing(prev => ({ ...prev, [importId]: false }));
+    setEditDraft(prev => { const next = { ...prev }; delete next[importId]; return next; });
+  };
+
+  const updateDraft = (importId: string, field: string, value: string | number | null) => {
+    setEditDraft(prev => ({
+      ...prev,
+      [importId]: { ...prev[importId], [field]: value },
+    }));
+  };
+
+  const saveEdits = async (importId: string, si: PendingScanImport) => {
+    const draft = editDraft[importId];
+    if (!draft) return;
+
+    // Only send changed fields
+    const changes: Record<string, unknown> = {};
+    for (const [key, value] of Object.entries(draft)) {
+      const original = si[key as keyof PendingScanImport];
+      // Normalize for comparison: treat null/undefined/'' as equal
+      const normalizedOriginal = original == null ? '' : String(original);
+      const normalizedValue = value == null ? '' : String(value);
+      if (normalizedOriginal !== normalizedValue) {
+        changes[key] = value;
+      }
+    }
+
+    if (Object.keys(changes).length === 0) {
+      cancelEditing(importId);
+      return;
+    }
+
+    setSaving(prev => ({ ...prev, [importId]: true }));
+    try {
+      const res = await fetch(`/api/scan-import/${importId}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action: 'update', fields: changes }),
+      });
+      if (res.ok) {
+        // Update local state with new values
+        setPending(prev => prev.map(item =>
+          item.id === importId
+            ? { ...item, ...draft }
+            : item
+        ));
+        setEditing(prev => ({ ...prev, [importId]: false }));
+      }
+    } catch {
+      // silent fail
+    }
+    setSaving(prev => ({ ...prev, [importId]: false }));
+  };
+
+  const saveNotes = async (importId: string) => {
+    const notes = notesDraft[importId];
+    if (notes === undefined) return;
+
+    setSavingNotes(prev => ({ ...prev, [importId]: true }));
+    try {
+      const res = await fetch(`/api/scan-import/${importId}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action: 'update', fields: { reviewNotes: notes || null } }),
+      });
+      if (res.ok) {
+        setPending(prev => prev.map(item =>
+          item.id === importId ? { ...item, reviewNotes: notes || null } : item
+        ));
+      }
+    } catch {
+      // silent fail
+    }
+    setSavingNotes(prev => ({ ...prev, [importId]: false }));
+  };
 
   const handleSearch = async (importId: string, si: PendingScanImport) => {
     const q = searchQuery[importId]?.trim() || si.payerName || '';
@@ -195,6 +334,10 @@ export default function ScanImportReview({
     return [line1, `${line2} ${line3}`.trim()].filter(Boolean).join(', ');
   };
 
+  // Compact input styling shared across edit fields
+  const inputCls = 'bg-gray-800 border border-gray-600 rounded px-2 py-0.5 text-sm text-white focus:border-brass-gold focus:outline-none';
+  const inputSmCls = `${inputCls} w-full`;
+
   return (
     <div className="space-y-4">
       {/* Push bar */}
@@ -258,9 +401,19 @@ export default function ScanImportReview({
         const typeInfo = SCAN_TYPE_LABELS[si.scanType] || { label: si.scanType, color: 'bg-gray-700/50 text-gray-300' };
         const address = formatAddress(si);
         const hasAddress = Boolean(si.payerStreet1 && si.payerZip);
+        const isEditing = editing[si.id];
+        const draft = editDraft[si.id] || {};
+        const isCheck = CHECK_TYPES.has(si.scanType);
+        const isGrant = GRANT_TYPES.has(si.scanType);
+        const isTax = TAX_TYPES.has(si.scanType);
 
         return (
-          <div key={si.id} className="p-4 space-y-3 rounded border border-gray-700/50 bg-gray-900/30">
+          <div
+            key={si.id}
+            className={`p-4 space-y-3 rounded border bg-gray-900/30 ${
+              isEditing ? 'border-brass-gold/50' : 'border-gray-700/50'
+            }`}
+          >
             {/* Top row: thumbnail + parsed data */}
             <div className="flex gap-4">
               {/* Image thumbnail */}
@@ -280,58 +433,211 @@ export default function ScanImportReview({
 
               {/* Parsed data */}
               <div className="flex-1 min-w-0 space-y-2">
+                {/* Header row with type badge, name, amount, and edit/save buttons */}
                 <div className="flex items-center gap-2 flex-wrap">
-                  <span className={`text-[10px] px-1.5 py-0.5 rounded ${typeInfo.color}`}>
-                    {typeInfo.label}
-                  </span>
-                  <span className="font-medium text-white">{si.payerName || 'Unknown payer'}</span>
-                  {si.amount != null && (
-                    <span className="text-green-400 font-mono">${si.amount.toFixed(2)}</span>
+                  {isEditing ? (
+                    <select
+                      value={draft.scanType || si.scanType}
+                      onChange={e => updateDraft(si.id, 'scanType', e.target.value)}
+                      title="Scan type"
+                      className="text-[10px] px-1.5 py-0.5 rounded bg-gray-800 border border-gray-600 text-white focus:border-brass-gold focus:outline-none"
+                    >
+                      {SCAN_TYPE_OPTIONS.map(opt => (
+                        <option key={opt.value} value={opt.value}>{opt.label}</option>
+                      ))}
+                    </select>
+                  ) : (
+                    <span className={`text-[10px] px-1.5 py-0.5 rounded ${typeInfo.color}`}>
+                      {typeInfo.label}
+                    </span>
                   )}
+
+                  {isEditing ? (
+                    <input
+                      type="text"
+                      value={draft.payerName ?? ''}
+                      onChange={e => updateDraft(si.id, 'payerName', e.target.value)}
+                      className={`${inputCls} flex-1 min-w-0 font-medium`}
+                      placeholder="Payer name"
+                    />
+                  ) : (
+                    <span className="font-medium text-white">{si.payerName || 'Unknown payer'}</span>
+                  )}
+
+                  {(isCheck || isEditing) && (
+                    isEditing ? (
+                      <input
+                        type="number"
+                        step="0.01"
+                        value={draft.amount ?? ''}
+                        onChange={e => updateDraft(si.id, 'amount', e.target.value ? parseFloat(e.target.value) : null)}
+                        className={`${inputCls} w-28 text-green-400 font-mono`}
+                        placeholder="Amount"
+                      />
+                    ) : (
+                      si.amount != null && (
+                        <span className="text-green-400 font-mono">${si.amount.toFixed(2)}</span>
+                      )
+                    )
+                  )}
+
+                  {/* Edit / Save / Cancel buttons */}
+                  <div className="ml-auto flex items-center gap-1">
+                    {isEditing ? (
+                      <>
+                        <button
+                          onClick={() => saveEdits(si.id, si)}
+                          disabled={saving[si.id]}
+                          className="p-1 text-green-400 hover:text-green-300 disabled:opacity-50"
+                          title="Save changes"
+                        >
+                          {saving[si.id] ? <Loader2 className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />}
+                        </button>
+                        <button
+                          onClick={() => cancelEditing(si.id)}
+                          className="p-1 text-gray-500 hover:text-gray-300"
+                          title="Cancel editing"
+                        >
+                          <X className="w-4 h-4" />
+                        </button>
+                      </>
+                    ) : (
+                      <button
+                        onClick={() => startEditing(si)}
+                        className="p-1 text-gray-500 hover:text-brass-gold"
+                        title="Edit parsed fields"
+                      >
+                        <Pencil className="w-4 h-4" />
+                      </button>
+                    )}
+                  </div>
                 </div>
 
                 {/* Check fields */}
-                {(si.scanType === 'pledge_check' || si.scanType === 'grant_check') && (
-                  <div className="flex flex-wrap gap-x-4 gap-y-1 text-xs text-slate-400">
-                    {si.checkNumber && <span>Check #{si.checkNumber}</span>}
-                    {si.checkDate && (
-                      <span>{new Date(si.checkDate).toLocaleDateString()}</span>
-                    )}
-                    {si.bankName && <span>{si.bankName}</span>}
-                    {si.payee && <span>Payee: {si.payee}</span>}
-                  </div>
+                {isCheck && (
+                  isEditing ? (
+                    <div className="grid grid-cols-2 gap-2 text-xs">
+                      <div>
+                        <label className="text-gray-500 text-[10px]">Check #</label>
+                        <input type="text" title="Check number" value={draft.checkNumber ?? ''} onChange={e => updateDraft(si.id, 'checkNumber', e.target.value)} className={inputSmCls} />
+                      </div>
+                      <div>
+                        <label className="text-gray-500 text-[10px]">Date</label>
+                        <input type="date" title="Check date" value={draft.checkDate ?? ''} onChange={e => updateDraft(si.id, 'checkDate', e.target.value)} className={inputSmCls} />
+                      </div>
+                      <div>
+                        <label className="text-gray-500 text-[10px]">Bank</label>
+                        <input type="text" title="Bank name" value={draft.bankName ?? ''} onChange={e => updateDraft(si.id, 'bankName', e.target.value)} className={inputSmCls} />
+                      </div>
+                      <div>
+                        <label className="text-gray-500 text-[10px]">Payee</label>
+                        <input type="text" title="Payee" value={draft.payee ?? ''} onChange={e => updateDraft(si.id, 'payee', e.target.value)} className={inputSmCls} />
+                      </div>
+                    </div>
+                  ) : (
+                    <div className="flex flex-wrap gap-x-4 gap-y-1 text-xs text-slate-400">
+                      {si.checkNumber && <span>Check #{si.checkNumber}</span>}
+                      {si.checkDate && (
+                        <span>{new Date(si.checkDate).toLocaleDateString()}</span>
+                      )}
+                      {si.bankName && <span>{si.bankName}</span>}
+                      {si.payee && <span>Payee: {si.payee}</span>}
+                    </div>
+                  )
                 )}
 
                 {/* Memo line */}
-                {si.memo && (
-                  <div className="text-xs text-brass-gold">
-                    Memo: &ldquo;{si.memo}&rdquo;
+                {isEditing && isCheck ? (
+                  <div>
+                    <label className="text-gray-500 text-[10px]">Memo</label>
+                    <input
+                      type="text"
+                      value={draft.memo ?? ''}
+                      onChange={e => updateDraft(si.id, 'memo', e.target.value)}
+                      className={`${inputSmCls} text-brass-gold`}
+                      placeholder="Memo line"
+                    />
                   </div>
+                ) : (
+                  si.memo && (
+                    <div className="text-xs text-brass-gold">
+                      Memo: &ldquo;{si.memo}&rdquo;
+                    </div>
+                  )
                 )}
 
                 {/* Grant fields */}
-                {si.scanType === 'grant_award_letter' && si.grantorName && (
-                  <div className="text-xs text-slate-400">
-                    From: {si.grantorName}
-                    {si.grantAmount != null && <span> &middot; ${si.grantAmount.toFixed(2)}</span>}
-                    {si.grantPurpose && <span> &middot; {si.grantPurpose}</span>}
-                  </div>
+                {isGrant && (
+                  isEditing ? (
+                    <div className="grid grid-cols-3 gap-2 text-xs">
+                      <div>
+                        <label className="text-gray-500 text-[10px]">Grantor</label>
+                        <input type="text" title="Grantor name" value={draft.grantorName ?? ''} onChange={e => updateDraft(si.id, 'grantorName', e.target.value)} className={inputSmCls} />
+                      </div>
+                      <div>
+                        <label className="text-gray-500 text-[10px]">Amount</label>
+                        <input type="number" title="Grant amount" step="0.01" value={draft.grantAmount ?? ''} onChange={e => updateDraft(si.id, 'grantAmount', e.target.value ? parseFloat(e.target.value) : null)} className={inputSmCls} />
+                      </div>
+                      <div>
+                        <label className="text-gray-500 text-[10px]">Purpose</label>
+                        <input type="text" title="Grant purpose" value={draft.grantPurpose ?? ''} onChange={e => updateDraft(si.id, 'grantPurpose', e.target.value)} className={inputSmCls} />
+                      </div>
+                    </div>
+                  ) : (
+                    si.grantorName && (
+                      <div className="text-xs text-slate-400">
+                        From: {si.grantorName}
+                        {si.grantAmount != null && <span> &middot; ${si.grantAmount.toFixed(2)}</span>}
+                        {si.grantPurpose && <span> &middot; {si.grantPurpose}</span>}
+                      </div>
+                    )
+                  )
                 )}
 
                 {/* Tax fields */}
-                {si.scanType === 'tax_document_1099' && (
-                  <div className="text-xs text-slate-400">
-                    {si.taxFormType && <span>{si.taxFormType}</span>}
-                    {si.taxYear && <span> &middot; {si.taxYear}</span>}
-                  </div>
+                {isTax && (
+                  isEditing ? (
+                    <div className="grid grid-cols-2 gap-2 text-xs">
+                      <div>
+                        <label className="text-gray-500 text-[10px]">Form Type</label>
+                        <input type="text" title="Tax form type" value={draft.taxFormType ?? ''} onChange={e => updateDraft(si.id, 'taxFormType', e.target.value)} className={inputSmCls} />
+                      </div>
+                      <div>
+                        <label className="text-gray-500 text-[10px]">Tax Year</label>
+                        <input type="number" title="Tax year" value={draft.taxYear ?? ''} onChange={e => updateDraft(si.id, 'taxYear', e.target.value ? parseInt(e.target.value, 10) : null)} className={inputSmCls} />
+                      </div>
+                    </div>
+                  ) : (
+                    (si.taxFormType || si.taxYear) && (
+                      <div className="text-xs text-slate-400">
+                        {si.taxFormType && <span>{si.taxFormType}</span>}
+                        {si.taxYear && <span> &middot; {si.taxYear}</span>}
+                      </div>
+                    )
+                  )
                 )}
 
                 {/* Address */}
-                {address && (
-                  <div className="flex items-center gap-1.5 text-xs text-slate-500">
-                    <MapPin className="w-3 h-3 flex-shrink-0" />
-                    <span>{address}</span>
+                {isEditing ? (
+                  <div className="space-y-1 text-xs">
+                    <label className="text-gray-500 text-[10px] flex items-center gap-1"><MapPin className="w-3 h-3" /> Address</label>
+                    <div className="grid grid-cols-2 gap-2">
+                      <input type="text" value={draft.payerStreet1 ?? ''} onChange={e => updateDraft(si.id, 'payerStreet1', e.target.value)} className={inputSmCls} placeholder="Street 1" />
+                      <input type="text" value={draft.payerStreet2 ?? ''} onChange={e => updateDraft(si.id, 'payerStreet2', e.target.value)} className={inputSmCls} placeholder="Street 2" />
+                    </div>
+                    <div className="grid grid-cols-4 gap-2">
+                      <input type="text" value={draft.payerCity ?? ''} onChange={e => updateDraft(si.id, 'payerCity', e.target.value)} className={`${inputSmCls} col-span-2`} placeholder="City" />
+                      <input type="text" value={draft.payerState ?? ''} onChange={e => updateDraft(si.id, 'payerState', e.target.value)} className={inputSmCls} placeholder="ST" maxLength={2} />
+                      <input type="text" value={draft.payerZip ?? ''} onChange={e => updateDraft(si.id, 'payerZip', e.target.value)} className={inputSmCls} placeholder="Zip" />
+                    </div>
                   </div>
+                ) : (
+                  address && (
+                    <div className="flex items-center gap-1.5 text-xs text-slate-500">
+                      <MapPin className="w-3 h-3 flex-shrink-0" />
+                      <span>{address}</span>
+                    </div>
+                  )
                 )}
 
                 {/* Confidence + notes */}
@@ -361,6 +667,24 @@ export default function ScanImportReview({
                   )}
                 </div>
               </div>
+            </div>
+
+            {/* Review notes — always visible */}
+            <div className="flex items-start gap-2">
+              <textarea
+                rows={2}
+                placeholder="Add review notes (e.g., pledge context, animal name)..."
+                className="flex-1 bg-gray-800/50 border border-gray-700 rounded px-3 py-1.5 text-xs text-slate-300 placeholder-gray-600 focus:border-brass-gold/50 focus:outline-none resize-none"
+                value={notesDraft[si.id] ?? si.reviewNotes ?? ''}
+                onChange={e => setNotesDraft(prev => ({ ...prev, [si.id]: e.target.value }))}
+                onBlur={() => {
+                  const current = notesDraft[si.id];
+                  if (current !== undefined && current !== (si.reviewNotes ?? '')) {
+                    saveNotes(si.id);
+                  }
+                }}
+              />
+              {savingNotes[si.id] && <Loader2 className="w-4 h-4 text-brass-gold animate-spin mt-1" />}
             </div>
 
             {/* Search + actions row */}

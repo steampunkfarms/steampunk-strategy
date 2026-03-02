@@ -831,6 +831,9 @@ model ScanImport {
   rawExtracted    String?   @map("raw_extracted")     // Full JSON from Claude
   parseNotes      String?   @map("parse_notes")       // Claude's notes about ambiguity
 
+  // Review notes (human context added during review)
+  reviewNotes     String?   @map("review_notes")
+
   // Dedup key: scanType + checkNumber + amount + date (or hash)
   externalId      String    @unique @map("external_id")
 
