@@ -31,6 +31,9 @@ interface ParseResult {
   confidence: number;
   vendorMatched: boolean;
   vendorSlug: string | null;
+  existingTransaction: { id: string; date: string; amount: number; status: string } | null;
+  enrichmentData: { lineItemTags: Record<number, string[]>; lineItemNotes: Record<number, string> } | null;
+  existingNotes: string | null;
 }
 
 interface CreateResult {
@@ -95,6 +98,9 @@ export default function DocumentUploader({ loadDocumentId, onComplete }: Uploade
   const [lineItemNotes, setLineItemNotes] = useState<Record<number, string>>({});
   const [expandedLineItem, setExpandedLineItem] = useState<number | null>(null);
 
+  // Existing transaction (for update flow)
+  const [existingTransactionId, setExistingTransactionId] = useState<string | null>(null);
+
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const SPECIES_OPTIONS = [
@@ -137,6 +143,7 @@ export default function DocumentUploader({ loadDocumentId, onComplete }: Uploade
     setLineItemTags({});
     setLineItemNotes({});
     setExpandedLineItem(null);
+    setExistingTransactionId(null);
     onComplete?.();
   }, [onComplete]);
 
@@ -180,14 +187,26 @@ export default function DocumentUploader({ loadDocumentId, onComplete }: Uploade
           setOverrideAmount(String(parseData.extractedData.total));
         }
 
-        // Reset notes/donor/enrichment fields for this document
-        setNotes('');
+        // Pre-fill from existing transaction + enrichment, or reset
+        if (parseData.existingTransaction) {
+          setExistingTransactionId(parseData.existingTransaction.id);
+        } else {
+          setExistingTransactionId(null);
+        }
+
+        if (parseData.enrichmentData) {
+          setLineItemTags(parseData.enrichmentData.lineItemTags ?? {});
+          setLineItemNotes(parseData.enrichmentData.lineItemNotes ?? {});
+        } else {
+          setLineItemTags({});
+          setLineItemNotes({});
+        }
+
+        setNotes(parseData.existingNotes ?? '');
         setDonorPaidEnabled(false);
         setDonorName('');
         setDonorAmount('');
         setArrangement(null);
-        setLineItemTags({});
-        setLineItemNotes({});
         setExpandedLineItem(null);
 
         // Check for donor arrangements
@@ -346,25 +365,48 @@ export default function DocumentUploader({ loadDocumentId, onComplete }: Uploade
         overrides.lineItemNotes = lineItemNotes;
       }
 
-      const res = await fetch('/api/documents/create-transaction', {
-        method: 'POST',
+      const isUpdate = !!existingTransactionId;
+      const endpoint = isUpdate
+        ? '/api/documents/update-transaction'
+        : '/api/documents/create-transaction';
+      const method = isUpdate ? 'PATCH' : 'POST';
+
+      const res = await fetch(endpoint, {
+        method,
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ documentId: uploadResult.id, overrides }),
       });
       const data = await res.json();
 
       if (!res.ok) {
-        throw new Error(data.error || 'Failed to create transaction');
+        throw new Error(data.error || `Failed to ${isUpdate ? 'update' : 'create'} transaction`);
       }
 
-      setCreateResult(data as CreateResult);
+      if (isUpdate) {
+        // For updates, build a minimal CreateResult-compatible response
+        setCreateResult({
+          transactionId: data.transactionId,
+          documentId: data.documentId,
+          vendorMatched: parseResult?.vendorMatched ?? false,
+          vendorSlug: parseResult?.vendorSlug ?? null,
+          status: 'updated',
+          flags: [],
+          costTrackerEntries: [],
+          donorPaidBillId: data.donorPaidBillId ?? null,
+          donorPortion: null,
+          farmPortion: null,
+          journalNoteId: data.journalNoteId ?? null,
+        });
+      } else {
+        setCreateResult(data as CreateResult);
+      }
       setPhase('done');
       onComplete?.();
     } catch (err) {
       setError(err instanceof Error ? err.message : String(err));
       setPhase('error');
     }
-  }, [uploadResult, overrideDate, overrideAmount, notes, donorPaidEnabled, donorName, donorAmount, lineItemTags, lineItemNotes, onComplete]);
+  }, [uploadResult, overrideDate, overrideAmount, notes, donorPaidEnabled, donorName, donorAmount, lineItemTags, lineItemNotes, existingTransactionId, parseResult, onComplete]);
 
   // Drag and drop handlers
   const handleDrag = useCallback((e: React.DragEvent) => {
@@ -798,13 +840,13 @@ export default function DocumentUploader({ loadDocumentId, onComplete }: Uploade
               )}
             </div>
 
-            {/* Create Transaction button */}
+            {/* Create / Update Transaction button */}
             <button
               onClick={createTransaction}
               className="btn-primary w-full flex items-center justify-center gap-2 text-sm mt-2"
             >
               <FileText className="w-4 h-4" />
-              Create Transaction
+              {existingTransactionId ? 'Update Transaction' : 'Create Transaction'}
             </button>
           </div>
         )}
@@ -822,7 +864,9 @@ export default function DocumentUploader({ loadDocumentId, onComplete }: Uploade
           <div className="text-center py-6 space-y-3">
             <CheckCircle2 className="w-10 h-10 text-gauge-green mx-auto" />
             <div>
-              <p className="text-sm text-slate-200 font-medium">Transaction created</p>
+              <p className="text-sm text-slate-200 font-medium">
+                {createResult.status === 'updated' ? 'Transaction updated' : 'Transaction created'}
+              </p>
               <p className="text-xs text-slate-500 font-mono mt-1">
                 {createResult.transactionId.slice(0, 8)}...
               </p>

@@ -40,12 +40,38 @@ export async function POST(request: Request) {
         } catch { /* ignore parse errors */ }
       }
 
+      // Check for existing linked transaction
+      const txDoc = await prisma.transactionDocument.findFirst({
+        where: { documentId: doc.id },
+        include: {
+          transaction: {
+            select: { id: true, date: true, amount: true, description: true, status: true },
+          },
+        },
+      });
+
+      // Fetch existing user notes (not period breakdowns) if transaction exists
+      const existingNote = txDoc
+        ? await prisma.journalNote.findFirst({
+            where: { transactionId: txDoc.transactionId, type: 'note' },
+            orderBy: { createdAt: 'desc' },
+          })
+        : null;
+
       return NextResponse.json({
         documentId: doc.id,
         extractedData: doc.extractedData ? JSON.parse(doc.extractedData) : null,
         confidence: doc.confidence ? Number(doc.confidence) : null,
         vendorMatched: !!doc.vendorId,
         vendorSlug: cachedVendorSlug,
+        existingTransaction: txDoc ? {
+          id: txDoc.transaction.id,
+          date: txDoc.transaction.date,
+          amount: Number(txDoc.transaction.amount),
+          status: txDoc.transaction.status,
+        } : null,
+        enrichmentData: doc.enrichmentData ? JSON.parse(doc.enrichmentData) : null,
+        existingNotes: existingNote?.content ?? null,
         message: 'Already parsed',
       });
     }

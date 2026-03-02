@@ -82,6 +82,7 @@ model Document {
   // AI extraction
   extractedText   String?   @map("extracted_text") // Raw OCR/parsed text
   extractedData   String?   @map("extracted_data") // JSON: structured fields (date, vendor, amount, line items)
+  enrichmentData  String?   @map("enrichment_data") // JSON: user-provided species tags + context per line item
   parseStatus     String    @default("pending") @map("parse_status") // "pending" | "processing" | "complete" | "failed"
   parseModel      String?   @map("parse_model")   // Claude model used
   confidence      Decimal?  @db.Decimal(3, 2)      // AI confidence score 0.00-1.00

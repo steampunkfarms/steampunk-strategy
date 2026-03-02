@@ -192,6 +192,19 @@ export async function POST(request: Request) {
       },
     });
 
+    // --- Save enrichment data (species tags + context notes) ---
+    if (overrides?.lineItemTags || overrides?.lineItemNotes) {
+      await prisma.document.update({
+        where: { id: documentId },
+        data: {
+          enrichmentData: JSON.stringify({
+            lineItemTags: overrides.lineItemTags ?? {},
+            lineItemNotes: overrides.lineItemNotes ?? {},
+          }),
+        },
+      });
+    }
+
     // --- Journal note for multi-period income breakdown ---
     if (isIncome && extracted.lineItems?.length > 0) {
       const periodLines = extracted.lineItems
