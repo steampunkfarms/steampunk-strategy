@@ -92,6 +92,7 @@ export default function DocumentUploader({ loadDocumentId, onComplete }: Uploade
 
   // Line-item species enrichment
   const [lineItemTags, setLineItemTags] = useState<Record<number, string[]>>({});
+  const [lineItemNotes, setLineItemNotes] = useState<Record<number, string>>({});
   const [expandedLineItem, setExpandedLineItem] = useState<number | null>(null);
 
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -134,6 +135,7 @@ export default function DocumentUploader({ loadDocumentId, onComplete }: Uploade
     setDonorAmount('');
     setArrangement(null);
     setLineItemTags({});
+    setLineItemNotes({});
     setExpandedLineItem(null);
     onComplete?.();
   }, [onComplete]);
@@ -184,6 +186,7 @@ export default function DocumentUploader({ loadDocumentId, onComplete }: Uploade
         setDonorAmount('');
         setArrangement(null);
         setLineItemTags({});
+        setLineItemNotes({});
         setExpandedLineItem(null);
 
         // Check for donor arrangements
@@ -338,6 +341,9 @@ export default function DocumentUploader({ loadDocumentId, onComplete }: Uploade
       if (Object.keys(lineItemTags).length > 0) {
         overrides.lineItemTags = lineItemTags;
       }
+      if (Object.keys(lineItemNotes).length > 0) {
+        overrides.lineItemNotes = lineItemNotes;
+      }
 
       const res = await fetch('/api/documents/create-transaction', {
         method: 'POST',
@@ -357,7 +363,7 @@ export default function DocumentUploader({ loadDocumentId, onComplete }: Uploade
       setError(err instanceof Error ? err.message : String(err));
       setPhase('error');
     }
-  }, [uploadResult, overrideDate, overrideAmount, notes, donorPaidEnabled, donorName, donorAmount, lineItemTags, onComplete]);
+  }, [uploadResult, overrideDate, overrideAmount, notes, donorPaidEnabled, donorName, donorAmount, lineItemTags, lineItemNotes, onComplete]);
 
   // Drag and drop handlers
   const handleDrag = useCallback((e: React.DragEvent) => {
@@ -626,11 +632,12 @@ export default function DocumentUploader({ loadDocumentId, onComplete }: Uploade
                                   className={`grid px-3 py-1.5 ${isExpense ? 'grid-cols-[1fr_auto_auto_auto]' : 'grid-cols-[1fr_auto_auto]'} gap-2 items-center ${isExpense ? 'cursor-pointer hover:bg-console-hover' : ''}`}
                                   onClick={isExpense ? () => setExpandedLineItem(isExpanded ? null : i) : undefined}
                                 >
-                                  <span className="text-slate-300 flex items-center gap-1.5">
-                                    {item.description}
-                                    {isExpense && tags.length > 0 && (
-                                      <span className="text-[10px] text-slate-500">
+                                  <span className="text-slate-300 flex items-center gap-1.5 min-w-0">
+                                    <span className="truncate">{item.description}</span>
+                                    {isExpense && (tags.length > 0 || lineItemNotes[i]) && (
+                                      <span className="text-[10px] text-slate-500 flex-shrink-0 flex items-center gap-1">
                                         {tags.map(t => SPECIES_OPTIONS.find(s => s.id === t)?.emoji).join('')}
+                                        {lineItemNotes[i] && <span className="text-brass-muted" title={lineItemNotes[i]}>📝</span>}
                                       </span>
                                     )}
                                   </span>
@@ -654,9 +661,9 @@ export default function DocumentUploader({ loadDocumentId, onComplete }: Uploade
                                     {formatCurrency(item.total)}
                                   </span>
                                 </div>
-                                {/* Species tags (expanded) */}
+                                {/* Species tags + context (expanded) */}
                                 {isExpense && isExpanded && (
-                                  <div className="px-3 pb-2 pt-0.5">
+                                  <div className="px-3 pb-2 pt-0.5 space-y-1.5">
                                     <div className="flex flex-wrap gap-1">
                                       {SPECIES_OPTIONS.map(sp => (
                                         <button
@@ -673,6 +680,13 @@ export default function DocumentUploader({ loadDocumentId, onComplete }: Uploade
                                         </button>
                                       ))}
                                     </div>
+                                    <input
+                                      type="text"
+                                      value={lineItemNotes[i] ?? ''}
+                                      onChange={(e) => setLineItemNotes(prev => ({ ...prev, [i]: e.target.value }))}
+                                      placeholder="Why we use this product, who it helps..."
+                                      className="w-full text-[11px] bg-console-default border border-console-border rounded px-2 py-1 text-slate-300 placeholder:text-slate-600 focus:border-brass-warm/40 focus:outline-none"
+                                    />
                                   </div>
                                 )}
                               </td>
