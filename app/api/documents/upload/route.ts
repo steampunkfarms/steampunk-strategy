@@ -50,6 +50,7 @@ export async function POST(request: Request) {
     const blob = await put(blobPath, file, {
       access: 'public',
       contentType: file.type,
+      addRandomSuffix: true,
     });
 
     // Find vendor if slug provided

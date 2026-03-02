@@ -40,15 +40,33 @@ export default function ScanUploader() {
   const [dragActive, setDragActive] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
+  const safeJson = async (res: Response, fallbackMsg: string) => {
+    const ct = res.headers.get('content-type') || '';
+    if (!ct.includes('application/json')) {
+      const text = await res.text();
+      throw new Error(
+        res.status === 413 || text.includes('Entity Too Large')
+          ? 'File too large for upload. Try compressing the PDF.'
+          : `${fallbackMsg}: ${text.slice(0, 100)}`
+      );
+    }
+    return res.json();
+  };
+
   const processFile = async (file: File): Promise<FileProgress> => {
     try {
+      // Client-side size check
+      if (file.size > 10 * 1024 * 1024) {
+        throw new Error(`File too large: ${(file.size / 1024 / 1024).toFixed(1)}MB. Max: 10MB`);
+      }
+
       // Upload
       const formData = new FormData();
       formData.append('file', file);
       formData.append('scanType', scanType);
 
       const uploadRes = await fetch('/api/scan-import/upload', { method: 'POST', body: formData });
-      const uploadData = await uploadRes.json();
+      const uploadData = await safeJson(uploadRes, 'Upload failed');
 
       if (!uploadRes.ok) throw new Error(uploadData.error || 'Upload failed');
 
@@ -58,7 +76,7 @@ export default function ScanUploader() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ scanImportId: uploadData.scanImportId }),
       });
-      const parseData = await parseRes.json();
+      const parseData = await safeJson(parseRes, 'Parse failed');
 
       if (!parseRes.ok) throw new Error(parseData.error || 'Parse failed');
 

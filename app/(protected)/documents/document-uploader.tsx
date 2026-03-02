@@ -74,10 +74,28 @@ export default function DocumentUploader({ onComplete }: { onComplete?: () => vo
     setError(null);
 
     try {
+      // Client-side size check (Vercel body limit is ~4.5MB, our server limit is 10MB)
+      const MAX_UPLOAD_MB = 10;
+      if (file.size > MAX_UPLOAD_MB * 1024 * 1024) {
+        throw new Error(`File too large: ${(file.size / 1024 / 1024).toFixed(1)}MB. Max: ${MAX_UPLOAD_MB}MB. Try compressing the PDF.`);
+      }
+
       const formData = new FormData();
       formData.append('file', file);
 
       const res = await fetch('/api/documents/upload', { method: 'POST', body: formData });
+
+      // Handle non-JSON responses (e.g., Vercel's "Request Entity Too Large")
+      const contentType = res.headers.get('content-type') || '';
+      if (!contentType.includes('application/json')) {
+        const text = await res.text();
+        throw new Error(
+          res.status === 413 || text.includes('Entity Too Large')
+            ? `File too large for upload (${(file.size / 1024 / 1024).toFixed(1)}MB). Try compressing the PDF first.`
+            : `Upload failed: ${text.slice(0, 100)}`
+        );
+      }
+
       const data = await res.json();
 
       if (!res.ok) {
