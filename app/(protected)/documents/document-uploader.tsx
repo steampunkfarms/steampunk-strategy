@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useRef, useCallback } from 'react';
+import { useState, useRef, useCallback, useEffect } from 'react';
 import {
   Upload,
   Loader2,
@@ -63,7 +63,12 @@ interface ArrangementResult {
   } | null;
 }
 
-export default function DocumentUploader({ onComplete }: { onComplete?: () => void }) {
+interface UploaderProps {
+  loadDocumentId?: string | null;
+  onComplete?: () => void;
+}
+
+export default function DocumentUploader({ loadDocumentId, onComplete }: UploaderProps) {
   const [phase, setPhase] = useState<Phase>('idle');
   const [error, setError] = useState<string | null>(null);
   const [dragActive, setDragActive] = useState(false);
@@ -101,7 +106,93 @@ export default function DocumentUploader({ onComplete }: { onComplete?: () => vo
     setDonorName('');
     setDonorAmount('');
     setArrangement(null);
-  }, []);
+    onComplete?.();
+  }, [onComplete]);
+
+  // Load an existing document for remediation
+  useEffect(() => {
+    if (!loadDocumentId) return;
+    if (phase !== 'idle' && phase !== 'review') return;
+
+    const docId = loadDocumentId;
+    let cancelled = false;
+
+    async function loadDocument() {
+      setPhase('parsing');
+      setError(null);
+
+      try {
+        const parseRes = await fetch('/api/documents/parse', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ documentId: docId }),
+        });
+        const parseData = await parseRes.json();
+
+        if (cancelled) return;
+
+        if (!parseRes.ok) {
+          throw new Error(parseData.error || 'Parse failed');
+        }
+
+        // Set upload result so createTransaction has the documentId
+        setUploadResult({ id: docId, blobUrl: '', parseStatus: parseData.extractedData ? 'complete' : 'pending' });
+        setParseResult(parseData as ParseResult);
+        setCreateResult(null);
+
+        // Pre-fill overrides
+        if (parseData.extractedData?.date) {
+          setOverrideDate(parseData.extractedData.date);
+        }
+        if (parseData.extractedData?.total) {
+          setOverrideAmount(String(parseData.extractedData.total));
+        }
+
+        // Reset notes/donor fields for this document
+        setNotes('');
+        setDonorPaidEnabled(false);
+        setDonorName('');
+        setDonorAmount('');
+        setArrangement(null);
+
+        // Check for donor arrangements
+        if (parseData.vendorMatched && parseData.extractedData?.vendor?.name) {
+          try {
+            const arrRes = await fetch('/api/documents/arrangement-check', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({
+                vendorSlug: parseData.vendorSlug,
+                invoiceDate: parseData.extractedData.date,
+                farmPaidAmount: parseData.extractedData.total,
+              }),
+            });
+            if (!cancelled && arrRes.ok) {
+              const arrData = await arrRes.json() as ArrangementResult;
+              setArrangement(arrData);
+              if (arrData.hasArrangement && arrData.appliesThisInvoice && arrData.arrangement) {
+                setDonorPaidEnabled(true);
+                setDonorName(arrData.arrangement.donorName);
+                setDonorAmount(String(arrData.arrangement.amount));
+              }
+            }
+          } catch {
+            // Arrangement check is non-critical
+          }
+        }
+
+        if (!cancelled) setPhase('review');
+      } catch (err) {
+        if (!cancelled) {
+          setError(err instanceof Error ? err.message : String(err));
+          setPhase('error');
+        }
+      }
+    }
+
+    loadDocument();
+    return () => { cancelled = true; };
+  }, [loadDocumentId]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Step 1: Upload file
   const uploadFile = useCallback(async (file: File) => {

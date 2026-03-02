@@ -1,8 +1,6 @@
 export const dynamic = 'force-dynamic';
 
 import {
-  Image,
-  File,
   CheckCircle2,
   Clock,
   AlertTriangle,
@@ -10,8 +8,7 @@ import {
   Filter,
 } from 'lucide-react';
 import { getDocuments, getDocumentStats } from '@/lib/queries';
-import { formatDate } from '@/lib/utils';
-import DocumentUploader from './document-uploader';
+import DocumentsClient from './documents-client';
 
 export default async function DocumentsPage() {
   const [documents, docStats] = await Promise.all([
@@ -59,8 +56,8 @@ export default async function DocumentsPage() {
         </p>
       </div>
 
-      {/* Quick Capture uploader */}
-      <DocumentUploader />
+      {/* Quick Capture + clickable document table (client component) */}
+      <DocumentsClient documents={JSON.parse(JSON.stringify(documents))} />
 
       {/* Stats row */}
       {docStats.total > 0 && (
@@ -117,71 +114,6 @@ export default async function DocumentsPage() {
             <option value="complete">Parsed</option>
             <option value="failed">Failed</option>
           </select>
-        </div>
-      )}
-
-      {/* Document list */}
-      {documents.length > 0 && (
-        <div className="console-card overflow-hidden">
-          <table className="w-full bridge-table">
-            <thead>
-              <tr>
-                <th>Document</th>
-                <th>Type</th>
-                <th>Vendor</th>
-                <th>Size</th>
-                <th>Parse Status</th>
-                <th>Uploaded</th>
-              </tr>
-            </thead>
-            <tbody>
-              {documents.map((doc) => {
-                const Icon = doc.mimeType.startsWith('image/') ? Image : File;
-                const StatusIcon = statusIcons[doc.parseStatus] ?? Clock;
-                const statusColor = statusColors[doc.parseStatus] ?? 'text-slate-400';
-
-                return (
-                  <tr key={doc.id}>
-                    <td>
-                      <div className="flex items-center gap-2">
-                        <Icon className="w-4 h-4 text-brass-muted flex-shrink-0" />
-                        <div className="min-w-0">
-                          <p className="text-sm text-slate-200 truncate">{doc.originalName}</p>
-                          <p className="text-[10px] text-slate-600 font-mono">{doc.mimeType}</p>
-                        </div>
-                      </div>
-                    </td>
-                    <td>
-                      <span className="badge badge-blue text-[10px]">
-                        {typeLabels[doc.docType] ?? doc.docType}
-                      </span>
-                    </td>
-                    <td className="text-brass-warm">{doc.vendor?.name ?? '—'}</td>
-                    <td className="font-mono text-xs text-slate-500">
-                      {doc.fileSize > 1024 * 1024
-                        ? `${(doc.fileSize / (1024 * 1024)).toFixed(1)} MB`
-                        : `${Math.round(doc.fileSize / 1024)} KB`
-                      }
-                    </td>
-                    <td>
-                      <span className={`flex items-center gap-1.5 text-xs ${statusColor}`}>
-                        <StatusIcon className={`w-3 h-3 ${doc.parseStatus === 'processing' ? 'animate-spin' : ''}`} />
-                        {doc.parseStatus}
-                        {doc.confidence && (
-                          <span className="text-slate-600 ml-1">
-                            ({Number(doc.confidence) * 100}%)
-                          </span>
-                        )}
-                      </span>
-                    </td>
-                    <td className="font-mono text-xs text-slate-500">
-                      {formatDate(doc.uploadedAt)}
-                    </td>
-                  </tr>
-                );
-              })}
-            </tbody>
-          </table>
         </div>
       )}
     </div>

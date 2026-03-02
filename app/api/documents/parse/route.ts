@@ -29,10 +29,23 @@ export async function POST(request: Request) {
     }
 
     if (doc.parseStatus === 'complete') {
+      // Resolve vendorSlug for cached responses
+      let cachedVendorSlug: string | null = doc.vendor?.slug ?? null;
+      if (!cachedVendorSlug && doc.extractedData) {
+        try {
+          const cached = JSON.parse(doc.extractedData);
+          if (cached.vendor?.name) {
+            cachedVendorSlug = matchVendorByName(cached.vendor.name);
+          }
+        } catch { /* ignore parse errors */ }
+      }
+
       return NextResponse.json({
         documentId: doc.id,
         extractedData: doc.extractedData ? JSON.parse(doc.extractedData) : null,
         confidence: doc.confidence ? Number(doc.confidence) : null,
+        vendorMatched: !!doc.vendorId,
+        vendorSlug: cachedVendorSlug,
         message: 'Already parsed',
       });
     }
