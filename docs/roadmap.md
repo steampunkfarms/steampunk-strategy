@@ -2,7 +2,7 @@
 
 > Deferred work items and active handoffs. Reviewed at each planning session.
 > Location: steampunk-strategy/docs/roadmap.md
-> Last updated: 2026-03-02 (session 11 — Gmail scan, Square removal, compliance enrichment)
+> Last updated: 2026-03-02 (session 12 — click-to-remediate, expense-to-impact pipeline vision)
 
 ---
 
@@ -107,6 +107,65 @@ Two active Square subscriptions still billing:
 - **v2:** Adoption interface + shelter org management + automated Content Storm posts for new arrivals
 - **v3:** Full revenue analytics + direct mail campaign builder from check-scan addresses
 **Repos:** steampunk-rescuebarn (public pages, adoption UI) + steampunk-postmaster (animal records, Content Storm) + steampunk-studiolo (donors, orgs, gifts, check scanning) + steampunk-strategy (Gmail scanning for intake emails)
+
+### Expense-to-Impact Pipeline — COA, Program Allocation & Donor Delight
+
+**Priority:** High — foundational for donor experience across all sites
+**Origin:** 2026-03-02 session — Tractor Supply receipt batch planning
+**Repos:** steampunk-strategy (schema + rules) → steampunk-studiolo (donor dashboards) → steampunk-postmaster (impact content) → steampunk-rescuebarn (public transparency)
+
+**The insight:** Granular, program-tagged expense data flowing through TARDIS can power donor stewardship (Studiolo), impact storytelling (Postmaster), and transparent "how your gift helped" reports (Rescue Barn) — not just compliance. This is the pipeline that connects a bag of chicken feed at Tractor Supply to a Cluck Crew donor seeing "Your February gift helped buy 87 lbs of layer feed."
+
+#### Phase 1: Chart of Accounts + Program Model (TARDIS)
+
+- **Hierarchical COA:** `ExpenseCategory` needs parent/child tree + IRS functional classification (Program Services 80-90%, Management & General 5-10%, Fundraising <5%)
+- **Program entity:** New `Program` model — Cluck Crew, General Herd, Sanctuary Operations, etc.
+- **Transaction enrichment:** `Transaction` gets `programId` + `functionalClass` enum
+- **Auto-allocation rules:** Pattern-based assignment — "Tractor Supply + line item contains 'layer feed' → Program: Cluck Crew, Functional: Program Services"
+- **Tax/fee tracking:** Log sales tax, import fees, shipping as separate allocable components per transaction so we know what portion of Program Services went to actual goods vs. overhead costs
+- **Validation rules:** Total must match invoice, tax must reconcile, line items must sum to subtotal
+
+#### Phase 2: Impact Metrics Engine (TARDIS API)
+
+- Aggregate expense data into impact summaries per program per period: "Q1 2026: $847 in poultry feed, 12 bags layer pellets, supporting 23 chickens"
+- Per-donor attribution: "Your $50 covered 2.3 bags of layer feed" (proportional to total Cluck Crew giving pool)
+- API endpoint for Rescue Barn + Studiolo to consume: `GET /api/impact/{programSlug}?period=2026-Q1`
+- Per-donor endpoint: `GET /api/impact/{programSlug}/donor/{donorId}` for personalized dashboards
+
+#### Phase 3: Donor Experience Integration (Cross-Site)
+
+- **Studiolo — Major Donor Dashboard:** Personalized impact tied to giving segment. Major Cluck Crew donors see exact expense tie-ins. Scriptorium-drafted personalized impact letters with the specific expense data.
+- **Studiolo — General Donors:** Aggregated impact summaries via automated Postmaster content
+- **Postmaster — Impact Digest:** New content type for Content Storm automation. Monthly "How Your Donation Helped" digest auto-generated from TARDIS impact metrics. Push to email campaigns.
+- **Rescue Barn — "How Your Donation Helped":** Public transparency callouts on campaign pages. "This month, Cluck Crew donations purchased 340 lbs of layer feed from Tractor Supply and Star Milling."
+- **Rescue Barn — "My Impact" page (future):** Authenticated donor view showing personalized impact tied to their giving history
+
+#### Phase 4: Vendor Performance Dashboard (TARDIS)
+
+- Track pricing over time per item per vendor (cost tracker already does unit pricing)
+- Discount tracking, delivery reliability scoring
+- Quick-view dashboard: "Tractor Supply — avg discount 12%, on-time delivery 98%"
+- Vendor comparison: same items across vendors (Star Milling vs. Tractor Supply for feed)
+- **Future:** AI-powered deal-finding suggestions, negotiation strategy tips based on pricing history and market data
+
+#### Multi-Dimensional Tagging (Tags vs. COA Decision)
+
+Tags alone are flat — "chicken-feed" tells you *what* but not *why* or *for whom*. The COA + Program approach gives us:
+```
+5120 · Animal Feed – Poultry
+  ↳ Program: Cluck Crew
+  ↳ Functional: Program Services (100%)
+  ↳ Vendor: Tractor Supply
+```
+This structure serves both IRS functional allocation (Form 990) AND donor-facing program tie-ins. Tags can supplement (e.g., `#seasonal`, `#bulk-order`) but the COA hierarchy + Program link is the core.
+
+#### Implementation Sequence
+
+1. Upload Tractor Supply batch (30 orders) → verify Claude extraction quality for line items, quantities, weights
+2. Design COA hierarchy + Program model (Prisma schema changes)
+3. Build auto-allocation rules engine
+4. Impact metrics aggregation + API
+5. Cross-site integration handoffs (one per consuming site)
 
 ---
 
