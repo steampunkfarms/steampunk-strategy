@@ -53,13 +53,18 @@ export async function POST(request: Request) {
       );
     }
 
+    // Read file buffer first (before put() consumes the stream)
+    const fileBuffer = Buffer.from(await file.arrayBuffer());
+    const hash = createHash('sha256').update(fileBuffer).digest('hex').slice(0, 16);
+    const tempExternalId = `scan-${scanType}-${hash}-${Date.now()}`;
+
     // Upload to Vercel Blob
     const now = new Date();
     const yyyy = now.getFullYear();
     const mm = String(now.getMonth() + 1).padStart(2, '0');
     const blobPath = `documents/scans/${yyyy}/${mm}/${file.name}`;
 
-    const blob = await put(blobPath, file, {
+    const blob = await put(blobPath, fileBuffer, {
       access: 'public',
       contentType: file.type,
     });
@@ -77,11 +82,6 @@ export async function POST(request: Request) {
         uploadedBy: 'scan-import',
       },
     });
-
-    // Generate a temporary externalId from file content hash
-    const fileBuffer = await file.arrayBuffer();
-    const hash = createHash('sha256').update(Buffer.from(fileBuffer)).digest('hex').slice(0, 16);
-    const tempExternalId = `scan-${scanType}-${hash}-${Date.now()}`;
 
     // Create ScanImport record
     const scanImport = await prisma.scanImport.create({
