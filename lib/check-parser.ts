@@ -77,7 +77,16 @@ SPECIAL INSTRUCTIONS:
 - For partially visible or cut-off documents, extract what you can and note what's missing.
 - If the amount is written both numerically and in words, use the numeric version but note any discrepancy.
 
-CONTEXT: This nonprofit rescues farm animals (cats, pigs, goats, chickens, cows, horses, donkeys) in San Diego County, CA. Donors often include personal notes or animal names in memo lines. Address is 36013 Old Wilson Rd, Ranchita, CA 92066.`;
+CONTEXT: This nonprofit rescues farm animals (cats, pigs, goats, chickens, cows, horses, donkeys) in San Diego County, CA. Donors often include personal notes or animal names in memo lines. Address is 36013 Old Wilson Rd, Ranchita, CA 92066.
+
+KNOWN ORGANIZATIONS (for memo lines and grant letters):
+- OCAC = Orange County Animal Care (shelter the farm takes animals from — NOT "CCAC")
+- SDHS = San Diego Humane Society
+- ASPCA = American Society for the Prevention of Cruelty to Animals
+- HSUS = Humane Society of the United States
+- DAF = Donor-Advised Fund
+- NPT = National Philanthropic Trust
+- When a memo mentions an animal name + shelter abbreviation (e.g., "Boots from OCAC"), this indicates a pledge commitment for that specific animal transferred from that shelter.`;
 
 export interface ExtractedCheckData {
   scanType: 'pledge_check' | 'grant_check' | 'grant_award_letter' | 'tax_document_1099' | 'envelope_return_address';
