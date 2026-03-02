@@ -788,6 +788,68 @@ model GiftStaging {
 }
 
 // =============================================================================
+// SCAN IMPORTS — Scanned checks, grant letters, envelopes, tax docs
+// Parsed by Claude Vision, staged for donor matching before push to Studiolo.
+// =============================================================================
+
+model ScanImport {
+  id              String    @id @default(cuid())
+  documentId      String    @map("document_id")    // FK to Document (blob storage)
+
+  // Classification
+  scanType        String    @map("scan_type")       // "pledge_check" | "grant_check" | "grant_award_letter" | "tax_document_1099" | "envelope_return_address"
+
+  // Extracted payer/sender
+  payerName       String?   @map("payer_name")      // Full name on check / return address
+  payerFirstName  String?   @map("payer_first_name")
+  payerLastName   String?   @map("payer_last_name")
+  payerStreet1    String?   @map("payer_street1")
+  payerStreet2    String?   @map("payer_street2")
+  payerCity       String?   @map("payer_city")
+  payerState      String?   @map("payer_state")
+  payerZip        String?   @map("payer_zip")
+
+  // Check-specific fields
+  amount          Decimal?  @db.Decimal(10, 2)
+  checkNumber     String?   @map("check_number")
+  checkDate       DateTime? @map("check_date")
+  bankName        String?   @map("bank_name")
+  routingLast4    String?   @map("routing_last4")   // Last 4 only
+  accountLast4    String?   @map("account_last4")   // Last 4 only
+  memo            String?                             // "For the animals" etc.
+  payee           String?                             // Who the check is made out to
+
+  // Grant/tax doc fields
+  grantorName     String?   @map("grantor_name")
+  grantAmount     Decimal?  @map("grant_amount") @db.Decimal(10, 2)
+  grantPurpose    String?   @map("grant_purpose")
+  taxYear         Int?      @map("tax_year")
+  taxFormType     String?   @map("tax_form_type")
+
+  // AI metadata
+  confidence      Decimal?  @db.Decimal(3, 2)
+  rawExtracted    String?   @map("raw_extracted")     // Full JSON from Claude
+  parseNotes      String?   @map("parse_notes")       // Claude's notes about ambiguity
+
+  // Dedup key: scanType + checkNumber + amount + date (or hash)
+  externalId      String    @unique @map("external_id")
+
+  // Resolution (same flow as GiftStaging)
+  status          String    @default("pending")       // "pending" | "matched" | "create_mailer" | "sent" | "skipped"
+  matchedDonorId  String?   @map("matched_donor_id")  // Studiolo donor UUID
+  matchedDonorName String?  @map("matched_donor_name")
+  resolvedAt      DateTime? @map("resolved_at")
+  pushedAt        DateTime? @map("pushed_at")
+
+  createdAt       DateTime  @default(now()) @map("created_at")
+
+  @@map("scan_imports")
+  @@index([status])
+  @@index([scanType])
+  @@index([checkDate])
+}
+
+// =============================================================================
 // COST CENTERS — Recurring vendor/service subscriptions and allocations
 // =============================================================================
 

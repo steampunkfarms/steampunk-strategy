@@ -14,6 +14,7 @@ import {
   CreditCard,
   CircleDollarSign,
   Gift,
+  ScanLine,
   LogOut,
   ChevronRight,
   Gauge,
@@ -41,6 +42,7 @@ const navigation = [
     label: 'Revenue',
     items: [
       { name: 'Gift Staging', href: '/gift-staging', icon: Gift },
+      { name: 'Scan Import', href: '/scan-import', icon: ScanLine },
       { name: 'Retail Charity', href: '/retail-charity', icon: CreditCard },
     ],
   },
