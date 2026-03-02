@@ -23,7 +23,9 @@ const VALID_SCAN_TYPES = [
  * Uploads to Vercel Blob, creates Document + ScanImport records.
  */
 export async function POST(request: Request) {
+  let step = 'init';
   try {
+    step = 'formData';
     const formData = await request.formData();
     const file = formData.get('file') as File | null;
     const scanType = (formData.get('scanType') as string) || 'pledge_check';
@@ -54,11 +56,13 @@ export async function POST(request: Request) {
     }
 
     // Read file buffer first (before put() consumes the stream)
+    step = 'buffer';
     const fileBuffer = Buffer.from(await file.arrayBuffer());
     const hash = createHash('sha256').update(fileBuffer).digest('hex').slice(0, 16);
     const tempExternalId = `scan-${scanType}-${hash}-${Date.now()}`;
 
     // Upload to Vercel Blob
+    step = 'blob';
     const now = new Date();
     const yyyy = now.getFullYear();
     const mm = String(now.getMonth() + 1).padStart(2, '0');
@@ -70,6 +74,7 @@ export async function POST(request: Request) {
     });
 
     // Create Document record
+    step = 'document';
     const doc = await prisma.document.create({
       data: {
         filename: blobPath,
@@ -84,6 +89,7 @@ export async function POST(request: Request) {
     });
 
     // Create ScanImport record
+    step = 'scanImport';
     const scanImport = await prisma.scanImport.create({
       data: {
         documentId: doc.id,
@@ -99,9 +105,10 @@ export async function POST(request: Request) {
       blobUrl: blob.url,
     }, { status: 201 });
   } catch (error) {
-    console.error('[Scan Import Upload] Error:', error);
+    const msg = error instanceof Error ? error.message : String(error);
+    console.error(`[Scan Import Upload] FAILED at step="${step}": ${msg}`);
     return NextResponse.json(
-      { error: 'Upload failed', details: error instanceof Error ? error.message : String(error) },
+      { error: 'Upload failed', step, details: msg },
       { status: 500 },
     );
   }
