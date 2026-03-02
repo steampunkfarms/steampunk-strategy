@@ -123,7 +123,7 @@ async function main() {
       requiresPayment: false,
       penalty: 'Penalty of $20/day (up to $10,000) for late filing. Automatic revocation after 3 consecutive years.',
       dependsOn: JSON.stringify(['expenses_reconciled', 'revenue_verified']),
-      description: 'Annual information return for tax-exempt orgs. Due 5½ months after fiscal year end. EIN: 82-4897930. File electronically. IRS Exempt Orgs: (877) 829-5500, M-F 8am-5pm.',
+      description: 'Annual information return for tax-exempt orgs. Due 5½ months after fiscal year end. EIN: 82-4897930. File electronically via Tax990 (support@tax990.com). FY2022 filed Apr 2023 (accepted). FY2023 filed Oct 2024 (transmitted). IRS Exempt Orgs: (877) 829-5500, M-F 8am-5pm.',
     },
     {
       name: 'CA Secretary of State — Statement of Information (SI-100)',
@@ -137,7 +137,7 @@ async function main() {
       requiresPayment: true,
       estimatedCost: 20,
       penalty: '$250 penalty for late filing.',
-      description: 'Biennial Statement of Information. File at bizfileonline.sos.ca.gov. CA SOS Business Programs: (916) 657-5448. Mail: PO Box 944260, Sacramento, CA 94244-2600.',
+      description: 'Biennial Statement of Information. Entity #4135282 (Nonprofit Corporation - CA - Public Benefit). File at bizfileonline.sos.ca.gov. Last filed: Apr 2024 (approved), May 2022 (amendment approved). CA SOS Business Programs: (916) 657-5448. Mail: PO Box 944260, Sacramento, CA 94244-2600.',
     },
     {
       name: 'CA Attorney General — Annual Registration Renewal (RRF-1)',
@@ -152,7 +152,7 @@ async function main() {
       estimatedCost: 25,
       penalty: 'Loss of charitable solicitation privileges in California.',
       dependsOn: JSON.stringify(['irs_990_filed']),
-      description: 'Annual renewal with CA AG Registry of Charitable Trusts. Requires 990. Mail: Registry of Charitable Trusts, PO Box 903447, Sacramento, CA 94203-4470. Phone: (916) 210-6400. Hours: M-Th 10am-12pm, 2pm-4pm. Contact: oag.ca.gov/charities/contacts',
+      description: 'Annual renewal with CA AG Registry of Charitable Trusts. CT0266250. Requires 990. Status went CURRENT May 2023 after delinquency resolved. Online renewal NOT available for this org — must file by mail. Reminder notices received Sep 2024. Mail: Registry of Charitable Trusts, PO Box 903447, Sacramento, CA 94203-4470. Phone: (916) 210-6400. Hours: M-Th 10am-12pm, 2pm-4pm. Contact: oag.ca.gov/charities/contacts',
     },
     {
       name: 'CA Franchise Tax Board — Form 199',
@@ -165,7 +165,7 @@ async function main() {
       filingUrl: 'https://www.ftb.ca.gov/',
       requiresPayment: false,
       penalty: 'Penalties for late filing; potential suspension of exempt status.',
-      description: 'CA Exempt Org Annual Information Return. Due same as 990. Mail: FTB, PO Box 942857, Sacramento, CA 94257-0501. Exempt org line: (916) 845-4171.',
+      description: 'CA Exempt Org Annual Information Return. Due same as 990. MyFTB username: sfrbi. FY2022 filed Apr 2023 via Tax990 (accepted). FY2023 filed Oct 2024 via Tax990. Contact: Sara Hopkins, Program Specialist 1, Exempt Orgs Unit, (916) 845-7628, sara.hopkins@ftb.ca.gov. Mail: FTB, PO Box 942857, Sacramento, CA 94257-0501. Exempt org line: (916) 845-4171.',
     },
     {
       name: 'CDTFA Sales Tax Return',
@@ -178,7 +178,7 @@ async function main() {
       filingUrl: 'https://www.cdtfa.ca.gov/',
       requiresPayment: true,
       penalty: '10% penalty + interest on late payment.',
-      description: 'Quarterly sales tax for Cleanpunk Soaps. File at cdtfa.ca.gov. Customer service: (800) 400-7115, M-F 8am-5pm PT.',
+      description: 'Quarterly sales tax for Cleanpunk Soaps. New application submitted Feb 23 2026, confirmation #0-055-382-252 (pending processing). Account holder: FREDERICK TRONBOLL. File at cdtfa.ca.gov. Customer service: (800) 400-7115, M-F 8am-5pm PT.',
     },
     {
       name: 'GuideStar / Candid Profile Update',
@@ -217,6 +217,42 @@ async function main() {
       estimatedCost: 34,
       penalty: 'Cannot legally operate without current license.',
       description: 'Annual business license for Cleanpunk Soaps. County Treasurer-Tax Collector: (877) 829-4732.',
+    },
+    {
+      name: 'SBA COVID EIDL Loan — Monthly Payment',
+      slug: 'sba-eidl-payment',
+      authority: 'SBA',
+      category: 'loan_servicing',
+      frequency: 'monthly',
+      dueDay: 15,
+      reminderDays: 14,
+      filingUrl: 'https://cafs.sba.gov/',
+      requiresPayment: true,
+      penalty: 'Delinquency, potential referral to Treasury for collection. Multiple "Immediate Action Required" notices received Jun–Dec 2024.',
+      description: 'COVID EIDL loan #4491807904. HAP (Hardship Accommodation Plan) enrollment initiated Jun–Jul 2024. 6-month deferment was granted Mar 2022. RAPID portal access ended May 2022 — loan docs should have been downloaded. Current portal: MySBA/CAFS. Contacts: CovidEIDLServicing@sba.gov, disastercustomerservice@sba.gov.',
+    },
+    {
+      name: 'SAM.gov — Federal Entity Registration Renewal',
+      slug: 'sam-gov-renewal',
+      authority: 'SAM_GOV',
+      category: 'federal_registration',
+      frequency: 'annual',
+      dueMonth: 6, dueDay: 28,
+      reminderDays: 60,
+      filingUrl: 'https://sam.gov/',
+      requiresPayment: false,
+      description: 'Federal entity registration on SAM.gov. Required for federal grants and contracts. Registered email: rescuebarn@steampunkfarms.org. Account set up Jun 28, 2025 via Login.gov authentication. Requires annual renewal to maintain active status.',
+    },
+    {
+      name: 'CA FTB — Tax Exemption (Form 3500)',
+      slug: 'ca-ftb-3500',
+      authority: 'CA_FTB',
+      category: 'state_filing',
+      frequency: 'one_time',
+      reminderDays: 30,
+      filingUrl: 'https://www.ftb.ca.gov/',
+      requiresPayment: false,
+      description: 'CA state tax-exempt status application. Both Form 3500 and 3500A were filed; FTB processing Form 3500 (more comprehensive). Signed bylaws, 3500A, and 3500 page 1 submitted Mar 2025. Sara Hopkins (Exempt Orgs Unit) is processing. Two MyFTB notices posted May 16, 2025 — likely determination letter. Check MyFTB (username: sfrbi) for final status.',
     },
     {
       name: 'Annual Personal/Farm Account Reconciliation',
@@ -551,6 +587,13 @@ SEASONAL PRICING: Hay prices follow a predictable annual cycle driven by harvest
       platform: 'card',
       notes: 'Fred\'s personal card. Emergency farm purchases end up here sometimes.',
     },
+    {
+      name: 'Temu (Farm + Personal)',
+      slug: 'temu-mixed',
+      owner: 'mixed',
+      platform: 'temu',
+      notes: 'Bulk craft/farm supply orders (Jul–Dec 2025, 96 receipts). Most are Cleanpunk soap/craft supplies and woodworking materials for Oktoberfest products. Some personal orders mixed in — same email, same account. Items need individual review to classify farm vs personal.',
+    },
   ];
 
   for (const acc of purchasingAccounts) {
@@ -569,7 +612,7 @@ SEASONAL PRICING: Hay prices follow a predictable annual cycle driven by harvest
     // Payments
     { vendor: 'Stripe', service: 'Payment Processing', category: 'Payments', allocatedTo: 'Shared' },
     { vendor: 'PayPal', service: 'Payment Processing', category: 'Payments', allocatedTo: 'Shared' },
-    { vendor: 'Square', service: 'Payment Processing', category: 'Payments', allocatedTo: 'Shared' },
+    { vendor: 'Square', service: 'Payment Processing (retired)', category: 'Payments', allocatedTo: null },
     // Database
     { vendor: 'Neon', service: 'PostgreSQL Database', category: 'Database', allocatedTo: 'Shared' },
     { vendor: 'Supabase', service: 'PostgreSQL + Auth', category: 'Database', allocatedTo: 'Shared' },
@@ -607,6 +650,21 @@ SEASONAL PRICING: Hay prices follow a predictable annual cycle driven by harvest
     { vendor: 'GoDaddy', service: 'Domain / DNS', category: 'Infrastructure', allocatedTo: 'Postmaster' },
     { vendor: 'PirateShip', service: 'Shipping', category: 'Logistics', allocatedTo: 'Cleanpunk Shop' },
     { vendor: 'USPS', service: 'Postal Service', category: 'Logistics', allocatedTo: 'Cleanpunk Shop' },
+    { vendor: 'Shippo', service: 'Shipping Labels', category: 'Logistics', allocatedTo: 'Cleanpunk Shop' },
+    // AI/ML (content creation)
+    { vendor: 'Runway AI', service: 'Video Generation', category: 'AI/ML', allocatedTo: 'Postmaster' },
+    { vendor: 'Suno', service: 'AI Music Generation', category: 'AI/ML', allocatedTo: 'Postmaster' },
+    // Commerce (platform fees)
+    { vendor: 'Medusa', service: 'Medusa Cloud', category: 'Commerce', allocatedTo: 'Cleanpunk Shop' },
+    { vendor: 'Square', service: 'Square Online (retired — CANCEL)', category: 'Commerce', allocatedTo: null },
+    // Subscriptions
+    { vendor: 'X (Twitter)', service: 'X Premium Subscription', category: 'Social', allocatedTo: 'Shared' },
+    { vendor: 'Microsoft', service: 'Microsoft 365 Business Premium', category: 'Admin', allocatedTo: 'Shared' },
+    { vendor: 'Google', service: 'Google Play Subscription', category: 'Admin', allocatedTo: null },
+    // Membership
+    { vendor: 'AAWA', service: 'Association for Animal Welfare Advancement', category: 'Membership', allocatedTo: 'Shared' },
+    // Supplies (mixed farm/personal — needs review queue)
+    { vendor: 'Temu', service: 'Craft & Farm Supplies', category: 'Supplies', allocatedTo: 'Cleanpunk Shop' },
   ];
 
   for (const cc of costCenters) {

@@ -13,6 +13,7 @@ import {
   Eye,
   CreditCard,
   CircleDollarSign,
+  Gift,
   LogOut,
   ChevronRight,
   Gauge,
@@ -39,6 +40,7 @@ const navigation = [
   {
     label: 'Revenue',
     items: [
+      { name: 'Gift Staging', href: '/gift-staging', icon: Gift },
       { name: 'Retail Charity', href: '/retail-charity', icon: CreditCard },
     ],
   },

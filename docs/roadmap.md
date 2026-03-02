@@ -2,13 +2,29 @@
 
 > Deferred work items and active handoffs. Reviewed at each planning session.
 > Location: steampunk-strategy/docs/roadmap.md
-> Last updated: 2026-03-01 (session 10 — config optimization)
+> Last updated: 2026-03-02 (session 11 — Gmail scan, Square removal, compliance enrichment)
 
 ---
 
 ## 🔴 Active Handoffs (specs in docs/handoffs/)
 
 None currently active.
+
+---
+
+## 🟡 Action Required — Manual Steps
+
+### Cancel Square Billing (URGENT — money leak)
+
+**Priority:** Immediate — you are being charged monthly for services you no longer use
+**Discovered:** 2026-03-02 via Gmail `Expenses/Other Receipts` scan
+
+Two active Square subscriptions still billing:
+
+1. **Square Services** — 11 payment receipts (Aug 2025–Feb 2026) from `messaging.squareup.com`
+2. **Square Online** — 7 renewal receipts (Aug 2025–Feb 2026) from `messaging.square.online`
+
+**Action:** Log into squareup.com dashboard → Settings → Subscriptions → Cancel both. All Square code has been removed from all repos.
 
 ---
 

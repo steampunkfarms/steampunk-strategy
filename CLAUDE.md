@@ -73,7 +73,7 @@ Core entities: Transaction, Document, Vendor, ExpenseCategory, DonorPaidBill, Ba
 | expense-review-alerts | Weekly (Mon) | Flag unverified transactions |
 | candid-monitor | Monthly (1st) | Check GuideStar/Candid for profile changes |
 | cost-creep-scan | Monthly (1st) | Detect cost increases in soap materials |
-| sales-tax-calc | Monthly (1st) | Calculate sales tax from Cleanpunk/Square |
+| sales-tax-calc | Monthly (1st) | Calculate sales tax from Cleanpunk Shop |
 
 ## Development
 

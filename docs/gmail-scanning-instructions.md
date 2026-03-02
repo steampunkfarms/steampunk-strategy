@@ -57,7 +57,7 @@ from:(elstonhayandgrain.com OR starmilling.com OR chewy.com OR amazon.com OR tra
 
 ### Payment Confirmations
 ```
-from:(noreply@zeffy.com OR stripe.com OR square.com OR paypal.com OR patreon.com) subject:(payment OR receipt OR confirmation OR donation)
+from:(noreply@zeffy.com OR stripe.com OR paypal.com OR patreon.com) subject:(payment OR receipt OR confirmation OR donation)
 ```
 
 ### Shipping / Delivery Notifications
@@ -193,7 +193,6 @@ const VENDOR_MAP: Record<string, string> = {
   'tractor supply': 'tractor-supply',
   'zeffy': 'zeffy',
   'stripe': 'stripe',
-  'square': 'square',
   'paypal': 'paypal',
   'patreon': 'patreon',
   'ironwoodpigs': 'ironwood-pigs',

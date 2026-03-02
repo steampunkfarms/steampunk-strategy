@@ -318,8 +318,8 @@ model ComplianceTask {
   name            String    // "CA Secretary of State Statement of Information"
   slug            String    @unique
   description     String?
-  authority       String    // "IRS" | "CA_SOS" | "CA_AG" | "CA_FTB" | "GuideStar" | "Candid" | "County" | "Internal"
-  category        String    // "tax_filing" | "state_filing" | "charity_registration" | "reporting" | "renewal" | "sales_tax"
+  authority       String    // "IRS" | "CA_SOS" | "CA_AG" | "CA_FTB" | "CA_CDTFA" | "SBA" | "SAM_GOV" | "GuideStar" | "Candid" | "Charity_Navigator" | "SD_County" | "Internal"
+  category        String    // "tax_filing" | "state_filing" | "charity_registration" | "reporting" | "renewal" | "sales_tax" | "loan_servicing" | "federal_registration"
 
   // Schedule
   frequency       String    // "annual" | "quarterly" | "monthly" | "biennial" | "one_time"
@@ -753,6 +753,43 @@ model RaiserightParticipant {
   @@index([status])
   @@index([lastOrderDate])
 }
+
+// =============================================================================
+// GIFT STAGING — Parsed donation data awaiting donor matching before push
+// to Studiolo. TARDIS is the staging ground; Studiolo is the source of truth.
+// =============================================================================
+
+model GiftStaging {
+  id              String    @id @default(cuid())
+  source          String    // "gofundme-email" | "chewy-email" | etc.
+  displayName     String    @map("display_name")  // Donor name as shown in email
+  amount          Decimal   @db.Decimal(10, 2)
+  giftDate        DateTime  @map("gift_date")
+  campaign        String?
+  externalId      String    @unique @map("external_id") // Dedup key
+
+  // Original email context
+  rawSubject      String?   @map("raw_subject")
+  rawSnippet      String?   @map("raw_snippet")
+
+  // Resolution
+  status          String    @default("pending") // "pending" | "matched" | "sent_unmatched" | "skipped"
+  matchedDonorId  String?   @map("matched_donor_id")    // Studiolo donor UUID
+  matchedDonorName String?  @map("matched_donor_name")  // For display after match
+  resolvedAt      DateTime? @map("resolved_at")
+  pushedAt        DateTime? @map("pushed_at")  // When sent to Studiolo
+
+  createdAt       DateTime  @default(now()) @map("created_at")
+
+  @@map("gift_staging")
+  @@index([status])
+  @@index([source])
+  @@index([giftDate])
+}
+
+// =============================================================================
+// COST CENTERS — Recurring vendor/service subscriptions and allocations
+// =============================================================================
 
 model CostCenter {
   id            String    @id @default(uuid())
