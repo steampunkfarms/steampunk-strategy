@@ -127,20 +127,31 @@ export interface ExtractedCheckData {
   notes: string | null;
 }
 
+const EMPTY_CHECK = { amount: null, checkNumber: null, date: null, bankName: null, routingLast4: null, accountLast4: null, memo: null, payee: null };
+const EMPTY_GRANT = { grantorName: null, amount: null, date: null, purpose: null, grantId: null };
+const EMPTY_TAX = { formType: null, taxYear: null, amount: null, issuerName: null };
+const EMPTY_PAYER = { fullName: '', firstName: null, lastName: null, street1: null, street2: null, city: null, state: null, zip: null };
+
 /**
  * Parse Claude's response. Always returns an array.
  * Handles both single-object and array responses.
+ * Normalizes sub-objects so they're never null (only their fields can be null).
  */
 export function parseCheckResponse(text: string): ExtractedCheckData[] | null {
   try {
     const cleaned = text.replace(/```json\n?/g, '').replace(/```\n?/g, '').trim();
     const parsed = JSON.parse(cleaned);
 
-    if (Array.isArray(parsed)) {
-      return parsed as ExtractedCheckData[];
-    }
-    // Single object — wrap in array
-    return [parsed as ExtractedCheckData];
+    const items = Array.isArray(parsed) ? parsed : [parsed];
+
+    // Normalize: ensure sub-objects always exist
+    return items.map((item: Record<string, unknown>) => ({
+      ...item,
+      payer: { ...EMPTY_PAYER, ...(item.payer as object || {}) },
+      check: { ...EMPTY_CHECK, ...(item.check as object || {}) },
+      grant: { ...EMPTY_GRANT, ...(item.grant as object || {}) },
+      tax: { ...EMPTY_TAX, ...(item.tax as object || {}) },
+    })) as ExtractedCheckData[];
   } catch {
     return null;
   }

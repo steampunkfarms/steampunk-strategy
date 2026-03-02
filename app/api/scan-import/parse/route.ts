@@ -19,22 +19,28 @@ function slugify(str: string): string {
  * Body: { scanImportId: string }
  */
 export async function POST(request: Request) {
+  let step = 'init';
+  let docId: string | null = null;
   try {
+    step = 'parse-body';
     const { scanImportId } = await request.json();
 
     if (!scanImportId) {
       return NextResponse.json({ error: 'scanImportId is required' }, { status: 400 });
     }
 
+    step = 'fetch-scanImport';
     const scanImport = await prisma.scanImport.findUnique({ where: { id: scanImportId } });
     if (!scanImport) {
       return NextResponse.json({ error: 'ScanImport not found' }, { status: 404 });
     }
 
+    step = 'fetch-document';
     const doc = await prisma.document.findUnique({ where: { id: scanImport.documentId } });
     if (!doc) {
       return NextResponse.json({ error: 'Document not found' }, { status: 404 });
     }
+    docId = doc.id;
 
     if (doc.parseStatus === 'complete') {
       return NextResponse.json({
@@ -45,12 +51,14 @@ export async function POST(request: Request) {
     }
 
     // Mark as processing
+    step = 'mark-processing';
     await prisma.document.update({
       where: { id: doc.id },
       data: { parseStatus: 'processing' },
     });
 
     // Fetch the blob content
+    step = 'fetch-blob';
     const blobResponse = await fetch(doc.blobUrl);
     if (!blobResponse.ok) {
       await prisma.document.update({
@@ -83,6 +91,7 @@ export async function POST(request: Request) {
         };
 
     // Call Claude Vision
+    step = 'claude-vision';
     const response = await createMessage({
       model: MODEL,
       max_tokens: 4000,
@@ -102,6 +111,7 @@ export async function POST(request: Request) {
       .map((block) => block.text)
       .join('');
 
+    step = 'parse-json';
     const extractedItems = parseCheckResponse(responseText);
 
     if (!extractedItems || extractedItems.length === 0) {
@@ -119,56 +129,64 @@ export async function POST(request: Request) {
     const results: Array<{ scanImportId: string; scanType: string; payerName: string | null; confidence: number }> = [];
 
     for (let i = 0; i < extractedItems.length; i++) {
+      step = `process-item-${i}`;
       const extracted = extractedItems[i];
+
+      // Null-safe access helpers (Claude may return null for irrelevant sub-objects)
+      const payer = extracted.payer || {};
+      const check = extracted.check || {};
+      const grant = extracted.grant || {};
+      const tax = extracted.tax || {};
 
       // Build proper externalId based on scan type
       let externalId: string;
       if (extracted.scanType === 'pledge_check' || extracted.scanType === 'grant_check') {
-        const checkNum = extracted.check.checkNumber || 'unknown';
-        const amount = extracted.check.amount?.toFixed(2) || '0.00';
-        const date = extracted.check.date || 'unknown';
+        const checkNum = check.checkNumber || 'unknown';
+        const amount = check.amount?.toFixed(2) || '0.00';
+        const date = check.date || 'unknown';
         externalId = `check-${checkNum}-${amount}-${date}`;
       } else if (extracted.scanType === 'grant_award_letter') {
-        const grantor = slugify(extracted.grant.grantorName || 'unknown');
-        const amount = extracted.grant.amount?.toFixed(2) || '0.00';
-        const date = extracted.grant.date || 'unknown';
+        const grantor = slugify(grant.grantorName || 'unknown');
+        const amount = grant.amount?.toFixed(2) || '0.00';
+        const date = grant.date || 'unknown';
         externalId = `grant-${grantor}-${amount}-${date}`;
       } else if (extracted.scanType === 'tax_document_1099') {
-        const form = extracted.tax.formType || 'unknown';
-        const year = extracted.tax.taxYear || 'unknown';
-        const issuer = slugify(extracted.tax.issuerName || 'unknown');
+        const form = tax.formType || 'unknown';
+        const year = tax.taxYear || 'unknown';
+        const issuer = slugify(tax.issuerName || 'unknown');
         externalId = `tax-${form}-${year}-${issuer}`;
       } else if (extracted.scanType === 'envelope_return_address') {
-        const name = slugify(extracted.payer.fullName || 'unknown');
-        const zip = extracted.payer.zip || 'unknown';
+        const name = slugify(payer.fullName || 'unknown');
+        const zip = payer.zip || 'unknown';
         externalId = `envelope-${name}-${zip}-${Date.now()}`;
       } else {
         externalId = `${scanImport.externalId}-${i}`;
       }
 
+      step = `build-data-${i}`;
       const scanData = {
         scanType: extracted.scanType,
-        payerName: extracted.payer.fullName,
-        payerFirstName: extracted.payer.firstName,
-        payerLastName: extracted.payer.lastName,
-        payerStreet1: extracted.payer.street1,
-        payerStreet2: extracted.payer.street2,
-        payerCity: extracted.payer.city,
-        payerState: extracted.payer.state,
-        payerZip: extracted.payer.zip,
-        amount: extracted.check.amount ?? extracted.grant.amount ?? extracted.tax.amount,
-        checkNumber: extracted.check.checkNumber,
-        checkDate: extracted.check.date ? new Date(extracted.check.date) : null,
-        bankName: extracted.check.bankName,
-        routingLast4: extracted.check.routingLast4,
-        accountLast4: extracted.check.accountLast4,
-        memo: extracted.check.memo,
-        payee: extracted.check.payee,
-        grantorName: extracted.grant.grantorName,
-        grantAmount: extracted.grant.amount,
-        grantPurpose: extracted.grant.purpose,
-        taxYear: extracted.tax.taxYear,
-        taxFormType: extracted.tax.formType,
+        payerName: payer.fullName ?? null,
+        payerFirstName: payer.firstName ?? null,
+        payerLastName: payer.lastName ?? null,
+        payerStreet1: payer.street1 ?? null,
+        payerStreet2: payer.street2 ?? null,
+        payerCity: payer.city ?? null,
+        payerState: payer.state ?? null,
+        payerZip: payer.zip ?? null,
+        amount: check.amount ?? grant.amount ?? tax.amount ?? null,
+        checkNumber: check.checkNumber ?? null,
+        checkDate: check.date ? new Date(check.date) : null,
+        bankName: check.bankName ?? null,
+        routingLast4: check.routingLast4 ?? null,
+        accountLast4: check.accountLast4 ?? null,
+        memo: check.memo ?? null,
+        payee: check.payee ?? null,
+        grantorName: grant.grantorName ?? null,
+        grantAmount: grant.amount ?? null,
+        grantPurpose: grant.purpose ?? null,
+        taxYear: tax.taxYear ?? null,
+        taxFormType: tax.formType ?? null,
         confidence: extracted.confidence,
         rawExtracted: i === 0 ? responseText : null, // Store raw only on first
         parseNotes: extracted.notes,
@@ -176,6 +194,7 @@ export async function POST(request: Request) {
       };
 
       // Check for duplicate externalId (excluding the current record for i=0)
+      step = `dedup-check-${i}`;
       const existing = await prisma.scanImport.findUnique({
         where: { externalId },
         select: { id: true },
@@ -186,6 +205,7 @@ export async function POST(request: Request) {
         scanData.parseNotes = [scanData.parseNotes, 'Possible duplicate of existing record'].filter(Boolean).join('; ');
       }
 
+      step = `save-${i}`;
       if (i === 0) {
         // Update the original ScanImport record
         await prisma.scanImport.update({
@@ -208,12 +228,13 @@ export async function POST(request: Request) {
       results.push({
         scanImportId: i === 0 ? scanImportId : createdIds[createdIds.length - 1],
         scanType: extracted.scanType,
-        payerName: extracted.payer.fullName,
+        payerName: payer.fullName ?? null,
         confidence: extracted.confidence,
       });
     }
 
     // Update Document
+    step = 'update-document';
     const firstExtracted = extractedItems[0];
     await prisma.document.update({
       where: { id: doc.id },
@@ -228,6 +249,7 @@ export async function POST(request: Request) {
     });
 
     // Audit log
+    step = 'audit-log';
     await prisma.auditLog.create({
       data: {
         action: 'parse',
@@ -255,9 +277,23 @@ export async function POST(request: Request) {
       confidence: firstExtracted.confidence,
     });
   } catch (error) {
-    console.error('[Scan Import Parse] Error:', error);
+    const msg = error instanceof Error ? error.message : String(error);
+    const stack = error instanceof Error ? error.stack : undefined;
+    console.error(`[Scan Import Parse] FAILED at step="${step}": ${msg}`);
+    if (stack) console.error(stack);
+
+    // Try to mark document as failed
+    if (docId) {
+      try {
+        await prisma.document.update({
+          where: { id: docId },
+          data: { parseStatus: 'failed' },
+        });
+      } catch { /* ignore cleanup errors */ }
+    }
+
     return NextResponse.json(
-      { error: 'Parse failed', details: error instanceof Error ? error.message : String(error) },
+      { error: 'Parse failed', step, details: msg },
       { status: 500 },
     );
   }
