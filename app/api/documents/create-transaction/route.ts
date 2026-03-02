@@ -29,10 +29,10 @@ const INCOME_SOURCE_CATEGORY: Record<string, string> = {
 /**
  * POST /api/documents/create-transaction
  *
- * Creates a Transaction (+ optional CostTracker entries) from a parsed Document.
+ * Creates a Transaction (+ optional CostTracker, DonorPaidBill, JournalNote) from a parsed Document.
  * Body: {
  *   documentId: string,
- *   overrides?: { vendorSlug?, categorySlug?, date?, amount? }
+ *   overrides?: { vendorSlug?, categorySlug?, date?, amount?, notes?, donorPaid?: { donorName, amount, donorEmail?, donorId? } }
  * }
  */
 export async function POST(request: Request) {
@@ -313,6 +313,69 @@ export async function POST(request: Request) {
       }
     }
 
+    // --- Donor-paid bill (if donor split provided) ---
+    let donorPaidBillId: string | null = null;
+    let donorPortion: number | null = null;
+    let farmPortion: number | null = null;
+
+    if (overrides?.donorPaid && vendorId && !isIncome) {
+      const dp = overrides.donorPaid;
+      const dpAmount = typeof dp.amount === 'number' ? dp.amount : parseFloat(dp.amount);
+
+      if (dpAmount > 0 && dp.donorName) {
+        const coverageType = dpAmount >= txAmount ? 'full' : 'partial';
+
+        const donorPaidBill = await prisma.donorPaidBill.create({
+          data: {
+            transactionId: transaction.id,
+            vendorId,
+            donorName: dp.donorName,
+            donorEmail: dp.donorEmail ?? null,
+            donorId: dp.donorId ?? null,
+            amount: dpAmount,
+            paidDate: txDate,
+            coverageType,
+            invoiceRef: extracted.referenceNumber ?? null,
+          },
+        });
+
+        donorPaidBillId = donorPaidBill.id;
+        donorPortion = dpAmount;
+        farmPortion = txAmount - dpAmount;
+
+        await prisma.auditLog.create({
+          data: {
+            action: 'create',
+            entity: 'donor_paid_bill',
+            entityId: donorPaidBill.id,
+            details: JSON.stringify({
+              donorName: dp.donorName,
+              donorPortion: dpAmount,
+              farmPortion: txAmount - dpAmount,
+              coverageType,
+              transactionId: transaction.id,
+              vendorSlug,
+            }),
+          },
+        });
+      }
+    }
+
+    // --- Review notes (user-provided context) ---
+    let journalNoteId: string | null = null;
+
+    if (overrides?.notes && overrides.notes.trim()) {
+      const note = await prisma.journalNote.create({
+        data: {
+          content: overrides.notes.trim(),
+          type: 'note',
+          transactionId: transaction.id,
+          vendorSlug: vendorSlug ?? undefined,
+        },
+      });
+      journalNoteId = note.id;
+    }
+
     // --- Audit log ---
     await prisma.auditLog.create({
       data: {
@@ -327,6 +390,8 @@ export async function POST(request: Request) {
           vendorSlug,
           confidence,
           costTrackerEntries: costTrackerEntries.length,
+          donorPaidBillId,
+          journalNoteId,
           flags,
           ...(isIncome ? {
             incomeSource: extracted.incomeSource,
@@ -347,6 +412,10 @@ export async function POST(request: Request) {
         status,
         flags,
         costTrackerEntries,
+        donorPaidBillId,
+        donorPortion,
+        farmPortion,
+        journalNoteId,
       },
       { status: 201 },
     );

@@ -23,7 +23,7 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: 'documentId is required' }, { status: 400 });
     }
 
-    const doc = await prisma.document.findUnique({ where: { id: documentId } });
+    const doc = await prisma.document.findUnique({ where: { id: documentId }, include: { vendor: true } });
     if (!doc) {
       return NextResponse.json({ error: 'Document not found' }, { status: 404 });
     }
@@ -123,12 +123,15 @@ export async function POST(request: Request) {
 
     // Try to match vendor and link
     let vendorId: string | null = doc.vendorId;
+    let vendorSlug: string | null = null;
     if (!vendorId && extracted.vendor?.name) {
-      const vendorSlug = matchVendorByName(extracted.vendor.name);
+      vendorSlug = matchVendorByName(extracted.vendor.name);
       if (vendorSlug) {
         const vendor = await prisma.vendor.findUnique({ where: { slug: vendorSlug } });
         if (vendor) vendorId = vendor.id;
       }
+    } else if (vendorId && doc.vendor) {
+      vendorSlug = doc.vendor.slug;
     }
 
     // Update the document
@@ -166,6 +169,7 @@ export async function POST(request: Request) {
       extractedData: extracted,
       confidence: extracted.confidence,
       vendorMatched: !!vendorId,
+      vendorSlug,
     });
   } catch (error) {
     console.error('[Document Parse] Error:', error);

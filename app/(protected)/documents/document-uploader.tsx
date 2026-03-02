@@ -11,6 +11,8 @@ import {
   X,
   ChevronDown,
   ChevronUp,
+  Heart,
+  Info,
 } from 'lucide-react';
 import type { ExtractedReceipt } from '@/lib/receipt-parser';
 import { formatCurrency } from '@/lib/utils';
@@ -28,6 +30,7 @@ interface ParseResult {
   extractedData: ExtractedReceipt;
   confidence: number;
   vendorMatched: boolean;
+  vendorSlug: string | null;
 }
 
 interface CreateResult {
@@ -38,6 +41,26 @@ interface CreateResult {
   status: string;
   flags: string[];
   costTrackerEntries: Array<{ id: string; item: string; unitCost: number; seasonalFlag: string | null }>;
+  donorPaidBillId: string | null;
+  donorPortion: number | null;
+  farmPortion: number | null;
+  journalNoteId: string | null;
+}
+
+interface ArrangementResult {
+  hasArrangement: boolean;
+  appliesThisInvoice: boolean;
+  arrangement: {
+    donorName: string;
+    amount: number;
+    frequency: string;
+    alreadyAppliedThisPeriod: boolean;
+  } | null;
+  split: {
+    totalCost: number;
+    donorPortion: number;
+    farmPortion: number;
+  } | null;
 }
 
 export default function DocumentUploader({ onComplete }: { onComplete?: () => void }) {
@@ -55,6 +78,13 @@ export default function DocumentUploader({ onComplete }: { onComplete?: () => vo
   const [overrideAmount, setOverrideAmount] = useState('');
   const [showLineItems, setShowLineItems] = useState(false);
 
+  // Notes + donor-paid split
+  const [notes, setNotes] = useState('');
+  const [donorPaidEnabled, setDonorPaidEnabled] = useState(false);
+  const [donorName, setDonorName] = useState('');
+  const [donorAmount, setDonorAmount] = useState('');
+  const [arrangement, setArrangement] = useState<ArrangementResult | null>(null);
+
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const reset = useCallback(() => {
@@ -66,6 +96,11 @@ export default function DocumentUploader({ onComplete }: { onComplete?: () => vo
     setOverrideDate('');
     setOverrideAmount('');
     setShowLineItems(false);
+    setNotes('');
+    setDonorPaidEnabled(false);
+    setDonorName('');
+    setDonorAmount('');
+    setArrangement(null);
   }, []);
 
   // Step 1: Upload file
@@ -127,6 +162,32 @@ export default function DocumentUploader({ onComplete }: { onComplete?: () => vo
         setOverrideAmount(String(parseData.extractedData.total));
       }
 
+      // Check for donor arrangements if vendor was matched
+      if (parseData.vendorMatched && parseData.extractedData?.vendor?.name) {
+        try {
+          const arrRes = await fetch('/api/documents/arrangement-check', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              vendorSlug: parseData.vendorSlug,
+              invoiceDate: parseData.extractedData.date,
+              farmPaidAmount: parseData.extractedData.total,
+            }),
+          });
+          if (arrRes.ok) {
+            const arrData = await arrRes.json() as ArrangementResult;
+            setArrangement(arrData);
+            if (arrData.hasArrangement && arrData.appliesThisInvoice && arrData.arrangement) {
+              setDonorPaidEnabled(true);
+              setDonorName(arrData.arrangement.donorName);
+              setDonorAmount(String(arrData.arrangement.amount));
+            }
+          }
+        } catch {
+          // Arrangement check is non-critical; silently continue
+        }
+      }
+
       setPhase('review');
     } catch (err) {
       setError(err instanceof Error ? err.message : String(err));
@@ -145,6 +206,13 @@ export default function DocumentUploader({ onComplete }: { onComplete?: () => vo
       const overrides: Record<string, unknown> = {};
       if (overrideDate) overrides.date = overrideDate;
       if (overrideAmount) overrides.amount = parseFloat(overrideAmount);
+      if (notes.trim()) overrides.notes = notes.trim();
+      if (donorPaidEnabled && donorName && parseFloat(donorAmount) > 0) {
+        overrides.donorPaid = {
+          donorName,
+          amount: parseFloat(donorAmount),
+        };
+      }
 
       const res = await fetch('/api/documents/create-transaction', {
         method: 'POST',
@@ -164,7 +232,7 @@ export default function DocumentUploader({ onComplete }: { onComplete?: () => vo
       setError(err instanceof Error ? err.message : String(err));
       setPhase('error');
     }
-  }, [uploadResult, overrideDate, overrideAmount, onComplete]);
+  }, [uploadResult, overrideDate, overrideAmount, notes, donorPaidEnabled, donorName, donorAmount, onComplete]);
 
   // Drag and drop handlers
   const handleDrag = useCallback((e: React.DragEvent) => {
@@ -446,6 +514,103 @@ export default function DocumentUploader({ onComplete }: { onComplete?: () => vo
               </div>
             )}
 
+            {/* Notes */}
+            <div>
+              <label htmlFor="review-notes" className="text-[11px] text-slate-500 uppercase tracking-wider block mb-1">
+                Notes
+              </label>
+              <textarea
+                id="review-notes"
+                rows={2}
+                value={notes}
+                onChange={(e) => setNotes(e.target.value)}
+                placeholder="Add context (e.g., delivery schedule, split details)..."
+                className="text-sm w-full resize-none"
+              />
+            </div>
+
+            {/* Donor-paid split */}
+            <div className="rounded-lg border border-console-border p-3 space-y-3">
+              <label className="flex items-center gap-2 cursor-pointer">
+                <input
+                  type="checkbox"
+                  checked={donorPaidEnabled}
+                  onChange={(e) => setDonorPaidEnabled(e.target.checked)}
+                  className="rounded border-console-border"
+                />
+                <Heart className={`w-3.5 h-3.5 ${donorPaidEnabled ? 'text-gauge-green' : 'text-slate-600'}`} />
+                <span className="text-xs text-slate-300">A donor paid part of this bill</span>
+              </label>
+
+              {/* Arrangement auto-detect banner */}
+              {arrangement?.hasArrangement && arrangement.arrangement && (
+                <div className={`flex items-start gap-2 p-2.5 rounded-lg text-xs ${
+                  arrangement.arrangement.alreadyAppliedThisPeriod
+                    ? 'bg-gauge-amber/10 border border-gauge-amber/20'
+                    : 'bg-gauge-green/10 border border-gauge-green/20'
+                }`}>
+                  <Info className={`w-3.5 h-3.5 flex-shrink-0 mt-0.5 ${
+                    arrangement.arrangement.alreadyAppliedThisPeriod ? 'text-gauge-amber' : 'text-gauge-green'
+                  }`} />
+                  <div>
+                    {arrangement.arrangement.alreadyAppliedThisPeriod ? (
+                      <span className="text-gauge-amber">
+                        Standing arrangement: {arrangement.arrangement.donorName} — already applied this month
+                      </span>
+                    ) : (
+                      <span className="text-gauge-green">
+                        Standing arrangement: {arrangement.arrangement.donorName} — {formatCurrency(arrangement.arrangement.amount)}/{arrangement.arrangement.frequency}
+                      </span>
+                    )}
+                  </div>
+                </div>
+              )}
+
+              {donorPaidEnabled && (
+                <div className="grid grid-cols-2 gap-3">
+                  <div>
+                    <label htmlFor="donor-name" className="text-[11px] text-slate-500 uppercase tracking-wider block mb-1">
+                      Donor Name
+                    </label>
+                    <input
+                      id="donor-name"
+                      type="text"
+                      value={donorName}
+                      onChange={(e) => setDonorName(e.target.value)}
+                      placeholder="e.g., Ironwood Pig Sanctuary"
+                      className="text-sm w-full"
+                    />
+                  </div>
+                  <div>
+                    <label htmlFor="donor-amount" className="text-[11px] text-slate-500 uppercase tracking-wider block mb-1">
+                      Donor Pays
+                    </label>
+                    <div className="flex items-center gap-1">
+                      <span className="text-slate-500 text-sm">$</span>
+                      <input
+                        id="donor-amount"
+                        type="number"
+                        step="0.01"
+                        value={donorAmount}
+                        onChange={(e) => setDonorAmount(e.target.value)}
+                        className="text-sm w-full font-mono"
+                      />
+                    </div>
+                  </div>
+                  {overrideAmount && parseFloat(donorAmount) > 0 && (
+                    <div className="col-span-2 flex items-center justify-between text-xs px-1">
+                      <span className="text-slate-400">
+                        Farm pays: <span className="font-mono text-slate-200">{formatCurrency(parseFloat(overrideAmount) - parseFloat(donorAmount))}</span>
+                      </span>
+                      <span className={`badge ${parseFloat(donorAmount) >= parseFloat(overrideAmount) ? 'badge-green' : 'badge-blue'} text-[10px]`}>
+                        {parseFloat(donorAmount) >= parseFloat(overrideAmount) ? 'full' : 'partial'}
+                      </span>
+                    </div>
+                  )}
+                </div>
+              )}
+            </div>
+
             {/* Create Transaction button */}
             <button
               onClick={createTransaction}
@@ -488,6 +653,14 @@ export default function DocumentUploader({ onComplete }: { onComplete?: () => vo
               </div>
             )}
 
+            {createResult.donorPaidBillId && (
+              <div className="flex items-center gap-2 text-xs text-gauge-green">
+                <Heart className="w-3.5 h-3.5" />
+                Donor-paid: {formatCurrency(createResult.donorPortion ?? 0)}
+                {donorName && <span className="text-slate-400">({donorName})</span>}
+              </div>
+            )}
+
             {createResult.costTrackerEntries.length > 0 && (
               <div className="text-xs text-slate-500">
                 {createResult.costTrackerEntries.length} cost tracker{' '}
@@ -496,6 +669,10 @@ export default function DocumentUploader({ onComplete }: { onComplete?: () => vo
                   <span className="text-gauge-red ml-1">(cost creep detected!)</span>
                 )}
               </div>
+            )}
+
+            {createResult.journalNoteId && (
+              <div className="text-xs text-slate-500">Note saved</div>
             )}
 
             <button onClick={reset} className="btn-brass text-sm mx-auto flex items-center gap-2">
