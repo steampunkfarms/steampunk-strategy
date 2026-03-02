@@ -90,7 +90,34 @@ export default function DocumentUploader({ loadDocumentId, onComplete }: Uploade
   const [donorAmount, setDonorAmount] = useState('');
   const [arrangement, setArrangement] = useState<ArrangementResult | null>(null);
 
+  // Line-item species enrichment
+  const [lineItemTags, setLineItemTags] = useState<Record<number, string[]>>({});
+  const [expandedLineItem, setExpandedLineItem] = useState<number | null>(null);
+
   const fileInputRef = useRef<HTMLInputElement>(null);
+
+  const SPECIES_OPTIONS = [
+    { id: 'chickens', label: 'Chickens', emoji: '🐔' },
+    { id: 'ducks', label: 'Ducks', emoji: '🦆' },
+    { id: 'geese', label: 'Geese', emoji: '🪿' },
+    { id: 'sheep', label: 'Sheep', emoji: '🐑' },
+    { id: 'goats', label: 'Goats', emoji: '🐐' },
+    { id: 'horses', label: 'Horses', emoji: '🐴' },
+    { id: 'donkeys', label: 'Donkeys', emoji: '🫏' },
+    { id: 'pigs', label: 'Pigs', emoji: '🐷' },
+    { id: 'cattle', label: 'Cattle', emoji: '🐄' },
+    { id: 'general', label: 'General/Ops', emoji: '🏠' },
+  ];
+
+  const toggleSpecies = useCallback((itemIndex: number, speciesId: string) => {
+    setLineItemTags(prev => {
+      const current = prev[itemIndex] ?? [];
+      const next = current.includes(speciesId)
+        ? current.filter(s => s !== speciesId)
+        : [...current, speciesId];
+      return { ...prev, [itemIndex]: next };
+    });
+  }, []);
 
   const reset = useCallback(() => {
     setPhase('idle');
@@ -106,6 +133,8 @@ export default function DocumentUploader({ loadDocumentId, onComplete }: Uploade
     setDonorName('');
     setDonorAmount('');
     setArrangement(null);
+    setLineItemTags({});
+    setExpandedLineItem(null);
     onComplete?.();
   }, [onComplete]);
 
@@ -148,12 +177,14 @@ export default function DocumentUploader({ loadDocumentId, onComplete }: Uploade
           setOverrideAmount(String(parseData.extractedData.total));
         }
 
-        // Reset notes/donor fields for this document
+        // Reset notes/donor/enrichment fields for this document
         setNotes('');
         setDonorPaidEnabled(false);
         setDonorName('');
         setDonorAmount('');
         setArrangement(null);
+        setLineItemTags({});
+        setExpandedLineItem(null);
 
         // Check for donor arrangements
         if (parseData.vendorMatched && parseData.extractedData?.vendor?.name) {
@@ -304,6 +335,9 @@ export default function DocumentUploader({ loadDocumentId, onComplete }: Uploade
           amount: parseFloat(donorAmount),
         };
       }
+      if (Object.keys(lineItemTags).length > 0) {
+        overrides.lineItemTags = lineItemTags;
+      }
 
       const res = await fetch('/api/documents/create-transaction', {
         method: 'POST',
@@ -323,7 +357,7 @@ export default function DocumentUploader({ loadDocumentId, onComplete }: Uploade
       setError(err instanceof Error ? err.message : String(err));
       setPhase('error');
     }
-  }, [uploadResult, overrideDate, overrideAmount, notes, donorPaidEnabled, donorName, donorAmount, onComplete]);
+  }, [uploadResult, overrideDate, overrideAmount, notes, donorPaidEnabled, donorName, donorAmount, lineItemTags, onComplete]);
 
   // Drag and drop handlers
   const handleDrag = useCallback((e: React.DragEvent) => {
@@ -529,9 +563,15 @@ export default function DocumentUploader({ loadDocumentId, onComplete }: Uploade
             )}
 
             {/* Subtotals */}
-            {(extracted.subtotal || extracted.tax) && (
+            {(extracted.subtotal || extracted.tax || extracted.shipping || extracted.discount) && (
               <div className="flex gap-4 text-xs text-slate-500">
                 {extracted.subtotal && <span>Subtotal: {formatCurrency(extracted.subtotal)}</span>}
+                {extracted.shipping != null && extracted.shipping > 0 && (
+                  <span>Shipping: {formatCurrency(extracted.shipping)}</span>
+                )}
+                {extracted.discount != null && extracted.discount > 0 && (
+                  <span className="text-gauge-green">Discount: -{formatCurrency(extracted.discount)}</span>
+                )}
                 {extracted.tax && <span>Tax: {formatCurrency(extracted.tax)}</span>}
                 {extracted.paymentMethod && <span>Paid by: {extracted.paymentMethod}</span>}
                 {extracted.cardLast4 && <span>Card: ...{extracted.cardLast4}</span>}
@@ -574,30 +614,71 @@ export default function DocumentUploader({ loadDocumentId, onComplete }: Uploade
                         </tr>
                       </thead>
                       <tbody className="divide-y divide-console-border">
-                        {extracted.lineItems.map((item, i) => (
-                          <tr key={i}>
-                            <td className="px-3 py-1.5 text-slate-300">{item.description}</td>
-                            {extracted.transactionType === 'income' ? (
-                              <td className="px-3 py-1.5 text-slate-400 text-[10px] font-mono">
-                                {item.periodStart && item.periodEnd
-                                  ? `${item.periodStart} → ${item.periodEnd}`
-                                  : '—'}
+                        {extracted.lineItems.map((item, i) => {
+                          const tags = lineItemTags[i] ?? [];
+                          const isExpanded = expandedLineItem === i;
+                          const isExpense = extracted.transactionType === 'expense';
+                          return (
+                            <tr key={i} className="group">
+                              <td colSpan={isExpense ? 4 : 3} className="p-0">
+                                {/* Main row */}
+                                <div
+                                  className={`grid px-3 py-1.5 ${isExpense ? 'grid-cols-[1fr_auto_auto_auto]' : 'grid-cols-[1fr_auto_auto]'} gap-2 items-center ${isExpense ? 'cursor-pointer hover:bg-console-hover' : ''}`}
+                                  onClick={isExpense ? () => setExpandedLineItem(isExpanded ? null : i) : undefined}
+                                >
+                                  <span className="text-slate-300 flex items-center gap-1.5">
+                                    {item.description}
+                                    {isExpense && tags.length > 0 && (
+                                      <span className="text-[10px] text-slate-500">
+                                        {tags.map(t => SPECIES_OPTIONS.find(s => s.id === t)?.emoji).join('')}
+                                      </span>
+                                    )}
+                                  </span>
+                                  {extracted.transactionType === 'income' ? (
+                                    <span className="text-slate-400 text-[10px] font-mono text-right">
+                                      {item.periodStart && item.periodEnd
+                                        ? `${item.periodStart} → ${item.periodEnd}`
+                                        : '—'}
+                                    </span>
+                                  ) : (
+                                    <>
+                                      <span className="text-right text-slate-400 font-mono">
+                                        {item.quantity ?? '—'}{item.unit ? ` ${item.unit}` : ''}
+                                      </span>
+                                      <span className="text-right text-slate-400 font-mono">
+                                        {item.unitPrice != null ? formatCurrency(item.unitPrice) : '—'}
+                                      </span>
+                                    </>
+                                  )}
+                                  <span className="text-right text-slate-200 font-mono">
+                                    {formatCurrency(item.total)}
+                                  </span>
+                                </div>
+                                {/* Species tags (expanded) */}
+                                {isExpense && isExpanded && (
+                                  <div className="px-3 pb-2 pt-0.5">
+                                    <div className="flex flex-wrap gap-1">
+                                      {SPECIES_OPTIONS.map(sp => (
+                                        <button
+                                          key={sp.id}
+                                          type="button"
+                                          onClick={() => toggleSpecies(i, sp.id)}
+                                          className={`text-[10px] px-1.5 py-0.5 rounded-full border transition-colors ${
+                                            tags.includes(sp.id)
+                                              ? 'bg-brass-warm/20 border-brass-warm/40 text-brass-warm'
+                                              : 'border-console-border text-slate-500 hover:border-slate-400 hover:text-slate-400'
+                                          }`}
+                                        >
+                                          {sp.emoji} {sp.label}
+                                        </button>
+                                      ))}
+                                    </div>
+                                  </div>
+                                )}
                               </td>
-                            ) : (
-                              <>
-                                <td className="px-3 py-1.5 text-right text-slate-400 font-mono">
-                                  {item.quantity ?? '—'}{item.unit ? ` ${item.unit}` : ''}
-                                </td>
-                                <td className="px-3 py-1.5 text-right text-slate-400 font-mono">
-                                  {item.unitPrice != null ? formatCurrency(item.unitPrice) : '—'}
-                                </td>
-                              </>
-                            )}
-                            <td className="px-3 py-1.5 text-right text-slate-200 font-mono">
-                              {formatCurrency(item.total)}
-                            </td>
-                          </tr>
-                        ))}
+                            </tr>
+                          );
+                        })}
                       </tbody>
                     </table>
                   </div>

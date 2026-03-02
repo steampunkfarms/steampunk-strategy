@@ -159,13 +159,40 @@ Tags alone are flat — "chicken-feed" tells you *what* but not *why* or *for wh
 ```
 This structure serves both IRS functional allocation (Form 990) AND donor-facing program tie-ins. Tags can supplement (e.g., `#seasonal`, `#bulk-order`) but the COA hierarchy + Program link is the core.
 
+#### Product-to-Species Mapping Layer (Between Line Items & Program Allocation)
+
+**Priority:** Build early — this is the bridge between raw receipt data and meaningful program attribution.
+
+A mapping layer that learns which products serve which species. Sits between Claude's line-item extraction and the COA/Program allocation engine. Key insight: product names on receipts don't always match actual use at the sanctuary.
+
+**Domain knowledge examples (Tractor Supply):**
+- "DuMOR 14% Game Bird Feed" → chickens, ducks, geese (poultry program, not game birds)
+- "Royal Wing Black Oil Sunflower Wild Bird Food" → chickens, ducks, geese (high-protein supplement, NOT for wild birds)
+- "Trace Mineral Block" → ruminants EXCEPT sheep (copper toxicity — sheep get specialty salt blocks from separate vendor)
+- "Producer's Pride 12% All-Stock Cattle Feed" → multi-species special needs yard (supplement carrier mixed with medications/vitamins animals won't eat alone — not actually cattle feed)
+
+**How it works:**
+1. First encounter: user tags each line item with species/program during review
+2. System stores the mapping: `{vendorSlug, productPattern} → {species[], programSlug, notes}`
+3. Future receipts: auto-suggest species/program from stored mappings, user confirms or overrides
+4. Override updates the mapping (learning loop)
+5. Notes field captures the "why" — e.g., "Black oil sunflower = high-protein poultry supplement, not wild bird food"
+
+**Value:** The notes and species data enrich donor impact statements beyond generic "we bought feed" → "Your donation bought 50 lbs of high-protein sunflower seeds that supplement the diet of 23 chickens, 8 ducks, and 4 geese in our Cluck Crew program."
+
+**Schema sketch:**
+- `ProductSpeciesMap`: vendorId, productPattern (text match or regex), species[] (json array), programId (FK), notes, createdBy, lastUsed
+- Line item enrichment at review time: match against ProductSpeciesMap, show suggestions, allow override
+
 #### Implementation Sequence
 
 1. Upload Tractor Supply batch (30 orders) → verify Claude extraction quality for line items, quantities, weights
-2. Design COA hierarchy + Program model (Prisma schema changes)
-3. Build auto-allocation rules engine
-4. Impact metrics aggregation + API
-5. Cross-site integration handoffs (one per consuming site)
+2. **Line-item enrichment UI** — species/program tagging per line item in review panel (current task)
+3. Product-to-species mapping table + auto-suggest on repeat products
+4. Design COA hierarchy + Program model (Prisma schema changes)
+5. Build auto-allocation rules engine (consuming species/program tags from step 2-3)
+6. Impact metrics aggregation + API
+7. Cross-site integration handoffs (one per consuming site)
 
 ---
 

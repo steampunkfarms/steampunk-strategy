@@ -21,6 +21,8 @@ Extract the following fields from this document. Return ONLY valid JSON, no mark
   "total": number,
   "subtotal": number | null,
   "tax": number | null,
+  "shipping": number | null,
+  "discount": number | null,
   "paymentMethod": "card" | "cash" | "check" | "ach" | "bank_deposit" | null,
   "cardLast4": "string | null — last 4 digits if visible",
   "referenceNumber": "string | null — invoice #, receipt #, payment #, order #, confirmation #",
@@ -64,6 +66,8 @@ CONTEXT: Common vendors/payers include:
 
 For hay/grain invoices, always extract unit price per bale or per ton when visible.
 For Tractor Supply, itemize each product separately.
+For orders with delivery/shipping fees, extract the shipping amount.
+For orders with discounts, coupons, or promotions, extract the discount as a POSITIVE number (e.g., -$114.49 discount → 114.49).
 If the image is blurry or partially cut off, set confidence lower and note what's unclear.`;
 
 export interface ExtractedReceipt {
@@ -76,6 +80,8 @@ export interface ExtractedReceipt {
   total: number;
   subtotal: number | null;
   tax: number | null;
+  shipping: number | null;
+  discount: number | null;
   paymentMethod: string | null;
   cardLast4: string | null;
   referenceNumber: string | null;
