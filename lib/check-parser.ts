@@ -67,7 +67,7 @@ DOCUMENT TYPE DETECTION:
 - Envelope with visible return address (no check visible) → "envelope_return_address"
 
 SPECIAL INSTRUCTIONS:
-- MULTIPLE DOCUMENTS: Scans often contain 2-4 checks photographed together on one page. Each check is a SEPARATE document — return one array element per check with its own payer, amount, address, memo, etc. Look carefully at the entire image for all visible checks.
+- MULTIPLE DOCUMENTS: Scans often contain 2-4 checks OR 2-4 envelope return address labels photographed together on one page. Each check or envelope is a SEPARATE document — return one array element per item with its own payer, address, amount (if applicable), memo, etc. Look carefully at the entire image for all visible documents.
 - For checks: ALWAYS try to read the MICR line at the bottom (routing number, account number, check number). Only store last 4 digits of routing and account numbers for privacy.
 - For checks: The memo line is critical — it often says "for the animals", "shelter cats", a specific animal name, or a pledge reference. Extract it exactly as written.
 - For addresses: Normalize state to 2-letter code. Include zip+4 if visible.
