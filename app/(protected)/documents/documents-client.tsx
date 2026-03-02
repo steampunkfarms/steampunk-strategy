@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useCallback } from 'react';
 import {
   Image,
   File,
@@ -8,6 +8,7 @@ import {
   Clock,
   AlertTriangle,
   Loader2,
+  Trash2,
 } from 'lucide-react';
 import { formatDate } from '@/lib/utils';
 import DocumentUploader from './document-uploader';
@@ -49,12 +50,39 @@ const statusColors: Record<string, string> = {
 };
 
 export default function DocumentsClient({ documents }: { documents: DocumentRow[] }) {
+  const [docs, setDocs] = useState(documents);
   const [selectedDocId, setSelectedDocId] = useState<string | null>(null);
+  const [deletingId, setDeletingId] = useState<string | null>(null);
 
   const handleRowClick = (doc: DocumentRow) => {
     if (doc.parseStatus === 'processing') return;
     setSelectedDocId(doc.id === selectedDocId ? null : doc.id);
   };
+
+  const handleDelete = useCallback(async (e: React.MouseEvent, doc: DocumentRow) => {
+    e.stopPropagation();
+    if (!window.confirm(`Delete "${doc.originalName}"? This cannot be undone.`)) return;
+
+    setDeletingId(doc.id);
+    try {
+      const res = await fetch('/api/documents/delete', {
+        method: 'DELETE',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ documentId: doc.id }),
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        alert(data.error || 'Delete failed');
+        return;
+      }
+      setDocs(prev => prev.filter(d => d.id !== doc.id));
+      if (selectedDocId === doc.id) setSelectedDocId(null);
+    } catch {
+      alert('Network error — could not delete');
+    } finally {
+      setDeletingId(null);
+    }
+  }, [selectedDocId]);
 
   return (
     <>
@@ -65,7 +93,7 @@ export default function DocumentsClient({ documents }: { documents: DocumentRow[
       />
 
       {/* Document list */}
-      {documents.length > 0 && (
+      {docs.length > 0 && (
         <div className="console-card overflow-hidden">
           <table className="w-full bridge-table">
             <thead>
@@ -76,10 +104,11 @@ export default function DocumentsClient({ documents }: { documents: DocumentRow[
                 <th>Size</th>
                 <th>Parse Status</th>
                 <th>Uploaded</th>
+                <th className="w-10"></th>
               </tr>
             </thead>
             <tbody>
-              {documents.map((doc) => {
+              {docs.map((doc) => {
                 const Icon = doc.mimeType.startsWith('image/') ? Image : File;
                 const StatusIcon = statusIcons[doc.parseStatus] ?? Clock;
                 const statusColor = statusColors[doc.parseStatus] ?? 'text-slate-400';
@@ -130,6 +159,20 @@ export default function DocumentsClient({ documents }: { documents: DocumentRow[
                     </td>
                     <td className="font-mono text-xs text-slate-500">
                       {formatDate(doc.uploadedAt)}
+                    </td>
+                    <td>
+                      <button
+                        type="button"
+                        onClick={(e) => handleDelete(e, doc)}
+                        disabled={deletingId === doc.id}
+                        className="p-1 rounded text-slate-600 hover:text-gauge-red hover:bg-gauge-red/10 transition-colors disabled:opacity-50"
+                        title="Delete document"
+                      >
+                        {deletingId === doc.id
+                          ? <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                          : <Trash2 className="w-3.5 h-3.5" />
+                        }
+                      </button>
                     </td>
                   </tr>
                 );
