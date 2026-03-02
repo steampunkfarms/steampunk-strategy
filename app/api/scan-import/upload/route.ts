@@ -71,6 +71,7 @@ export async function POST(request: Request) {
     const blob = await put(blobPath, fileBuffer, {
       access: 'public',
       contentType: file.type,
+      addRandomSuffix: true,
     });
 
     // Create Document record
