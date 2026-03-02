@@ -143,7 +143,8 @@ export default function DocumentUploader({ loadDocumentId, onComplete }: Uploade
   // Load an existing document for remediation
   useEffect(() => {
     if (!loadDocumentId) return;
-    if (phase !== 'idle' && phase !== 'review') return;
+    // Allow loading from any non-active phase (block only during upload/parse/create)
+    if (phase === 'uploading' || phase === 'parsing' || phase === 'creating') return;
 
     const docId = loadDocumentId;
     let cancelled = false;
