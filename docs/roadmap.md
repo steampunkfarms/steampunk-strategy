@@ -514,6 +514,213 @@ GA4 + FB Pixel (#3), Visual polish (#4), Accessibility sweep 8 items (#8–15)
 **Scope:** Add `us_bank_account` as payment method on Rescue Barn `/donate` form alongside card. Use Stripe Financial Connections for instant bank verification. Set `setup_future_usage: 'off_session'` on PaymentIntent to enable recurring donations without donor re-auth. Update `/api/donate/create-intent` to pass `payment_method_types: ['card', 'us_bank_account']` and switch from CardElement to PaymentElement on frontend. Add microdeposit fallback verification flow. Surface fee savings messaging to donors.
 **Repo:** steampunk-rescuebarn
 
+### `/get-notified` — Unified Subscription Hub
+**Priority:** Medium — consolidates fragmented notification/signup flows
+**Why:** Newsletter signups currently only live on The Bray and the new `/newsletter` page. Cogworks (Barn Feed), Advocacy Academy updates, and resident stories have no subscription mechanism. A unified `/get-notified` page lets authenticated users check boxes for the content streams they care about (Newsletter, Cogworks digest, The Bray, Academy, Resident Updates) from one place.
+
+**Requires:**
+- Supabase schema: `subscription_preferences` table (user_id, stream slug, enabled, frequency)
+- Auth-gated page at `/get-notified` with toggles per content stream
+- Integration with each content system's notification pipeline (email digest jobs)
+- Public fallback for non-authenticated users: email-only newsletter signup (existing flow)
+
+**Depends on:** Email service integration (Resend or similar) — currently newsletter just stores to Supabase with no sending.
+
+### Dashboard v2 — Extended Profile & User Preferences
+**Priority:** Medium — enriches Studiolo 360-degree view, enables personalized comms
+**Depends on:** Dashboard v1 shipped (2026-03-02)
+
+New Supabase table `user_preferences` (row per user, RLS: self + admin):
+- `user_id` (PK, FK → auth.users)
+- `preferred_name` (TEXT, 50 chars) — warm comms name, distinct from display_name/handle
+- `phone` (TEXT, nullable)
+- `address_line1`, `address_line2`, `city`, `state`, `zip`, `country` (TEXT, all nullable) — premium thank-yous, postal mail
+- `social_instagram`, `social_facebook`, `social_x` (TEXT, nullable) — @ handles
+- `species_interests` (TEXT[]) — species they follow/love from our resident roster
+- `referral_source` (TEXT) — dropdown: social_media, cleanpunk_purchase, google, friend, event, other
+- `referral_source_other` (TEXT) — free text if "other"
+- `birthday_month`, `birthday_day` (INT, nullable) — no year (no objectionable content, no need for age gating)
+- `barn_story` (TEXT, 500 char limit) — "Why Steampunk Farms?" / "My Barn Story"
+- `barn_story_photo_url` (TEXT) — Vercel Blob upload
+- `hide_profile` (BOOLEAN) — "Hide my profile from other authenticated users"
+- `legacy_giving_interest` (BOOLEAN) — "I'd like to be contacted about legacy/planned giving"
+- `created_at`, `updated_at`
+
+Data flows: Barn stories → Studiolo stewardship notes & testimonial queue. Postmaster pulls anonymized quotes for "Dear Humans" storms. Birthday → Studiolo friction-alert + personalized thank-you automation. Referral source → donor acquisition channel analytics.
+
+UI: New `/dashboard/profile` page or expandable accordion. Sections: "My Brass Plaque Profile", "Contact Details", "Social Handles", "My Barn Story". All optional, progressive disclosure.
+
+### Dashboard v2 — Volunteer & Foster Interest Forms
+**Priority:** Medium — populates Studiolo vetting queues directly from website
+**Depends on:** user_preferences table
+
+Extends `user_preferences` or new `volunteer_profiles` table:
+- `volunteer_interest` (BOOLEAN) → opens availability grid (days/times, recurring or one-off) and skills inventory
+- Skills (TEXT[]): Photography, Social media amplification, Event staffing, Transport, Fencing/repair, Graphic design, Grant writing, Veterinary tech, Barn cleaning, Advocacy speaking, Other (text)
+- `foster_interest` (BOOLEAN) → conditional fields: home type (house/apartment), yard/fencing status (fenced/unfenced/none), max animals at once, experience level (beginner/intermediate/advanced), preferred species/size/temperament
+- Program interest checkboxes (JSONB): Feral-to-Barn-Cat, Advocacy Academy, Wishlist Wednesday drops, Soap-of-the-Month, Virtual barn tours, In-person open houses
+
+Directly populates Studiolo's two-lane pipeline and volunteer/foster vetting queues.
+
+### Dashboard v2 — Notification Preferences
+**Priority:** Medium — prerequisite for any email-based engagement
+**Depends on:** Email service integration (Resend)
+
+New `notification_preferences` table:
+- `preferred_channels` (TEXT[]) — email, sms, social_dm, postal_mail
+- `content_frequency` (TEXT) — weekly_storm_digest, monthly_bray_roundup, event_only, never
+- Notify toggles (BOOLEAN each): new_residents, medical_updates (for followed animals), low_stock_shop (ambassador soap alerts), volunteer_opportunities, grant_wins (barn milestones)
+- Consent toggles with timestamps: consent_feature_story (BOOLEAN + TIMESTAMPTZ), consent_public_donation (TEXT: anonymous/named/no), consent_matching_gift_reminders (BOOLEAN)
+
+All opt-in with clear language. Consent timestamps stored for GDPR/CCPA compliance.
+
+### Dashboard v2 — Favorite Animals Follow System
+**Priority:** Medium — personalizes dashboard + enables targeted notifications
+**Depends on:** Postmaster `/api/public/residents` (already exists)
+
+New `user_follows` junction table (user_id + resident_slug, UNIQUE). API: GET/POST/DELETE `/api/follows`. Dashboard "Your Herd" card showing followed animals with latest Cogworks posts about them. ISR revalidation on the feed. Follow buttons on resident pages (`/residents/[slug]`).
+
+### Dashboard v2 — Cleanpunk Featured Product Card
+**Priority:** Low-Medium — drives cross-site sales from dashboard
+**Depends on:** Medusa v2 public product API from cleanpunk-shop repo
+
+Dashboard card rotating featured ambassador soap or salt scrub. Product image, name, price, link to `home.cleanpunk.shop/products/{handle}`. Interim before Medusa integration: hardcode 3-4 featured products with day-seed rotation (same pattern as wishlist).
+
+### Dashboard v2 — Own Pets Section
+**Priority:** Low — enriches profile, ties into Ambassador Animals logic
+
+New `user_pets` table (id, user_id, name, species_breed TEXT, photo_url TEXT via Vercel Blob). Multi-entry per user. Ties into Postmaster "Ambassador Animals" content matching — users with dogs get more dog content in personalized storms.
+
+### Dashboard v2 — GDPR/CCPA Compliance
+**Priority:** Medium — legal requirement, builds trust
+
+- Data export button: generates JSON/CSV of all user data across tables (profiles, roles, academy progress, preferences, follows, newsletter subscriptions)
+- Deletion request button: triggers soft-delete process — marks account for deletion after 30-day grace period, sends confirmation email
+- "Hide my profile" toggle in user_preferences — RLS policy update to exclude hidden profiles from public queries
+
+### Dashboard v2 — Rescue Barn → Studiolo Sync
+**Priority:** Medium-High — completes the 360-degree donor view
+**Depends on:** user_preferences, notification_preferences, user_follows tables
+
+Mechanism: nightly cron (or real-time webhook on save) from Rescue Barn Supabase → Studiolo Prisma/Neon. Data flowing: profile enrichment, volunteer/foster interest, notification prefs, favorite animals, barn stories, referral sources. Purpose: donor segmentation, relationship network graph, Claude-assisted research in Studiolo are instantly enriched. Implementation: new cron job in steampunk-strategy or steampunk-studiolo, reads Supabase API, upserts into Neon/Prisma.
+
+### Steampunk Points — Full Loyalty & Engagement System
+**Priority:** High — transforms passive visitors into active co-pilots of the entire Steampunk Farms engine
+**Depends on:** Dashboard v2 profile fields, Cleanpunk Medusa integration, Postmaster webhook endpoints
+**Scope:** Cross-site loyalty system spanning all 5 properties
+
+#### Tables (shared Supabase instance)
+
+**`loyalty_balances`** — Per-user point balance:
+- `user_id` (PK), `balance` (BIGINT), `lifetime_earned` (BIGINT), `lifetime_redeemed` (BIGINT), `current_rank` (TEXT), `streak_days` (INT), `last_activity_date` (DATE), `updated_at`
+
+**`loyalty_transactions`** — Full audit trail:
+- `id`, `user_id`, `amount` (INT, positive=earn, negative=redeem), `reason` (TEXT), `source_app` (TEXT: rescuebarn, cleanpunk, studiolo, postmaster), `source_id` (TEXT: order ID, donation ID, lesson ID), `metadata` (JSONB), `created_at`
+- Indexed on (user_id, created_at) for fast history queries
+
+**`loyalty_redemptions`** — Catalog claims:
+- `id`, `user_id`, `reward_id`, `points_spent`, `status` (pending/fulfilled/cancelled), `fulfilled_at`, `created_at`
+
+**`loyalty_rewards`** — Catalog of available rewards:
+- `id`, `slug`, `title`, `description`, `points_cost`, `category` (academy/merch/experience/social/donation), `active`, `inventory` (nullable = unlimited), `image_url`
+
+#### Earning Rules (1 pt per penny = 100 pts/$1)
+
+**Financial:**
+- Donations: 1 pt/penny (Stripe webhook triggers loyalty_transaction)
+- Cleanpunk purchases: 1 pt/penny (Medusa order.completed webhook)
+- Retail Charity: Track via RaiseRight reporting if possible
+
+**Profile Completion Tiers (one-time bonuses):**
+- Basic (address + phone + social handles) = 500 pts
+- Brass (barn story upload + own pets + species favorites) = +1,500 pts
+- Full Steam (volunteer availability + skills + foster interest + photo) = +3,000 pts + 100 pts/month while profile remains complete
+
+**Referral Engine:**
+- Unique referral code generated in dashboard
+- Referrer earns 2,000 pts when friend: (a) creates account, (b) subscribes to any newsletter, (c) makes first Cleanpunk purchase, or (d) donates
+- Referred user gets 1,000 pts welcome bonus
+- Supabase `referral_codes` table (code, user_id, created_at) + `referral_conversions` (referrer_id, referred_user_id, conversion_type, points_awarded)
+
+**Engagement:**
+- Academy lesson completion: 200 pts/lesson
+- Academy module completion bonus: 500 pts
+- Cogworks post creation: 300 pts
+- Cogworks reaction: 50 pts, comment: 50 pts
+- Daily login: 50 pts
+- 7-day streak multiplier: x1.5 on all earning
+- 30-day streak multiplier: x2.0 on all earning
+- Seasonal campaign multipliers (e.g., "Harvest Steam Season" x2 on all actions for a month)
+
+**UGC (User-Generated Content):**
+- Upload photo/video of using soap, wearing merch, or with sanctuary animal
+- Vercel Blob storage + admin moderation queue
+- 500–2,000 pts based on Postmaster AI quality score (Claude evaluates relevance, quality, brand alignment)
+
+**Sharing Amplification:**
+- Verified share of any Postmaster storm or Bray article (Ayrshare click tracking) = 200 pts
+- +50 pts per like/comment from their network (tracked via Ayrshare analytics)
+
+**Feedback & Surveys:**
+- Quick NPS or "How did you hear about us?" after purchase/donation = 250 pts
+
+#### Redemption Catalog
+
+**Advocacy Academy Levels (100% free, zero cost to deliver):**
+- Level 1 "Sparkplug" (1,000 pts) — certificate PDF + digital badge on Rescue Barn profile
+- Level 2 "Gearhead" (5,000 pts) — custom steampunk profile frame (Runway AI generated)
+- Level 3 "Cogmaster" (12,000 pts) — early access to limited soap drops 48 hrs before public
+- Level 4 "Engine Whisperer" (25,000 pts) — private Zoom with a resident animal + named mention in next Postmaster storm
+
+**Merch & Product Store (Cleanpunk integration):**
+- Any soap or future hat/hoodie/tote at full points value (e.g., $12 soap = 1,200 pts) or points + $5-10 cash top-up
+- "Ambassador Edition" custom label soaps (resident's face on the wrapper) at premium point cost
+- Limited edition drops announced via points-only availability window
+
+**Experiential Rewards:**
+- Virtual 1-on-1 barn tour (10,000 pts)
+- "Sponsor a Day of Hay" for a specific resident (1,000 pts) — photo proof posted publicly, tagged to the donor
+- Name on digital "Wall of Brass" (public honor roll page on Rescue Barn)
+
+**Meta & Social Perks:**
+- Donate points to a resident's medical fund (appears as "community-funded" line in Studiolo)
+- Early access to limited soap drops 48 hrs before public (overlaps with Academy Level 3)
+- Custom steampunk profile frames/avatars on Rescue Barn & Cleanpunk Shop (generated in Runway AI, batch of 20-30 designs)
+
+**Soft Expiry:** Points never fully expire, but unused balance after 18 months loses 20% (encourages redemption while remaining generous). Monthly "balance at risk" notification 30 days before decay.
+
+#### Ranks & Gamification
+
+Five visible ranks with shadcn/ui progress gauges and steampunk illustrations:
+1. **Apprentice** (0 pts) — everyone starts here
+2. **Gearhead** (2,500 pts)
+3. **Cogmaster** (10,000 pts)
+4. **Steam Baron** (25,000 pts)
+5. **Legend of the Barn** (100,000 pts)
+
+**Weekly Quests:** "Quests from the Engine Room" (e.g., "Share 3 storms this week", "Complete a lesson", "Buy a soap for a friend"). Auto-generated by Claude in Postmaster based on user's current rank and recent activity patterns.
+
+**Leaderboard:** Opt-in public "Great Gearboard" (filtered by state or "Top Foster Advocates" or "Most Generous Barn Burners"). Privacy-first: only display_name shown, opt-in only.
+
+**Dashboard Widget:** "My Steam Gauge" showing current rank, next rank threshold, points to next reward, and "Your Impact This Month" summary ($ donated, lessons completed, posts shared).
+
+#### Cross-Site Technical Blueprint
+
+- **Rescue Barn:** `/dashboard/steam-points` route with history log, redemption catalog, rank display (React 19 server components). Real-time balance shown in nav header.
+- **Cleanpunk Shop:** Medusa v2 custom loyalty module — real-time point balance displayed at checkout, redemption selector ("Use 1,200 pts for this soap?"), order.completed webhook → loyalty_transaction.
+- **Studiolo:** Full read/write via secure API (or nightly sync). Points become first-class donor segment. "Engagement Velocity" KPI across all 4 sites — perfect for grant reports and board decks. Friction alerts: "User at 9,800 pts — one more donation gets them Engine Whisperer status."
+- **Postmaster:** New webhook endpoint to award engagement points on storm shares, article reads. Claude generates "High-Steamer" personalized storms for top-rank users. Quest generation pipeline.
+- **TARDIS (steampunk-strategy):** Daily cron for streak calculation, multiplier resets, low-balance nudges, decay warnings. Expense tagging: soaps redeemed via points = marketing expense (tagged cleanly in TARDIS cost tracking).
+
+#### Nonprofit Leverage & Internal BI
+
+- Academy redemptions = zero-cost advocacy multipliers. Track pipeline: "points redeemed → social shares → new donations attributable to advocacy."
+- Soaps redeemed via points = marketing expense. Already track COGS in TARDIS; now tag redemption soaps separately for board reporting.
+- Studiolo gains single "Engagement Velocity" KPI across all properties — grant applications can cite community engagement metrics.
+- Friction alerts integrate with existing Studiolo donor relationship management: "User at 9,800 pts — personalized nudge to push them over the Engine Whisperer threshold."
+
+**Repo:** All 5 (rescuebarn primary, cleanpunk-shop for Medusa module, studiolo for sync, postmaster for webhook + quest gen, strategy for cron + BI)
+
 ### Post-Launch
 The Bray expansion, Academy Levels 3–4, Mercantile phases, Surrender Deflection, Shelter Visibility, Piggie Smalls' Hub
 
