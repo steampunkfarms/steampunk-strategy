@@ -113,6 +113,8 @@ export default function DocumentUploader({ loadDocumentId, onComplete }: Uploade
     { id: 'donkeys', label: 'Donkeys', emoji: '🫏' },
     { id: 'pigs', label: 'Pigs', emoji: '🐷' },
     { id: 'cattle', label: 'Cattle', emoji: '🐄' },
+    { id: 'cats', label: 'Cats', emoji: '🐱' },
+    { id: 'dogs', label: 'Dogs', emoji: '🐶' },
     { id: 'general', label: 'General/Ops', emoji: '🏠' },
   ];
 
