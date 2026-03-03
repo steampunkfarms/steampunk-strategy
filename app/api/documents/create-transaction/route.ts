@@ -161,12 +161,8 @@ export async function POST(request: Request) {
       flags.push('Multi-period payout — review period allocation');
     }
 
-    // Chewy gift card payment split — flag for cash flow review
+    // Chewy gift card payment split — informational only (journal note has breakdown)
     const hasGiftCardSplit = extracted.giftCardAmount != null && extracted.giftCardAmount > 0;
-    if (hasGiftCardSplit) {
-      const oop = extracted.amountPaid ?? (txAmount - (extracted.giftCardAmount ?? 0));
-      flags.push(`Gift card split: $${extracted.giftCardAmount?.toFixed(2)} gift card, $${oop.toFixed(2)} out-of-pocket`);
-    }
 
     const status = flags.length > 0 ? 'flagged' : 'pending';
     const flagReason = flags.length > 0 ? flags.join('; ') : null;

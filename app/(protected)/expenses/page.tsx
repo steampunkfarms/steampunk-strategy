@@ -1,9 +1,10 @@
 export const dynamic = 'force-dynamic';
 
 import Link from 'next/link';
-import { Receipt, Plus, Upload, Filter, TrendingUp, ArrowUpDown } from 'lucide-react';
+import { Receipt, Plus, Upload, Filter, TrendingUp } from 'lucide-react';
 import { getTransactions, getExpenseCategories, getExpenseSummary } from '@/lib/queries';
-import { formatCurrency, formatDate } from '@/lib/utils';
+import { formatCurrency } from '@/lib/utils';
+import TransactionTable from './transaction-table';
 
 export default async function ExpensesPage() {
   const [transactions, categories, summary] = await Promise.all([
@@ -105,50 +106,20 @@ export default async function ExpensesPage() {
 
       {/* Transaction table or empty state */}
       {transactions.length > 0 ? (
-        <div className="console-card overflow-hidden">
-          <table className="w-full bridge-table">
-            <thead>
-              <tr>
-                <th>Date</th>
-                <th>Description</th>
-                <th>Vendor</th>
-                <th>Category</th>
-                <th>Source</th>
-                <th className="text-right">Amount</th>
-                <th>Status</th>
-              </tr>
-            </thead>
-            <tbody>
-              {transactions.map((tx) => (
-                <tr key={tx.id}>
-                  <td className="font-mono text-xs whitespace-nowrap">{formatDate(tx.date)}</td>
-                  <td className="max-w-[200px]">
-                    <p className="truncate">{tx.description}</p>
-                    {tx.donorPaidBill && (
-                      <span className="badge badge-brass text-[10px] mt-1">
-                        Donor-paid: {tx.donorPaidBill.donorName}
-                      </span>
-                    )}
-                  </td>
-                  <td className="text-brass-warm">{tx.vendor?.name ?? '—'}</td>
-                  <td className="text-slate-400">{tx.category?.name ?? '—'}</td>
-                  <td>
-                    <span className="text-[10px] text-slate-500 uppercase tracking-wider">{tx.source}</span>
-                  </td>
-                  <td className="text-right font-mono whitespace-nowrap">
-                    {formatCurrency(tx.amount.toString())}
-                  </td>
-                  <td>
-                    <span className={`badge badge-${
-                      tx.status === 'reconciled' || tx.status === 'verified' ? 'green' :
-                      tx.status === 'flagged' ? 'red' : 'amber'
-                    }`}>{tx.status}</span>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
+        <TransactionTable
+          transactions={transactions.map(tx => ({
+            id: tx.id,
+            date: tx.date.toISOString(),
+            description: tx.description,
+            amount: tx.amount.toString(),
+            status: tx.status,
+            source: tx.source,
+            flagReason: tx.flagReason,
+            vendor: tx.vendor ? { name: tx.vendor.name } : null,
+            category: tx.category ? { name: tx.category.name } : null,
+            donorPaidBill: tx.donorPaidBill ? { donorName: tx.donorPaidBill.donorName } : null,
+          }))}
+        />
       ) : (
         <div className="console-card p-12 text-center">
           <Receipt className="w-12 h-12 text-slate-600 mx-auto mb-4" />
