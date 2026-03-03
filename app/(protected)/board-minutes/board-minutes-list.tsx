@@ -2,7 +2,7 @@
 
 import { useState } from 'react';
 import Link from 'next/link';
-import { BookOpen, Plus, FileText, Search, ChevronRight } from 'lucide-react';
+import { BookOpen, Plus, FileText, Search, ChevronRight, Printer } from 'lucide-react';
 import { formatDate } from '@/lib/utils';
 
 interface Meeting {
@@ -68,13 +68,22 @@ export default function BoardMinutesList({ meetings, stats }: Props) {
             Meeting documentation, AI-polished minutes, and signed PDFs
           </p>
         </div>
-        <Link
-          href="/board-minutes/new"
-          className="btn-primary flex items-center gap-2"
-        >
-          <Plus className="w-4 h-4" />
-          New Meeting
-        </Link>
+        <div className="flex items-center gap-2">
+          <Link
+            href="/board-minutes/template"
+            className="flex items-center gap-2 px-3 py-2 text-sm text-slate-400 hover:text-tardis-glow border border-console-border rounded-lg hover:border-tardis-glow/30 transition-colors"
+          >
+            <Printer className="w-4 h-4" />
+            Print Template
+          </Link>
+          <Link
+            href="/board-minutes/new"
+            className="btn-primary flex items-center gap-2"
+          >
+            <Plus className="w-4 h-4" />
+            New Meeting
+          </Link>
+        </div>
       </div>
 
       {/* Stats */}
