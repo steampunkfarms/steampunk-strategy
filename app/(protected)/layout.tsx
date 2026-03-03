@@ -15,6 +15,7 @@ import {
   CircleDollarSign,
   Gift,
   ScanLine,
+  Stethoscope,
   LogOut,
   ChevronRight,
   Gauge,
@@ -44,6 +45,12 @@ const navigation = [
       { name: 'Gift Staging', href: '/gift-staging', icon: Gift },
       { name: 'Scan Import', href: '/scan-import', icon: ScanLine },
       { name: 'Retail Charity', href: '/retail-charity', icon: CreditCard },
+    ],
+  },
+  {
+    label: 'Medical',
+    items: [
+      { name: 'Vet Staging', href: '/vet-staging', icon: Stethoscope },
     ],
   },
   {
