@@ -1,14 +1,26 @@
 export const dynamic = 'force-dynamic';
 
 import Link from 'next/link';
-import { Receipt, Plus, Upload, Filter, TrendingUp } from 'lucide-react';
+import { Receipt, Plus, Upload, TrendingUp } from 'lucide-react';
 import { getTransactions, getExpenseCategories, getExpenseSummary } from '@/lib/queries';
 import { formatCurrency } from '@/lib/utils';
 import TransactionTable from './transaction-table';
+import ExpenseFilters from './expense-filters';
 
-export default async function ExpensesPage() {
+type Props = {
+  searchParams: Promise<{
+    status?: string;
+    category?: string;
+    q?: string;
+  }>;
+};
+
+export default async function ExpensesPage(props: Props) {
+  const searchParams = await props.searchParams;
+  const { status, category, q } = searchParams;
+
   const [transactions, categories, summary] = await Promise.all([
-    getTransactions({ limit: 50 }),
+    getTransactions({ limit: 200, status: status || undefined, categoryId: category || undefined, search: q || undefined }),
     getExpenseCategories(),
     getExpenseSummary(),
   ]);
@@ -53,31 +65,17 @@ export default async function ExpensesPage() {
         </div>
       )}
 
-      {/* Filters bar — real categories from DB */}
-      <div className="console-card p-4 flex flex-wrap items-center gap-4">
-        <Filter className="w-4 h-4 text-brass-muted" />
-        <input type="text" placeholder="Search transactions..." className="flex-1 min-w-[200px] text-sm" />
-        <select className="text-sm">
-          <option value="">All Categories</option>
-          {categories.map((cat) => (
-            <optgroup key={cat.id} label={cat.name}>
-              <option value={cat.id}>{cat.name} (all)</option>
-              {cat.children.map((child) => (
-                <option key={child.id} value={child.id}>
-                  {child.name}
-                </option>
-              ))}
-            </optgroup>
-          ))}
-        </select>
-        <select className="text-sm">
-          <option value="">All Status</option>
-          <option value="pending">Pending</option>
-          <option value="verified">Verified</option>
-          <option value="reconciled">Reconciled</option>
-          <option value="flagged">Flagged</option>
-        </select>
-      </div>
+      {/* Filters bar */}
+      <ExpenseFilters
+        categories={categories.map(cat => ({
+          id: cat.id,
+          name: cat.name,
+          children: cat.children.map(c => ({ id: c.id, name: c.name })),
+        }))}
+        currentStatus={status ?? ''}
+        currentCategory={category ?? ''}
+        currentSearch={q ?? ''}
+      />
 
       {/* Category breakdown — if we have transactions */}
       {summary.byCategory.length > 0 && (
