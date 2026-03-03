@@ -380,6 +380,119 @@ model ComplianceCompletion {
 }
 
 // =============================================================================
+// BOARD MEETINGS — Meeting minutes, attendees, agenda items, action items
+// CA Corp Code Section 6215 compliant governance records for 501(c)(3).
+// =============================================================================
+
+model BoardMeeting {
+  id              String    @id @default(uuid())
+
+  // Meeting metadata
+  date            DateTime
+  endTime         DateTime? @map("end_time")
+  type            String    @default("regular") // regular | special | annual | emergency
+  location        String    @default("Steampunk Farms — Kitchen Table")
+  calledBy        String?   @map("called_by")
+
+  // Quorum
+  quorumPresent   Boolean   @default(true) @map("quorum_present")
+  quorumNote      String?   @map("quorum_note")
+
+  // Content
+  rawNotes        String?   @map("raw_notes")
+  polishedMinutes String?   @map("polished_minutes")
+  polishModel     String?   @map("polish_model")
+
+  // Attestation
+  status          String    @default("draft") // draft | polished | attested | finalized
+  attestedBy      String?   @map("attested_by")
+  attestedRole    String?   @map("attested_role")
+  attestedDate    DateTime? @map("attested_date")
+  signatureBlobUrl String?  @map("signature_blob_url")
+  attestationText String?   @map("attestation_text")
+
+  // Generated PDF
+  pdfBlobUrl      String?   @map("pdf_blob_url")
+  pdfGeneratedAt  DateTime? @map("pdf_generated_at")
+
+  // Relations
+  attendees       MeetingAttendee[]
+  agendaItems     AgendaItem[]
+  actionItems     ActionItem[]
+
+  // Optional link to compliance task
+  complianceCompletionId String? @map("compliance_completion_id")
+
+  createdAt       DateTime  @default(now()) @map("created_at")
+  updatedAt       DateTime  @updatedAt @map("updated_at")
+  createdBy       String?   @map("created_by")
+
+  @@map("board_meetings")
+  @@index([date])
+  @@index([status])
+}
+
+model MeetingAttendee {
+  id              String    @id @default(uuid())
+  meetingId       String    @map("meeting_id")
+  meeting         BoardMeeting @relation(fields: [meetingId], references: [id], onDelete: Cascade)
+
+  name            String
+  role            String    // President | Secretary | Treasurer | Director | Guest
+  isBoard         Boolean   @default(true) @map("is_board")
+  present         Boolean   @default(true)
+  arrivedLate     Boolean   @default(false) @map("arrived_late")
+  leftEarly       Boolean   @default(false) @map("left_early")
+  note            String?
+
+  @@map("meeting_attendees")
+  @@index([meetingId])
+  @@unique([meetingId, name])
+}
+
+model AgendaItem {
+  id              String    @id @default(uuid())
+  meetingId       String    @map("meeting_id")
+  meeting         BoardMeeting @relation(fields: [meetingId], references: [id], onDelete: Cascade)
+
+  sortOrder       Int       @default(0) @map("sort_order")
+  title           String
+  description     String?
+  category        String?   // financial | operations | personnel | legal | fundraising | other
+
+  // Motion tracking (CA Corp Code requirement)
+  hasMotion       Boolean   @default(false) @map("has_motion")
+  motionText      String?   @map("motion_text")
+  motionBy        String?   @map("motion_by")
+  secondedBy      String?   @map("seconded_by")
+  votesFor        Int?      @map("votes_for")
+  votesAgainst    Int?      @map("votes_against")
+  votesAbstain    Int?      @map("votes_abstain")
+  motionResult    String?   @map("motion_result") // passed | failed | tabled | withdrawn
+
+  @@map("agenda_items")
+  @@index([meetingId])
+}
+
+model ActionItem {
+  id              String    @id @default(uuid())
+  meetingId       String    @map("meeting_id")
+  meeting         BoardMeeting @relation(fields: [meetingId], references: [id], onDelete: Cascade)
+
+  description     String
+  assignee        String?
+  dueDate         DateTime? @map("due_date")
+  status          String    @default("open") // open | in_progress | completed | cancelled
+  completedDate   DateTime? @map("completed_date")
+  notes           String?
+
+  @@map("action_items")
+  @@index([meetingId])
+  @@index([status])
+  @@index([dueDate])
+}
+
+// =============================================================================
 // JOURNAL NOTES — Per-transaction or general financial notes
 // =============================================================================
 

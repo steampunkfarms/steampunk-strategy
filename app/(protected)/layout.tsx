@@ -16,6 +16,7 @@ import {
   Gift,
   ScanLine,
   Stethoscope,
+  BookOpen,
   LogOut,
   ChevronRight,
   Gauge,
@@ -56,6 +57,7 @@ const navigation = [
   {
     label: 'Governance',
     items: [
+      { name: 'Board Minutes', href: '/board-minutes', icon: BookOpen },
       { name: 'Compliance', href: '/compliance', icon: Shield },
       { name: 'Transparency', href: '/transparency', icon: Eye },
     ],
