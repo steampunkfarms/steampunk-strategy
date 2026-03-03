@@ -29,6 +29,7 @@ const CATEGORIES = [
 const FREQUENCIES = [
   { value: 'annual', label: 'Annual' },
   { value: 'biennial', label: 'Biennial (every 2 years)' },
+  { value: 'quinquennial', label: 'Every 5 years (FBN, etc.)' },
   { value: 'quarterly', label: 'Quarterly' },
   { value: 'monthly', label: 'Monthly' },
   { value: 'one_time', label: 'One-time' },
@@ -172,7 +173,7 @@ export default function ComplianceForm({ initial }: { initial?: TaskFormData }) 
           </div>
         </div>
 
-        {(form.frequency === 'annual' || form.frequency === 'biennial') && (
+        {(form.frequency === 'annual' || form.frequency === 'biennial' || form.frequency === 'quinquennial') && (
           <div className="grid grid-cols-2 gap-4">
             <div>
               <label className="block text-xs text-slate-400 mb-1">Due Month</label>

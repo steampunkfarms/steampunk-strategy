@@ -116,7 +116,9 @@ export default async function CompliancePage() {
                     }`} />
                   </div>
                   <div className="min-w-0">
-                    <h3 className="text-sm font-semibold text-slate-200">{task.name}</h3>
+                    <Link href={`/compliance/${task.id}`} className="text-sm font-semibold text-slate-200 hover:text-brass-gold transition-colors">
+                      {task.name}
+                    </Link>
                     {task.description && (
                       <p className="text-xs text-slate-400 mt-1">{task.description}</p>
                     )}
@@ -189,9 +191,9 @@ export default async function CompliancePage() {
                       Filing portal <ExternalLink className="w-3 h-3" />
                     </a>
                   )}
-                  <button className="text-xs text-brass-gold hover:underline">
+                  <Link href={`/compliance/${task.id}?log=1`} className="text-xs text-brass-gold hover:underline">
                     Log completion →
-                  </button>
+                  </Link>
                 </div>
               </div>
             </div>

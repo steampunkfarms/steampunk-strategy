@@ -106,12 +106,12 @@ function computeNextDueDate(task: {
   const now = new Date();
   const year = now.getFullYear();
 
-  if (task.frequency === 'annual' || task.frequency === 'biennial') {
+  if (task.frequency === 'annual' || task.frequency === 'biennial' || task.frequency === 'quinquennial') {
     if (task.dueMonth && task.dueDay) {
       let due = new Date(year, task.dueMonth - 1, task.dueDay);
       // If already passed this year, next occurrence
       if (due < now) {
-        const step = task.frequency === 'biennial' ? 2 : 1;
+        const step = task.frequency === 'quinquennial' ? 5 : task.frequency === 'biennial' ? 2 : 1;
         due = new Date(year + step, task.dueMonth - 1, task.dueDay);
       }
       return due;

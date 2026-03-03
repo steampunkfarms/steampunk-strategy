@@ -78,6 +78,7 @@ model Document {
   mimeType        String    @map("mime_type")    // "application/pdf" | "image/jpeg" | etc.
   fileSize        Int       @map("file_size")     // bytes
   blobUrl         String    @map("blob_url")      // Vercel Blob URL
+  publicBlobUrl   String?   @map("public_blob_url") // PII-redacted version for public transparency
 
   // AI extraction
   extractedText   String?   @map("extracted_text") // Raw OCR/parsed text
@@ -323,7 +324,7 @@ model ComplianceTask {
   category        String    // "tax_filing" | "state_filing" | "charity_registration" | "reporting" | "renewal" | "sales_tax" | "loan_servicing" | "federal_registration"
 
   // Schedule
-  frequency       String    // "annual" | "quarterly" | "monthly" | "biennial" | "one_time"
+  frequency       String    // "annual" | "quarterly" | "monthly" | "biennial" | "quinquennial" | "one_time"
   dueMonth        Int?      @map("due_month")   // 1-12
   dueDay          Int?      @map("due_day")      // 1-31
   dueDayOfQuarter Int?      @map("due_day_of_quarter") // For quarterly tasks
@@ -361,7 +362,9 @@ model ComplianceCompletion {
   completedDate   DateTime? @map("completed_date")
   completedBy     String?   @map("completed_by")
   confirmationNum String?   @map("confirmation_num")
-  amountPaid      Decimal?  @map("amount_paid") @db.Decimal(10, 2)
+  amountPaid      Decimal?  @map("amount_paid") @db.Decimal(10, 2)        // Base filing fee
+  certifiedCopyFee Decimal? @map("certified_copy_fee") @db.Decimal(10, 2) // e.g., $5 for certified copy
+  expeditedFee    Decimal?  @map("expedited_fee") @db.Decimal(10, 2)      // Rush processing fee
   notes           String?
 
   // Attached documents (filed forms, confirmations)
