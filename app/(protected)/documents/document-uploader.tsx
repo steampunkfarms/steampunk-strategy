@@ -17,7 +17,7 @@ import {
 import type { ExtractedReceipt } from '@/lib/receipt-parser';
 import { formatCurrency } from '@/lib/utils';
 
-type Phase = 'idle' | 'uploading' | 'parsing' | 'review' | 'creating' | 'done' | 'error';
+type Phase = 'idle' | 'uploading' | 'parsing' | 'review' | 'creating' | 'done' | 'error' | 'batch';
 
 interface UploadResult {
   id: string;
@@ -66,6 +66,18 @@ interface ArrangementResult {
   } | null;
 }
 
+type BatchItemStatus = 'pending' | 'uploading' | 'parsing' | 'creating' | 'done' | 'error';
+
+interface BatchItem {
+  file: File;
+  status: BatchItemStatus;
+  error?: string;
+  vendor?: string;
+  total?: number;
+  transactionId?: string;
+  flags?: string[];
+}
+
 interface UploaderProps {
   loadDocumentId?: string | null;
   onComplete?: () => void;
@@ -97,6 +109,9 @@ export default function DocumentUploader({ loadDocumentId, onComplete }: Uploade
   const [lineItemTags, setLineItemTags] = useState<Record<number, string[]>>({});
   const [lineItemNotes, setLineItemNotes] = useState<Record<number, string>>({});
   const [expandedLineItem, setExpandedLineItem] = useState<number | null>(null);
+
+  // Batch upload
+  const [batchItems, setBatchItems] = useState<BatchItem[]>([]);
 
   // Existing transaction (for update flow)
   const [existingTransactionId, setExistingTransactionId] = useState<string | null>(null);
@@ -146,6 +161,7 @@ export default function DocumentUploader({ loadDocumentId, onComplete }: Uploade
     setLineItemNotes({});
     setExpandedLineItem(null);
     setExistingTransactionId(null);
+    setBatchItems([]);
     onComplete?.();
   }, [onComplete]);
 
@@ -410,6 +426,86 @@ export default function DocumentUploader({ loadDocumentId, onComplete }: Uploade
     }
   }, [uploadResult, overrideDate, overrideAmount, notes, donorPaidEnabled, donorName, donorAmount, lineItemTags, lineItemNotes, existingTransactionId, parseResult, onComplete]);
 
+  // Batch upload: process multiple files with concurrency limit
+  const processBatch = useCallback(async (files: File[]) => {
+    const items: BatchItem[] = files.map(f => ({ file: f, status: 'pending' as BatchItemStatus }));
+    setBatchItems(items);
+    setPhase('batch');
+
+    const CONCURRENCY = 3;
+    let nextIndex = 0;
+
+    const updateItem = (idx: number, update: Partial<BatchItem>) => {
+      setBatchItems(prev => prev.map((item, i) => i === idx ? { ...item, ...update } : item));
+    };
+
+    async function processOne(idx: number) {
+      const file = items[idx].file;
+
+      try {
+        // Upload
+        updateItem(idx, { status: 'uploading' });
+        const formData = new FormData();
+        formData.append('file', file);
+
+        const uploadRes = await fetch('/api/documents/upload', { method: 'POST', body: formData });
+        if (!uploadRes.ok) {
+          const errData = await uploadRes.json().catch(() => ({ error: 'Upload failed' }));
+          throw new Error(errData.error || `Upload failed (${uploadRes.status})`);
+        }
+        const uploadData = await uploadRes.json();
+
+        // Parse
+        updateItem(idx, { status: 'parsing' });
+        const parseRes = await fetch('/api/documents/parse', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ documentId: uploadData.id }),
+        });
+        const parseData = await parseRes.json();
+        if (!parseRes.ok) throw new Error(parseData.error || 'Parse failed');
+
+        const vendor = parseData.extractedData?.vendor?.name ?? 'Unknown';
+        const total = parseData.extractedData?.total ?? 0;
+        updateItem(idx, { status: 'creating', vendor, total });
+
+        // Create transaction (no overrides in batch mode)
+        const createRes = await fetch('/api/documents/create-transaction', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ documentId: uploadData.id }),
+        });
+        const createData = await createRes.json();
+        if (!createRes.ok) throw new Error(createData.error || 'Transaction creation failed');
+
+        updateItem(idx, {
+          status: 'done',
+          vendor,
+          total,
+          transactionId: createData.transactionId,
+          flags: createData.flags,
+        });
+      } catch (err) {
+        updateItem(idx, {
+          status: 'error',
+          error: err instanceof Error ? err.message : String(err),
+        });
+      }
+    }
+
+    // Process with limited concurrency
+    async function worker() {
+      while (nextIndex < items.length) {
+        const idx = nextIndex++;
+        await processOne(idx);
+      }
+    }
+
+    const workers = Array.from({ length: Math.min(CONCURRENCY, items.length) }, () => worker());
+    await Promise.all(workers);
+    onComplete?.();
+  }, [onComplete]);
+
   // Drag and drop handlers
   const handleDrag = useCallback((e: React.DragEvent) => {
     e.preventDefault();
@@ -426,16 +522,20 @@ export default function DocumentUploader({ loadDocumentId, onComplete }: Uploade
     e.stopPropagation();
     setDragActive(false);
 
-    if (e.dataTransfer.files && e.dataTransfer.files.length > 0) {
+    if (e.dataTransfer.files && e.dataTransfer.files.length > 1) {
+      processBatch(Array.from(e.dataTransfer.files));
+    } else if (e.dataTransfer.files && e.dataTransfer.files.length === 1) {
       uploadFile(e.dataTransfer.files[0]);
     }
-  }, [uploadFile]);
+  }, [uploadFile, processBatch]);
 
   const handleFileSelect = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
-    if (e.target.files && e.target.files.length > 0) {
+    if (e.target.files && e.target.files.length > 1) {
+      processBatch(Array.from(e.target.files));
+    } else if (e.target.files && e.target.files.length === 1) {
       uploadFile(e.target.files[0]);
     }
-  }, [uploadFile]);
+  }, [uploadFile, processBatch]);
 
   const extracted = parseResult?.extractedData;
 
@@ -474,6 +574,7 @@ export default function DocumentUploader({ loadDocumentId, onComplete }: Uploade
             <input
               ref={fileInputRef}
               type="file"
+              multiple
               accept="image/jpeg,image/png,image/webp,image/heic,application/pdf"
               onChange={handleFileSelect}
               className="hidden"
@@ -482,10 +583,10 @@ export default function DocumentUploader({ loadDocumentId, onComplete }: Uploade
               <Upload className="w-6 h-6 text-tardis-glow" />
             </div>
             <p className="text-sm text-slate-300">
-              Drop a receipt or invoice here, or <span className="text-tardis-glow underline">browse</span>
+              Drop receipts or invoices here, or <span className="text-tardis-glow underline">browse</span>
             </p>
             <p className="text-[11px] text-slate-600 mt-2">
-              PDF, JPEG, PNG, HEIC &middot; Max 10MB
+              PDF, JPEG, PNG, HEIC &middot; Max 10MB &middot; Drop multiple for batch
             </p>
           </div>
         )}
@@ -506,6 +607,91 @@ export default function DocumentUploader({ loadDocumentId, onComplete }: Uploade
             <p className="text-[11px] text-slate-600 mt-1">Extracting vendor, amounts, line items</p>
           </div>
         )}
+
+        {/* BATCH: Multi-file progress */}
+        {phase === 'batch' && batchItems.length > 0 && (() => {
+          const done = batchItems.filter(b => b.status === 'done').length;
+          const errored = batchItems.filter(b => b.status === 'error').length;
+          const total = batchItems.length;
+          const allFinished = done + errored === total;
+
+          return (
+            <div className="space-y-3">
+              {/* Progress header */}
+              <div className="flex items-center justify-between">
+                <span className="text-sm text-slate-200 font-medium">
+                  Batch Processing: {done}/{total} done
+                  {errored > 0 && <span className="text-gauge-red ml-1">({errored} failed)</span>}
+                </span>
+                {!allFinished && <Loader2 className="w-4 h-4 text-tardis-glow animate-spin" />}
+              </div>
+
+              {/* Progress bar */}
+              <div className="h-2 rounded-full bg-console-light overflow-hidden">
+                <div
+                  className="h-full rounded-full bg-gauge-green transition-all"
+                  style={{ width: `${((done + errored) / total) * 100}%` }}
+                />
+              </div>
+
+              {/* File list */}
+              <div className="max-h-64 overflow-y-auto space-y-1 pr-1">
+                {batchItems.map((item, i) => (
+                  <div
+                    key={i}
+                    className={`flex items-center gap-2 px-3 py-1.5 rounded-lg text-xs ${
+                      item.status === 'done' ? 'bg-gauge-green/5' :
+                      item.status === 'error' ? 'bg-gauge-red/5' :
+                      item.status === 'pending' ? 'bg-console-light/30' :
+                      'bg-tardis/5'
+                    }`}
+                  >
+                    {/* Status icon */}
+                    {item.status === 'done' && <CheckCircle2 className="w-3.5 h-3.5 text-gauge-green flex-shrink-0" />}
+                    {item.status === 'error' && <AlertTriangle className="w-3.5 h-3.5 text-gauge-red flex-shrink-0" />}
+                    {item.status === 'pending' && <FileText className="w-3.5 h-3.5 text-slate-600 flex-shrink-0" />}
+                    {(item.status === 'uploading' || item.status === 'parsing' || item.status === 'creating') && (
+                      <Loader2 className="w-3.5 h-3.5 text-tardis-glow animate-spin flex-shrink-0" />
+                    )}
+
+                    {/* File name */}
+                    <span className="text-slate-400 truncate flex-1">{item.file.name}</span>
+
+                    {/* Status detail */}
+                    {item.status === 'uploading' && <span className="text-slate-600">Uploading...</span>}
+                    {item.status === 'parsing' && <span className="text-brass-muted">Parsing...</span>}
+                    {item.status === 'creating' && <span className="text-tardis-glow">Creating...</span>}
+                    {item.status === 'done' && item.vendor && (
+                      <span className="text-slate-500">
+                        {item.vendor} &middot; {item.total != null ? formatCurrency(item.total) : ''}
+                        {item.flags && item.flags.length > 0 && (
+                          <span className="text-gauge-amber ml-1" title={item.flags.join('; ')}>⚑</span>
+                        )}
+                      </span>
+                    )}
+                    {item.status === 'error' && (
+                      <span className="text-gauge-red truncate max-w-[200px]" title={item.error}>{item.error}</span>
+                    )}
+                  </div>
+                ))}
+              </div>
+
+              {/* Done actions */}
+              {allFinished && (
+                <div className="text-center pt-2 space-y-2">
+                  <p className="text-sm text-slate-300">
+                    {done} transaction{done !== 1 ? 's' : ''} created
+                    {errored > 0 && <span className="text-gauge-red"> &middot; {errored} failed</span>}
+                  </p>
+                  <button type="button" onClick={reset} className="btn-brass text-sm mx-auto flex items-center gap-2">
+                    <Upload className="w-4 h-4" />
+                    Upload More
+                  </button>
+                </div>
+              )}
+            </div>
+          );
+        })()}
 
         {/* REVIEW: Show extracted data */}
         {phase === 'review' && extracted && (
@@ -615,7 +801,7 @@ export default function DocumentUploader({ loadDocumentId, onComplete }: Uploade
 
             {/* Subtotals */}
             {(extracted.subtotal || extracted.tax || extracted.shipping || extracted.discount) && (
-              <div className="flex gap-4 text-xs text-slate-500">
+              <div className="flex gap-4 text-xs text-slate-500 flex-wrap">
                 {extracted.subtotal && <span>Subtotal: {formatCurrency(extracted.subtotal)}</span>}
                 {extracted.shipping != null && extracted.shipping > 0 && (
                   <span>Shipping: {formatCurrency(extracted.shipping)}</span>
@@ -623,9 +809,24 @@ export default function DocumentUploader({ loadDocumentId, onComplete }: Uploade
                 {extracted.discount != null && extracted.discount > 0 && (
                   <span className="text-gauge-green">Discount: -{formatCurrency(extracted.discount)}</span>
                 )}
+                {extracted.autoshipDiscount != null && extracted.autoshipDiscount > 0 && (
+                  <span className="text-gauge-green">Autoship: -{formatCurrency(extracted.autoshipDiscount)}</span>
+                )}
                 {extracted.tax && <span>Tax: {formatCurrency(extracted.tax)}</span>}
                 {extracted.paymentMethod && <span>Paid by: {extracted.paymentMethod}</span>}
                 {extracted.cardLast4 && <span>Card: ...{extracted.cardLast4}</span>}
+              </div>
+            )}
+
+            {/* Chewy payment split */}
+            {extracted.giftCardAmount != null && extracted.giftCardAmount > 0 && (
+              <div className="flex gap-4 text-xs text-slate-500 flex-wrap">
+                <span className="text-gauge-blue">Gift Card: -{formatCurrency(extracted.giftCardAmount)}</span>
+                <span className="text-brass-warm font-medium">Out-of-Pocket: {formatCurrency(extracted.amountPaid ?? (extracted.total - extracted.giftCardAmount))}</span>
+                {extracted.earnedGiftCard != null && extracted.earnedGiftCard > 0 && (
+                  <span className="text-gauge-green">Earned eGift: +{formatCurrency(extracted.earnedGiftCard)}</span>
+                )}
+                {extracted.promoCode && <span>Promo: {extracted.promoCode}</span>}
               </div>
             )}
 
@@ -679,6 +880,9 @@ export default function DocumentUploader({ loadDocumentId, onComplete }: Uploade
                                 >
                                   <span className="text-slate-300 flex items-center gap-1.5 min-w-0">
                                     <span className="truncate">{item.description}</span>
+                                    {item.shipDate && (
+                                      <span className="text-[10px] text-slate-500 flex-shrink-0">📦 {item.shipDate}</span>
+                                    )}
                                     {isExpense && (tags.length > 0 || lineItemNotes[i]) && (
                                       <span className="text-[10px] text-slate-500 flex-shrink-0 flex items-center gap-1">
                                         {tags.map(t => SPECIES_OPTIONS.find(s => s.id === t)?.emoji).join('')}

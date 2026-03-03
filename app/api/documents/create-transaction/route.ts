@@ -161,6 +161,13 @@ export async function POST(request: Request) {
       flags.push('Multi-period payout — review period allocation');
     }
 
+    // Chewy gift card payment split — flag for cash flow review
+    const hasGiftCardSplit = extracted.giftCardAmount != null && extracted.giftCardAmount > 0;
+    if (hasGiftCardSplit) {
+      const oop = extracted.amountPaid ?? (txAmount - (extracted.giftCardAmount ?? 0));
+      flags.push(`Gift card split: $${extracted.giftCardAmount?.toFixed(2)} gift card, $${oop.toFixed(2)} out-of-pocket`);
+    }
+
     const status = flags.length > 0 ? 'flagged' : 'pending';
     const flagReason = flags.length > 0 ? flags.join('; ') : null;
 
@@ -234,6 +241,35 @@ export async function POST(request: Request) {
           },
         });
       }
+    }
+
+    // --- Chewy payment breakdown journal note ---
+    if (!isIncome && hasGiftCardSplit) {
+      const lines: string[] = [`Payment breakdown for ${vendorName} order${refNum}:`];
+      lines.push(`  Order Total: $${txAmount.toFixed(2)}`);
+      if (extracted.giftCardAmount != null) {
+        lines.push(`  Gift Card Applied: -$${extracted.giftCardAmount.toFixed(2)}`);
+      }
+      const oop = extracted.amountPaid ?? (txAmount - (extracted.giftCardAmount ?? 0));
+      lines.push(`  Out-of-Pocket: $${oop.toFixed(2)}`);
+      if (extracted.autoshipDiscount != null && extracted.autoshipDiscount > 0) {
+        lines.push(`  Autoship & Save Discount: -$${extracted.autoshipDiscount.toFixed(2)}`);
+      }
+      if (extracted.earnedGiftCard != null && extracted.earnedGiftCard > 0) {
+        lines.push(`  Earned eGift Card: $${extracted.earnedGiftCard.toFixed(2)}`);
+      }
+      if (extracted.promoCode) {
+        lines.push(`  Promo: ${extracted.promoCode}`);
+      }
+
+      await prisma.journalNote.create({
+        data: {
+          content: lines.join('\n'),
+          type: 'note',
+          transactionId: transaction.id,
+          vendorSlug: vendorSlug ?? undefined,
+        },
+      });
     }
 
     // --- CostTracker entries for hay/grain line items (expenses only) ---
