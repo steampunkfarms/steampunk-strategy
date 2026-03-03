@@ -28,8 +28,8 @@ const prisma = new PrismaClient();
 const anthropic = new Anthropic({ maxRetries: 3 });
 
 const SOURCE_DIR = '/Users/ericktronboll/Desktop/Invoices_and_Records_from_Gmail';
-const POSTMASTER_URL = process.env.POSTMASTER_URL || 'https://postmaster.steampunkstudiolo.org';
-const INTERNAL_SECRET = process.env.INTERNAL_SECRET;
+// Records are ingested into Strategy staging only.
+// Push to Postmaster happens via the /vet-staging approve workflow.
 
 const SUPPORTED_EXTENSIONS = ['.pdf', '.png', '.jpg', '.jpeg', '.tif', '.tiff'];
 const MODEL = 'claude-sonnet-4-20250514';
@@ -116,54 +116,6 @@ async function parseWithClaude(filePath: string, mimeType: string): Promise<Extr
   return parseVetExtractionResponse(responseText);
 }
 
-async function pushToPostmaster(record: {
-  animalName: string | null;
-  animalSpecies: string | null;
-  animalBreed: string | null;
-  vetProviderName: string | null;
-  recordDate: string;
-  recordType: string;
-  title: string;
-  description: string | null;
-  totalAmount: number | null;
-  amountPaid: number | null;
-  source: string;
-  sourceId: string;
-  documentBlobUrl: string;
-  documentName: string;
-  extractedData: string;
-  confidence: number;
-  tags: string[];
-  procedures: string[];
-  status: string;
-}): Promise<boolean> {
-  if (!INTERNAL_SECRET) {
-    console.log('    [skip push] INTERNAL_SECRET not set — skipping Postmaster push');
-    return false;
-  }
-
-  try {
-    const res = await fetch(`${POSTMASTER_URL}/api/internal/medical-records`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${INTERNAL_SECRET}`,
-      },
-      body: JSON.stringify({ records: [record] }),
-    });
-
-    if (!res.ok) {
-      const text = await res.text();
-      console.log(`    [push failed] ${res.status}: ${text}`);
-      return false;
-    }
-    return true;
-  } catch (err) {
-    console.log(`    [push error] ${err instanceof Error ? err.message : String(err)}`);
-    return false;
-  }
-}
-
 async function main() {
   const args = process.argv.slice(2);
   const dryRun = args.includes('--dry-run');
@@ -186,7 +138,7 @@ async function main() {
 
   console.log(`Found ${allFiles.length} files to process.\n`);
 
-  const results = { uploaded: 0, parsed: 0, pushed: 0, skipped: 0, errors: 0 };
+  const results = { uploaded: 0, parsed: 0, skipped: 0, errors: 0 };
 
   for (const filename of allFiles) {
     const filePath = path.join(SOURCE_DIR, filename);
@@ -289,36 +241,8 @@ async function main() {
       if (extracted.patient?.name) console.log(`  [animal] ${extracted.patient.name} (${extracted.patient.species || '?'})`);
       if (extracted.total) console.log(`  [total] $${extracted.total}`);
 
-      // 4. Push to Postmaster
-      const providerName = extracted.clinic?.name ? matchProvider(extracted.clinic.name) : null;
-      const pushed = await pushToPostmaster({
-        animalName: extracted.patient?.name || null,
-        animalSpecies: extracted.patient?.species || null,
-        animalBreed: extracted.patient?.breed || null,
-        vetProviderName: providerName || extracted.clinic?.name || null,
-        recordDate: extracted.date || new Date().toISOString().split('T')[0],
-        recordType: extracted.recordType || 'other',
-        title,
-        description: extracted.notes,
-        totalAmount: extracted.total,
-        amountPaid: extracted.amountPaid,
-        source: 'file_upload',
-        sourceId: doc.id,
-        documentBlobUrl: blob.url,
-        documentName: filename,
-        extractedData: JSON.stringify(extracted),
-        confidence: extracted.confidence,
-        tags: extracted.tags || [],
-        procedures: extracted.procedures || [],
-        status: 'pending_review',
-      });
-
-      if (pushed) {
-        results.pushed++;
-        console.log('  [pushed] → Postmaster');
-      }
-
-      console.log('');
+      // Records stay in Strategy staging — user reviews/approves via /vet-staging before pushing to Postmaster
+      console.log('  [staged] → review at /vet-staging\n');
 
       // Brief pause to avoid rate limiting
       await new Promise(r => setTimeout(r, 1000));
@@ -331,7 +255,6 @@ async function main() {
   console.log('\n=== Summary ===');
   console.log(`Uploaded: ${results.uploaded}`);
   console.log(`Parsed:   ${results.parsed}`);
-  console.log(`Pushed:   ${results.pushed}`);
   console.log(`Skipped:  ${results.skipped}`);
   console.log(`Errors:   ${results.errors}`);
 
