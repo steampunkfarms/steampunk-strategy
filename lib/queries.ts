@@ -431,6 +431,215 @@ export async function getCostCenterExpenses(costCenterId: string) {
 }
 
 // =============================================================================
+// TAX ROLLUP — Revenue/expense aggregation by 990-EZ lines
+// =============================================================================
+
+export interface TaxLineItem {
+  line: string;
+  description: string;
+  total: number;
+  count: number;
+  categories: string[];
+}
+
+export interface TaxRollup {
+  fiscalYear: number;
+  revenue: {
+    total: number;
+    byLine: TaxLineItem[];
+  };
+  expenses: {
+    total: number;
+    byLine: TaxLineItem[];
+    scheduleO: Array<{ category: string; total: number; count: number }>;
+  };
+  completeness: {
+    total: number;
+    categorized: number;
+    uncategorized: number;
+    percent: number;
+    verified: number;
+    verifiedPercent: number;
+  };
+  donorPaidTotal: number;
+  netIncome: number;
+  reconciliationStatus: string | null;
+  boardMinutesFiled: number;
+}
+
+export async function getTaxRollup(fiscalYear: number): Promise<TaxRollup> {
+  const [
+    expensesByCategory,
+    incomeTransactions,
+    totalExpenses,
+    totalRevenue,
+    categorizedCount,
+    uncategorizedCount,
+    verifiedCount,
+    totalCount,
+    donorPaidTotal,
+    reconSession,
+    boardMinutesFiled,
+  ] = await Promise.all([
+    prisma.transaction.groupBy({
+      by: ['categoryId'],
+      where: { fiscalYear, type: 'expense' },
+      _sum: { amount: true },
+      _count: true,
+    }),
+    prisma.transaction.findMany({
+      where: { fiscalYear, type: { in: ['income', 'refund'] } },
+      select: { amount: true, taxCategory: true, description: true },
+    }),
+    prisma.transaction.aggregate({
+      where: { fiscalYear, type: 'expense' },
+      _sum: { amount: true },
+    }),
+    prisma.transaction.aggregate({
+      where: { fiscalYear, type: { in: ['income', 'refund'] } },
+      _sum: { amount: true },
+    }),
+    prisma.transaction.count({
+      where: { fiscalYear, categoryId: { not: null } },
+    }),
+    prisma.transaction.count({
+      where: { fiscalYear, categoryId: null },
+    }),
+    prisma.transaction.count({
+      where: { fiscalYear, status: { in: ['verified', 'reconciled'] } },
+    }),
+    prisma.transaction.count({ where: { fiscalYear } }),
+    prisma.donorPaidBill.aggregate({
+      where: { transaction: { fiscalYear } },
+      _sum: { amount: true },
+    }),
+    prisma.reconciliationSession.findUnique({
+      where: { fiscalYear },
+      select: { status: true },
+    }),
+    prisma.boardMeeting.count({
+      where: {
+        date: { gte: new Date(fiscalYear, 0, 1), lt: new Date(fiscalYear + 1, 0, 1) },
+        status: 'finalized',
+      },
+    }),
+  ]);
+
+  // Resolve categories with their 990-EZ lines
+  const categoryIds = expensesByCategory.map(c => c.categoryId).filter(Boolean) as string[];
+  const categories = await prisma.expenseCategory.findMany({
+    where: { id: { in: categoryIds } },
+    include: { parent: true },
+  });
+  const categoryMap = new Map(categories.map(c => [c.id, c]));
+
+  // Build expense rollup by 990-EZ line
+  const ezLineMap = new Map<string, { total: number; count: number; categories: string[] }>();
+  const scheduleO: Array<{ category: string; total: number; count: number }> = [];
+
+  for (const entry of expensesByCategory) {
+    const cat = entry.categoryId ? categoryMap.get(entry.categoryId) : null;
+    const parent = cat?.parent ?? cat;
+    const ezLine = parent?.irs990EzLine ?? 'Part I, Line 16';
+    const amount = entry._sum.amount?.toNumber() ?? 0;
+
+    const existing = ezLineMap.get(ezLine) ?? { total: 0, count: 0, categories: [] };
+    existing.total += amount;
+    existing.count += entry._count;
+    if (cat && !existing.categories.includes(cat.name)) existing.categories.push(cat.name);
+    ezLineMap.set(ezLine, existing);
+
+    // Schedule O detail for Line 16
+    if (ezLine === 'Part I, Line 16' && cat) {
+      const catName = parent?.name ?? cat.name;
+      const soIdx = scheduleO.findIndex(s => s.category === catName);
+      if (soIdx >= 0) {
+        scheduleO[soIdx].total += amount;
+        scheduleO[soIdx].count += entry._count;
+      } else {
+        scheduleO.push({ category: catName, total: amount, count: entry._count });
+      }
+    }
+  }
+
+  const EZ_LINE_DESCRIPTIONS: Record<string, string> = {
+    'Part I, Line 10': 'Grants and similar amounts paid',
+    'Part I, Line 12': 'Salaries, other compensation, employee benefits',
+    'Part I, Line 13': 'Professional fees and other payments',
+    'Part I, Line 14': 'Occupancy, rent, utilities, and maintenance',
+    'Part I, Line 15': 'Printing, publications, postage, and shipping',
+    'Part I, Line 16': 'Other expenses (see Schedule O)',
+    'Part I, Line 5b': 'Cost of goods sold',
+  };
+
+  const expenseByLine: TaxLineItem[] = Array.from(ezLineMap.entries())
+    .map(([line, data]) => ({
+      line,
+      description: EZ_LINE_DESCRIPTIONS[line] ?? line,
+      total: data.total,
+      count: data.count,
+      categories: data.categories,
+    }))
+    .sort((a, b) => {
+      const lineNum = (l: string) => parseInt(l.match(/Line (\d+)/)?.[1] ?? '99');
+      return lineNum(a.line) - lineNum(b.line);
+    });
+
+  // Build revenue rollup by 990-EZ line
+  const revLineMap = new Map<string, { total: number; count: number }>();
+  for (const tx of incomeTransactions) {
+    const line = tx.taxCategory ?? 'Part I, Line 1';
+    const existing = revLineMap.get(line) ?? { total: 0, count: 0 };
+    existing.total += tx.amount?.toNumber?.() ?? Number(tx.amount);
+    existing.count += 1;
+    revLineMap.set(line, existing);
+  }
+
+  const REV_LINE_DESCRIPTIONS: Record<string, string> = {
+    'Part I, Line 1': 'Contributions, gifts, grants, and similar amounts received',
+    'Part I, Line 2': 'Program service revenue',
+    'Part I, Line 5a': 'Gross amount from sale of assets / inventory',
+    'Part I, Line 8': 'Other revenue',
+  };
+
+  const revenueByLine: TaxLineItem[] = Array.from(revLineMap.entries())
+    .map(([line, data]) => ({
+      line,
+      description: REV_LINE_DESCRIPTIONS[line] ?? line,
+      total: data.total,
+      count: data.count,
+      categories: [],
+    }))
+    .sort((a, b) => {
+      const lineNum = (l: string) => parseInt(l.match(/Line (\d+)/)?.[1] ?? '99');
+      return lineNum(a.line) - lineNum(b.line);
+    });
+
+  scheduleO.sort((a, b) => b.total - a.total);
+
+  const revTotal = totalRevenue._sum.amount?.toNumber() ?? 0;
+  const expTotal = totalExpenses._sum.amount?.toNumber() ?? 0;
+
+  return {
+    fiscalYear,
+    revenue: { total: revTotal, byLine: revenueByLine },
+    expenses: { total: expTotal, byLine: expenseByLine, scheduleO },
+    completeness: {
+      total: totalCount,
+      categorized: categorizedCount,
+      uncategorized: uncategorizedCount,
+      percent: totalCount > 0 ? Math.round((categorizedCount / totalCount) * 100) : 0,
+      verified: verifiedCount,
+      verifiedPercent: totalCount > 0 ? Math.round((verifiedCount / totalCount) * 100) : 0,
+    },
+    donorPaidTotal: donorPaidTotal._sum.amount?.toNumber() ?? 0,
+    netIncome: revTotal - expTotal,
+    reconciliationStatus: reconSession?.status ?? null,
+    boardMinutesFiled,
+  };
+}
+
+// =============================================================================
 // AUDIT LOG — Recent activity
 // =============================================================================
 

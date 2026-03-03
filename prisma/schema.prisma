@@ -210,7 +210,8 @@ model ExpenseCategory {
 
   // Budget
   annualBudget    Decimal?  @map("annual_budget") @db.Decimal(10, 2)
-  irs990Line      String?   @map("irs_990_line") // Maps to IRS 990 form line
+  irs990Line      String?   @map("irs_990_line")   // Maps to full IRS 990 Part IX line
+  irs990EzLine    String?   @map("irs_990ez_line") // Maps to 990-EZ Part I expense line
 
   // Display
   icon            String?   // Lucide icon name
@@ -490,6 +491,50 @@ model ActionItem {
   @@index([meetingId])
   @@index([status])
   @@index([dueDate])
+}
+
+// =============================================================================
+// TAX PREPARATION — Fiscal year 990-EZ prep state, narratives, exports
+// =============================================================================
+
+model TaxPrep {
+  id              String    @id @default(uuid())
+  fiscalYear      Int       @map("fiscal_year")
+  formType        String    @map("form_type") @default("990-EZ") // 990-EZ | CA-199 | RRF-1
+  status          String    @default("not_started") // not_started | gathering | reviewing | export_ready | filed
+
+  // Revenue/expense rollup snapshots (frozen JSON)
+  revenueSnapshot String?   @map("revenue_snapshot")
+  expenseSnapshot String?   @map("expense_snapshot")
+
+  // Completeness metrics
+  totalTransactions   Int?  @map("total_transactions")
+  categorizedCount    Int?  @map("categorized_count")
+  uncategorizedCount  Int?  @map("uncategorized_count")
+
+  // AI-generated content
+  partIIINarrative    String? @map("part_iii_narrative")
+  narrativeModel      String? @map("narrative_model")
+  scheduleONotes      String? @map("schedule_o_notes")
+
+  // Export package
+  exportBlobUrl       String? @map("export_blob_url")
+  exportGeneratedAt   DateTime? @map("export_generated_at")
+
+  // Link to compliance completion (once filed)
+  complianceCompletionId String? @map("compliance_completion_id")
+
+  // Review state
+  lastReviewedBy  String?   @map("last_reviewed_by")
+  notes           String?
+
+  createdAt       DateTime  @default(now()) @map("created_at")
+  updatedAt       DateTime  @updatedAt @map("updated_at")
+
+  @@unique([fiscalYear, formType])
+  @@map("tax_preps")
+  @@index([status])
+  @@index([fiscalYear])
 }
 
 // =============================================================================
