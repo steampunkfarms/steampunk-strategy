@@ -9,82 +9,85 @@ async function main() {
   // Designed around actual barn operations, not just 990 lines.
   // Parent categories roll up to 990 reporting; subcategories give
   // operational visibility into what's actually eating the budget.
+  // functionalClass: 'program_services' | 'management_general' | 'fundraising'
+  // coaCode: 4-digit IRS-style chart of accounts. 5xxx=program, 6xxx=mgmt, 7xxx=fundraising, 8xxx=COGS
   const categories = [
-    { name: 'Feed & Grain', slug: 'feed-grain', icon: 'Wheat', color: 'brass-gold', irs990Line: 'Part IX, Line 25', irs990EzLine: 'Part I, Line 16', children: [
+    { name: 'Feed & Grain', slug: 'feed-grain', icon: 'Wheat', color: 'brass-gold', functionalClass: 'program_services', coaCode: '5100', irs990Line: 'Part IX, Line 25', irs990EzLine: 'Part I, Line 16', children: [
       // Bulk delivery — Elston's, Star Milling
-      { name: 'Hay (bulk delivery)', slug: 'feed-hay' },
-      { name: 'Grain & Pellets (bulk delivery)', slug: 'feed-grain-bulk' },
+      { name: 'Hay (bulk delivery)',           slug: 'feed-hay',        functionalClass: 'program_services', coaCode: '5110' },
+      { name: 'Grain & Pellets (bulk delivery)',slug: 'feed-grain-bulk', functionalClass: 'program_services', coaCode: '5120' },
       // Specialty bagged feeds — mostly Tractor Supply runs
-      { name: 'Equine Feed (specialty/bagged)', slug: 'feed-equine' },
-      { name: 'Pig Feed (senior/specialty)', slug: 'feed-pig' },
-      { name: 'Goat Feed (digestive/dental)', slug: 'feed-goat' },
-      { name: 'Dog Food', slug: 'feed-dog' },
-      { name: 'Cat Food', slug: 'feed-cat' },
-      { name: 'Supplements & Minerals', slug: 'feed-supplements' },
-      { name: 'Treats', slug: 'feed-treats' },
+      { name: 'Equine Feed (specialty/bagged)', slug: 'feed-equine',    functionalClass: 'program_services', coaCode: '5130' },
+      { name: 'Pig Feed (senior/specialty)',    slug: 'feed-pig',        functionalClass: 'program_services', coaCode: '5140' },
+      { name: 'Goat Feed (digestive/dental)',   slug: 'feed-goat',       functionalClass: 'program_services', coaCode: '5150' },
+      { name: 'Dog Food',                       slug: 'feed-dog',        functionalClass: 'program_services', coaCode: '5160' },
+      { name: 'Cat Food',                       slug: 'feed-cat',        functionalClass: 'program_services', coaCode: '5170' },
+      { name: 'Supplements & Minerals',         slug: 'feed-supplements',functionalClass: 'program_services', coaCode: '5180' },
+      { name: 'Treats',                         slug: 'feed-treats',     functionalClass: 'program_services', coaCode: '5190' },
     ]},
-    { name: 'Animal Care Supplies', slug: 'animal-care', icon: 'Heart', color: 'gauge-pink', irs990Line: 'Part IX, Line 25', irs990EzLine: 'Part I, Line 16', children: [
+    { name: 'Animal Care Supplies', slug: 'animal-care', icon: 'Heart', color: 'gauge-pink', functionalClass: 'program_services', coaCode: '5200', irs990Line: 'Part IX, Line 25', irs990EzLine: 'Part I, Line 16', children: [
       // The "everything else" that keeps 60+ animals comfortable
-      { name: 'Pee Pads & Diapers', slug: 'care-pads-diapers' },
-      { name: 'Bedding & Sleeping Pads', slug: 'care-bedding' },
-      { name: 'Cat Litter', slug: 'care-cat-litter' },
-      { name: 'Infirmary Supplies', slug: 'care-infirmary' },
-      { name: 'Grooming & Hygiene', slug: 'care-grooming' },
-      { name: 'Enrichment & Toys', slug: 'care-enrichment' },
-      { name: 'Bowls, Feeders & Waterers', slug: 'care-feeders' },
-      { name: 'Fencing & Containment', slug: 'care-fencing' },
-      { name: 'Cleaning Supplies', slug: 'care-cleaning' },
-      { name: 'General Barn Supplies', slug: 'care-general' },
+      { name: 'Pee Pads & Diapers',      slug: 'care-pads-diapers', functionalClass: 'program_services', coaCode: '5210' },
+      { name: 'Bedding & Sleeping Pads', slug: 'care-bedding',       functionalClass: 'program_services', coaCode: '5220' },
+      { name: 'Cat Litter',              slug: 'care-cat-litter',    functionalClass: 'program_services', coaCode: '5230' },
+      { name: 'Infirmary Supplies',      slug: 'care-infirmary',     functionalClass: 'program_services', coaCode: '5240' },
+      { name: 'Grooming & Hygiene',      slug: 'care-grooming',      functionalClass: 'program_services', coaCode: '5250' },
+      { name: 'Enrichment & Toys',       slug: 'care-enrichment',    functionalClass: 'program_services', coaCode: '5260' },
+      { name: 'Bowls, Feeders & Waterers',slug: 'care-feeders',      functionalClass: 'program_services', coaCode: '5270' },
+      { name: 'Fencing & Containment',   slug: 'care-fencing',       functionalClass: 'program_services', coaCode: '5280' },
+      { name: 'Cleaning Supplies',       slug: 'care-cleaning',      functionalClass: 'program_services', coaCode: '5290' },
+      { name: 'General Barn Supplies',   slug: 'care-general',       functionalClass: 'program_services', coaCode: '5299' },
     ]},
-    { name: 'Veterinary', slug: 'veterinary', icon: 'Stethoscope', color: 'gauge-green', irs990Line: 'Part IX, Line 25', irs990EzLine: 'Part I, Line 16', children: [
-      { name: 'Routine Care & Checkups', slug: 'vet-routine' },
-      { name: 'Emergency & Urgent', slug: 'vet-emergency' },
-      { name: 'Medications & Rx', slug: 'vet-medications' },
-      { name: 'Farrier & Hoof Care', slug: 'vet-farrier' },
-      { name: 'Dental', slug: 'vet-dental' },
-      { name: 'Lab Work & Diagnostics', slug: 'vet-lab' },
-      { name: 'End-of-Life Care', slug: 'vet-end-of-life' },
+    { name: 'Veterinary', slug: 'veterinary', icon: 'Stethoscope', color: 'gauge-green', functionalClass: 'program_services', coaCode: '5300', irs990Line: 'Part IX, Line 25', irs990EzLine: 'Part I, Line 16', children: [
+      { name: 'Routine Care & Checkups', slug: 'vet-routine',      functionalClass: 'program_services', coaCode: '5310' },
+      { name: 'Emergency & Urgent',      slug: 'vet-emergency',    functionalClass: 'program_services', coaCode: '5320' },
+      { name: 'Medications & Rx',        slug: 'vet-medications',  functionalClass: 'program_services', coaCode: '5330' },
+      { name: 'Farrier & Hoof Care',     slug: 'vet-farrier',      functionalClass: 'program_services', coaCode: '5340' },
+      { name: 'Dental',                  slug: 'vet-dental',       functionalClass: 'program_services', coaCode: '5350' },
+      { name: 'Lab Work & Diagnostics',  slug: 'vet-lab',          functionalClass: 'program_services', coaCode: '5360' },
+      { name: 'End-of-Life Care',        slug: 'vet-end-of-life',  functionalClass: 'program_services', coaCode: '5370' },
     ]},
-    { name: 'Shelter & Facilities', slug: 'shelter', icon: 'Home', color: 'tardis-glow', irs990EzLine: 'Part I, Line 14', children: [
-      { name: 'Lease / Rent', slug: 'shelter-lease' },
-      { name: 'Maintenance & Repairs', slug: 'shelter-maintenance' },
-      { name: 'Capital Improvements', slug: 'shelter-improvements' },
+    { name: 'Shelter & Facilities', slug: 'shelter', icon: 'Home', color: 'tardis-glow', functionalClass: 'management_general', coaCode: '6100', irs990EzLine: 'Part I, Line 14', children: [
+      { name: 'Lease / Rent',          slug: 'shelter-lease',        functionalClass: 'management_general', coaCode: '6110' },
+      { name: 'Maintenance & Repairs', slug: 'shelter-maintenance',   functionalClass: 'management_general', coaCode: '6120' },
+      { name: 'Capital Improvements',  slug: 'shelter-improvements',  functionalClass: 'management_general', coaCode: '6130' },
     ]},
-    { name: 'Utilities', slug: 'utilities', icon: 'Zap', color: 'gauge-amber', irs990EzLine: 'Part I, Line 14', children: [
-      { name: 'Electric', slug: 'utilities-electric' },
-      { name: 'Water', slug: 'utilities-water' },
-      { name: 'Propane', slug: 'utilities-propane' },
-      { name: 'Trash / Waste Removal', slug: 'utilities-waste' },
-      { name: 'Internet / Phone', slug: 'utilities-telecom' },
+    { name: 'Utilities', slug: 'utilities', icon: 'Zap', color: 'gauge-amber', functionalClass: 'management_general', coaCode: '6200', irs990EzLine: 'Part I, Line 14', children: [
+      { name: 'Electric',              slug: 'utilities-electric', functionalClass: 'management_general', coaCode: '6210' },
+      { name: 'Water',                 slug: 'utilities-water',    functionalClass: 'management_general', coaCode: '6220' },
+      { name: 'Propane',               slug: 'utilities-propane',  functionalClass: 'management_general', coaCode: '6230' },
+      { name: 'Trash / Waste Removal', slug: 'utilities-waste',    functionalClass: 'management_general', coaCode: '6240' },
+      { name: 'Internet / Phone',      slug: 'utilities-telecom',  functionalClass: 'management_general', coaCode: '6250' },
     ]},
-    { name: 'Soap Production (COGS)', slug: 'soap-cogs', icon: 'Droplets', color: 'gauge-blue', irs990EzLine: 'Part I, Line 16', children: [
-      { name: 'Raw Materials (oils, lye, additives)', slug: 'soap-materials' },
-      { name: 'Packaging', slug: 'soap-packaging' },
-      { name: 'Labels & Printing', slug: 'soap-labels' },
-      { name: 'Shipping Supplies', slug: 'soap-shipping' },
+    { name: 'Soap Production (COGS)', slug: 'soap-cogs', icon: 'Droplets', color: 'gauge-blue', functionalClass: 'management_general', coaCode: '8000', irs990EzLine: 'Part I, Line 16', children: [
+      { name: 'Raw Materials (oils, lye, additives)', slug: 'soap-materials', functionalClass: 'management_general', coaCode: '8100' },
+      { name: 'Packaging',     slug: 'soap-packaging', functionalClass: 'management_general', coaCode: '8200' },
+      { name: 'Labels & Printing', slug: 'soap-labels', functionalClass: 'management_general', coaCode: '8300' },
+      { name: 'Shipping Supplies', slug: 'soap-shipping', functionalClass: 'management_general', coaCode: '8400' },
     ]},
-    { name: 'Fundraising', slug: 'fundraising', icon: 'Megaphone', color: 'brass-gold', irs990Line: 'Part IX, Line 25', irs990EzLine: 'Part I, Line 16', children: [
-      { name: 'Fundraising Services', slug: 'fundraising-services' },
-      { name: 'Postage & Shipping', slug: 'fundraising-postage' },
-      { name: 'Marketing & Outreach', slug: 'fundraising-marketing' },
-      { name: 'Event Costs', slug: 'fundraising-events' },
+    { name: 'Fundraising', slug: 'fundraising', icon: 'Megaphone', color: 'brass-gold', functionalClass: 'fundraising', coaCode: '7000', irs990Line: 'Part IX, Line 25', irs990EzLine: 'Part I, Line 16', children: [
+      { name: 'Fundraising Services',  slug: 'fundraising-services',  functionalClass: 'fundraising', coaCode: '7100' },
+      { name: 'Postage & Shipping',    slug: 'fundraising-postage',   functionalClass: 'fundraising', coaCode: '7200' },
+      { name: 'Marketing & Outreach',  slug: 'fundraising-marketing', functionalClass: 'fundraising', coaCode: '7300' },
+      { name: 'Event Costs',           slug: 'fundraising-events',    functionalClass: 'fundraising', coaCode: '7400' },
     ]},
-    { name: 'Office & Admin', slug: 'admin', icon: 'FileText', color: 'brass-muted', irs990EzLine: 'Part I, Line 13', children: [
-      { name: 'Government Fees & Filings', slug: 'admin-gov-fees' },
-      { name: 'Bank Fees', slug: 'admin-bank-fees' },
-      { name: 'Admin Services', slug: 'admin-services' },
-      { name: 'Office Supplies', slug: 'admin-supplies' },
+    { name: 'Office & Admin', slug: 'admin', icon: 'FileText', color: 'brass-muted', functionalClass: 'management_general', coaCode: '6300', irs990EzLine: 'Part I, Line 13', children: [
+      { name: 'Government Fees & Filings', slug: 'admin-gov-fees',  functionalClass: 'management_general', coaCode: '6310' },
+      { name: 'Bank Fees',                 slug: 'admin-bank-fees', functionalClass: 'management_general', coaCode: '6320' },
+      { name: 'Admin Services',            slug: 'admin-services',  functionalClass: 'management_general', coaCode: '6330' },
+      { name: 'Office Supplies',           slug: 'admin-supplies',  functionalClass: 'management_general', coaCode: '6340' },
     ]},
-    { name: 'Insurance', slug: 'insurance', icon: 'Shield', color: 'gauge-green', irs990EzLine: 'Part I, Line 16' },
-    { name: 'Technology', slug: 'technology', icon: 'Monitor', color: 'tardis-glow', irs990EzLine: 'Part I, Line 16', children: [
-      { name: 'Software / SaaS', slug: 'tech-saas' },
-      { name: 'Hardware', slug: 'tech-hardware' },
-      { name: 'Hosting & Domains', slug: 'tech-hosting' },
+    { name: 'Insurance', slug: 'insurance', icon: 'Shield', color: 'gauge-green', functionalClass: 'management_general', coaCode: '6400', irs990EzLine: 'Part I, Line 16' },
+    { name: 'Technology', slug: 'technology', icon: 'Monitor', color: 'tardis-glow', functionalClass: 'management_general', coaCode: '6500', irs990EzLine: 'Part I, Line 16', children: [
+      { name: 'Software / SaaS',    slug: 'tech-saas',     functionalClass: 'management_general', coaCode: '6510' },
+      { name: 'Hardware',           slug: 'tech-hardware', functionalClass: 'management_general', coaCode: '6520' },
+      { name: 'Hosting & Domains',  slug: 'tech-hosting',  functionalClass: 'management_general', coaCode: '6530' },
     ]},
-    { name: 'Transportation', slug: 'transportation', icon: 'Truck', color: 'brass-warm', irs990EzLine: 'Part I, Line 16', children: [
-      { name: 'Fuel', slug: 'transport-fuel' },
-      { name: 'Vehicle Maintenance', slug: 'transport-maintenance' },
-      { name: 'Animal Transport', slug: 'transport-animal' },
+    { name: 'Transportation', slug: 'transportation', icon: 'Truck', color: 'brass-warm', functionalClass: 'management_general', coaCode: '6600', irs990EzLine: 'Part I, Line 16', children: [
+      { name: 'Fuel',                slug: 'transport-fuel',         functionalClass: 'management_general', coaCode: '6610' },
+      { name: 'Vehicle Maintenance', slug: 'transport-maintenance',  functionalClass: 'management_general', coaCode: '6620' },
+      // Animal transport is a direct program cost even though it sits under Transportation
+      { name: 'Animal Transport',    slug: 'transport-animal',       functionalClass: 'program_services',  coaCode: '6630' },
     ]},
   ];
 
@@ -675,6 +678,297 @@ SEASONAL PRICING: Hay prices follow a predictable annual cycle driven by harvest
     });
   }
   console.log(`  ✓ ${costCenters.length} cost centers seeded`);
+
+  // =========================================================================
+  // PROGRAMS — IRS functional expense programs (Statement of Program Service)
+  // Each maps to a species group and a functionalClass for 990 reporting.
+  // =========================================================================
+  const programs = [
+    {
+      name: 'Cluck Crew',
+      slug: 'cluck-crew',
+      description: 'Chickens, turkeys, ducks, and guinea fowl. The most numerous residents — feed and care costs scale with flock size.',
+      species: JSON.stringify(['chicken', 'turkey', 'duck', 'guinea']),
+      icon: 'Bird',
+      color: 'brass-gold',
+      functionalClass: 'program_services',
+      isActive: true,
+    },
+    {
+      name: 'General Herd',
+      slug: 'general-herd',
+      description: 'Goats, sheep, donkeys, and horses. Hay and bulk grain are the dominant costs; hay pricing is highly seasonal.',
+      species: JSON.stringify(['goat', 'sheep', 'donkey', 'horse']),
+      icon: 'Footprints',
+      color: 'brass-warm',
+      functionalClass: 'program_services',
+      isActive: true,
+    },
+    {
+      name: 'Pig Program',
+      slug: 'pig-program',
+      description: 'Senior pigs with specialized nutritional and medical needs. Star Milling pig pellets; Ironwood sponsors $1,200/mo.',
+      species: JSON.stringify(['pig']),
+      icon: 'Heart',
+      color: 'gauge-pink',
+      functionalClass: 'program_services',
+      isActive: true,
+    },
+    {
+      name: 'Companion Animals',
+      slug: 'companion-animals',
+      description: "Dogs and house cats — Fred's animals who live at the sanctuary. Autoship via Chewy.",
+      species: JSON.stringify(['dog', 'cat']),
+      icon: 'PawPrint',
+      color: 'gauge-green',
+      functionalClass: 'program_services',
+      isActive: true,
+    },
+    {
+      name: 'Barn Cat Program',
+      slug: 'barn-cats',
+      description: 'Feral and semi-feral barn cats — TNR program, outdoor feeding stations, winter shelter.',
+      species: JSON.stringify(['cat']),
+      icon: 'Cat',
+      color: 'tardis-glow',
+      functionalClass: 'program_services',
+      isActive: true,
+    },
+    {
+      name: 'Sanctuary Operations',
+      slug: 'sanctuary-ops',
+      description: 'Overhead supporting all programs: facilities, utilities, technology, insurance, admin. Not allocable to a single species.',
+      species: JSON.stringify([]),
+      icon: 'Building',
+      color: 'brass-muted',
+      functionalClass: 'management_general',
+      isActive: true,
+    },
+    {
+      name: 'Soap Production',
+      slug: 'soap-production',
+      description: 'Cleanpunk Soaps cost of goods — raw materials, packaging, labels, shipping supplies. Revenue funds the sanctuary.',
+      species: JSON.stringify([]),
+      icon: 'Droplets',
+      color: 'gauge-blue',
+      functionalClass: 'management_general',
+      isActive: true,
+    },
+    {
+      name: 'Fundraising & Outreach',
+      slug: 'fundraising-outreach',
+      description: 'Direct costs of fundraising: platform fees, event costs, marketing materials, postage.',
+      species: JSON.stringify([]),
+      icon: 'Megaphone',
+      color: 'gauge-amber',
+      functionalClass: 'fundraising',
+      isActive: true,
+    },
+  ];
+
+  for (const program of programs) {
+    await prisma.program.upsert({
+      where: { slug: program.slug },
+      update: program,
+      create: program,
+    });
+  }
+  console.log(`  ✓ ${programs.length} programs seeded`);
+
+  // =========================================================================
+  // PRODUCT → SPECIES MAPS
+  // Learned mappings from receipt line items to sanctuary programs.
+  // productPattern is a substring/keyword the classifier uses for matching.
+  // These represent accumulated domain knowledge — the "why" lives in notes.
+  // =========================================================================
+  const cluckCrew = await prisma.program.findUnique({ where: { slug: 'cluck-crew' } });
+  const generalHerd = await prisma.program.findUnique({ where: { slug: 'general-herd' } });
+  const pigProgram = await prisma.program.findUnique({ where: { slug: 'pig-program' } });
+  const companionAnimals = await prisma.program.findUnique({ where: { slug: 'companion-animals' } });
+  const barnCats = await prisma.program.findUnique({ where: { slug: 'barn-cats' } });
+
+  const elstons2 = await prisma.vendor.findUnique({ where: { slug: 'elstons' } });
+  const starMilling2 = await prisma.vendor.findUnique({ where: { slug: 'star-milling' } });
+  const tsc = await prisma.vendor.findUnique({ where: { slug: 'tractor-supply' } });
+
+  if (cluckCrew && generalHerd && pigProgram && companionAnimals && barnCats) {
+    const maps = [
+      // ── Poultry (Cluck Crew) ─────────────────────────────────────────────
+      {
+        productPattern: 'game bird',
+        species: JSON.stringify(['chicken', 'turkey', 'guinea']),
+        programId: cluckCrew.id,
+        vendorId: tsc?.id ?? null,
+        notes: 'DuMOR Game Bird Feed is the primary ration for non-laying poultry. High protein (20%+). Sold at Tractor Supply.',
+        createdBy: 'seed',
+      },
+      {
+        productPattern: 'layer pellet',
+        species: JSON.stringify(['chicken']),
+        programId: cluckCrew.id,
+        vendorId: tsc?.id ?? null,
+        notes: 'Layer pellets for laying hens. Different formula from game bird — lower protein, added calcium.',
+        createdBy: 'seed',
+      },
+      {
+        productPattern: 'black oil sunflower',
+        species: JSON.stringify(['chicken', 'turkey', 'duck', 'guinea']),
+        programId: cluckCrew.id,
+        vendorId: tsc?.id ?? null,
+        notes: 'BOSS (Black Oil Sunflower Seeds) — scratch supplement and cold-weather calorie booster for all poultry.',
+        createdBy: 'seed',
+      },
+      {
+        productPattern: 'scratch grain',
+        species: JSON.stringify(['chicken', 'turkey', 'duck', 'guinea']),
+        programId: cluckCrew.id,
+        vendorId: null,
+        notes: 'Scratch grains — treat/supplement, not a complete feed. Stimulates natural foraging behavior.',
+        createdBy: 'seed',
+      },
+      {
+        productPattern: 'flock block',
+        species: JSON.stringify(['chicken', 'turkey', 'guinea']),
+        programId: cluckCrew.id,
+        vendorId: tsc?.id ?? null,
+        notes: 'Purina Flock Block — enrichment + supplemental nutrition for confined poultry.',
+        createdBy: 'seed',
+      },
+      // ── Pigs ─────────────────────────────────────────────────────────────
+      {
+        productPattern: 'pig pellet',
+        species: JSON.stringify(['pig']),
+        programId: pigProgram.id,
+        vendorId: starMilling2?.id ?? null,
+        notes: 'Star Milling pig pellets — primary ration for sanctuary pigs. Ironwood sponsors $1,200/mo of this bill.',
+        createdBy: 'seed',
+      },
+      {
+        productPattern: 'senior pig',
+        species: JSON.stringify(['pig']),
+        programId: pigProgram.id,
+        vendorId: null,
+        notes: 'Senior pig formula (lower protein, joint support). Used for older residents.',
+        createdBy: 'seed',
+      },
+      // ── General Herd (goats, sheep, horses, donkeys) ─────────────────────
+      {
+        productPattern: 'bermuda hay',
+        species: JSON.stringify(['goat', 'sheep', 'donkey', 'horse']),
+        programId: generalHerd.id,
+        vendorId: elstons2?.id ?? null,
+        notes: "Primary hay. Elston's Bermuda — see seasonal baseline data for expected pricing.",
+        createdBy: 'seed',
+      },
+      {
+        productPattern: 'alfalfa',
+        species: JSON.stringify(['goat', 'horse']),
+        programId: generalHerd.id,
+        vendorId: elstons2?.id ?? null,
+        notes: 'Alfalfa — high-protein supplement, mainly for horses and milking goats. Not primary ration.',
+        createdBy: 'seed',
+      },
+      {
+        productPattern: 'orchard grass',
+        species: JSON.stringify(['goat', 'sheep', 'donkey']),
+        programId: generalHerd.id,
+        vendorId: elstons2?.id ?? null,
+        notes: 'Orchard grass hay — lower sugar than alfalfa, good for metabolic animals (donkeys especially).',
+        createdBy: 'seed',
+      },
+      {
+        productPattern: 'trace mineral block',
+        species: JSON.stringify(['goat', 'donkey', 'horse']),
+        programId: generalHerd.id,
+        vendorId: tsc?.id ?? null,
+        notes: 'Trace mineral block — do NOT use for sheep (copper toxicity). Goats, horses, donkeys only.',
+        createdBy: 'seed',
+      },
+      {
+        productPattern: 'goat mineral',
+        species: JSON.stringify(['goat']),
+        programId: generalHerd.id,
+        vendorId: tsc?.id ?? null,
+        notes: 'Goat-specific loose mineral — copper-safe formulation.',
+        createdBy: 'seed',
+      },
+      {
+        productPattern: 'all stock',
+        species: JSON.stringify(['goat', 'sheep', 'donkey', 'horse', 'pig']),
+        programId: generalHerd.id,
+        vendorId: tsc?.id ?? null,
+        notes: 'All-Stock Cattle Feed — used in the special needs yard for animals with mixed species housing. Catch-all when species cannot be isolated.',
+        createdBy: 'seed',
+      },
+      {
+        productPattern: 'equine senior',
+        species: JSON.stringify(['horse', 'donkey']),
+        programId: generalHerd.id,
+        vendorId: tsc?.id ?? null,
+        notes: 'Purina Equine Senior — pelleted feed for older horses and donkeys with dental issues.',
+        createdBy: 'seed',
+      },
+      {
+        productPattern: 'sweet feed',
+        species: JSON.stringify(['horse', 'goat']),
+        programId: generalHerd.id,
+        vendorId: null,
+        notes: 'Sweet feed — used sparingly as a treat or medication vehicle. Not a primary ration.',
+        createdBy: 'seed',
+      },
+      // ── Companion Animals (dogs + house cats) ─────────────────────────────
+      {
+        productPattern: 'dog food',
+        species: JSON.stringify(['dog']),
+        programId: companionAnimals.id,
+        vendorId: null,
+        notes: 'Dog kibble — includes all brands (Purina, Hills, Royal Canin, etc.).',
+        createdBy: 'seed',
+      },
+      {
+        productPattern: 'cat food',
+        species: JSON.stringify(['cat']),
+        programId: companionAnimals.id,
+        vendorId: null,
+        notes: 'Cat food — context-dependent: house cats → companion-animals; feral station → barn-cats. Default to companion-animals when vendor is Chewy.',
+        createdBy: 'seed',
+      },
+      {
+        productPattern: 'pee pad',
+        species: JSON.stringify(['dog']),
+        programId: companionAnimals.id,
+        vendorId: null,
+        notes: 'Pee pads and training pads — exclusively dogs (mobility/incontinence care).',
+        createdBy: 'seed',
+      },
+      {
+        productPattern: 'cat litter',
+        species: JSON.stringify(['cat']),
+        programId: companionAnimals.id,
+        vendorId: null,
+        notes: 'Cat litter — house cats. Barn cats use outdoor areas, not litter boxes.',
+        createdBy: 'seed',
+      },
+      // ── Barn Cats ────────────────────────────────────────────────────────
+      {
+        productPattern: 'feral cat',
+        species: JSON.stringify(['cat']),
+        programId: barnCats.id,
+        vendorId: null,
+        notes: 'Feral cat food — dry kibble for outdoor feeding stations.',
+        createdBy: 'seed',
+      },
+    ];
+
+    for (const m of maps) {
+      await prisma.productSpeciesMap.upsert({
+        where: { productPattern: m.productPattern },
+        update: { species: m.species, programId: m.programId, notes: m.notes, vendorId: m.vendorId },
+        create: m,
+      });
+    }
+    console.log(`  ✓ ${maps.length} product→species maps seeded`);
+  }
 
   console.log('\n🎯 Seed complete!');
 }

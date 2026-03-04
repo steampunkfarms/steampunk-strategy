@@ -26,6 +26,11 @@ model Transaction {
   category        ExpenseCategory? @relation(fields: [categoryId], references: [id])
   subcategory     String?   // Freeform or AI-suggested
 
+  // Program allocation (Expense-to-Impact pipeline)
+  programId       String?   @map("program_id")   // Primary program for this transaction
+  program         Program?  @relation(fields: [programId], references: [id])
+  functionalClass String?   @map("functional_class") // IRS: "program_services" | "management_general" | "fundraising"
+
   // Vendor link
   vendorId        String?   @map("vendor_id")
   vendor          Vendor?   @relation(fields: [vendorId], references: [id])
@@ -65,6 +70,80 @@ model Transaction {
   @@index([fiscalYear])
   @@index([status])
   @@index([source])
+  @@index([programId])
+  @@index([functionalClass])
+}
+
+// =============================================================================
+// PROGRAMS — Donor-facing program buckets (Cluck Crew, General Herd, etc.)
+// Links transactions to IRS functional classification + impact attribution
+// =============================================================================
+
+model Program {
+  id          String    @id @default(uuid())
+  name        String                          // "Cluck Crew"
+  slug        String    @unique               // "cluck-crew"
+  description String?                         // Short description for donor-facing copy
+  species     String?                         // JSON array: ["chicken","duck","goose"]
+
+  // Display
+  icon        String?                         // Lucide icon name
+  color       String?                         // Tailwind color class
+
+  // IRS functional classification (most programs = program_services)
+  functionalClass String @default("program_services") @map("functional_class")
+  // "program_services" | "management_general" | "fundraising"
+
+  // Relations
+  transactions   Transaction[]
+  productMaps    ProductSpeciesMap[]
+
+  isActive    Boolean   @default(true) @map("is_active")
+  createdAt   DateTime  @default(now()) @map("created_at")
+  updatedAt   DateTime  @updatedAt @map("updated_at")
+
+  @@map("programs")
+}
+
+// =============================================================================
+// PRODUCT SPECIES MAP — Learned mapping: product name → species + program
+// Bridges raw receipt line items to meaningful program attribution.
+// First-encounter: user tags each item. System remembers + auto-suggests.
+// =============================================================================
+
+model ProductSpeciesMap {
+  id             String    @id @default(uuid())
+
+  // Vendor scope (null = applies across all vendors)
+  vendorId       String?   @map("vendor_id")
+  vendor         Vendor?   @relation(fields: [vendorId], references: [id])
+
+  // The product name pattern to match (case-insensitive contains)
+  productPattern String    @map("product_pattern")
+  // e.g. "DuMOR 14% Game Bird" or "Black Oil Sunflower" or "Trace Mineral Block"
+
+  // What this product actually serves
+  species        String    // JSON array: ["chicken","duck","goose"]
+  programId      String    @map("program_id")
+  program        Program   @relation(fields: [programId], references: [id])
+
+  // Institutional knowledge — "why" for future users + AI context
+  notes          String?
+  // e.g. "Game Bird Feed → poultry program; not actually for game birds"
+  // e.g. "Sunflower seeds = high-protein poultry supplement, NOT wild bird food"
+
+  // Usage tracking (for sorting auto-suggest by frequency)
+  useCount       Int       @default(0) @map("use_count")
+  lastUsed       DateTime? @map("last_used")
+
+  createdBy      String?   @map("created_by")
+  createdAt      DateTime  @default(now()) @map("created_at")
+  updatedAt      DateTime  @updatedAt @map("updated_at")
+
+  @@map("product_species_maps")
+  @@unique([productPattern])
+  @@index([vendorId])
+  @@index([programId])
 }
 
 // =============================================================================
@@ -150,6 +229,7 @@ model Vendor {
   costTrackers    CostTracker[]
   seasonalBaselines SeasonalBaseline[]
   donorArrangements VendorDonorArrangement[]
+  productMaps     ProductSpeciesMap[]
 
   // Meta
   isActive        Boolean   @default(true) @map("is_active")
@@ -212,6 +292,13 @@ model ExpenseCategory {
   annualBudget    Decimal?  @map("annual_budget") @db.Decimal(10, 2)
   irs990Line      String?   @map("irs_990_line")   // Maps to full IRS 990 Part IX line
   irs990EzLine    String?   @map("irs_990ez_line") // Maps to 990-EZ Part I expense line
+
+  // IRS functional classification + COA
+  functionalClass String?   @map("functional_class")
+  // "program_services" | "management_general" | "fundraising"
+  // Default class for transactions in this category (overridable per-transaction)
+  coaCode         String?   @map("coa_code")
+  // Chart of accounts number: 5xxx = program, 6xxx = mgmt, 7xxx = fundraising, 8xxx = COGS
 
   // Display
   icon            String?   // Lucide icon name
