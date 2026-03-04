@@ -874,10 +874,12 @@ export async function getRaiserightDashboardStats(): Promise<RaiserightDashboard
   const [
     deposits,
     participants,
-    orderAgg,
+    orderCount,
+    orderEarningsAgg,
     recentDeposits,
     topBrands,
     participantList,
+    ordersByParticipant,
     recentImports,
   ] = await Promise.all([
     // Total deposits
@@ -891,6 +893,10 @@ export async function getRaiserightDashboardStats(): Promise<RaiserightDashboard
 
     // Total orders
     prisma.raiserightOrder.count(),
+
+    // Total earnings from order records (ground truth — not denormalized participant field
+    // which accumulates on each import and will double-count if overlapping reports are imported)
+    prisma.raiserightOrder.aggregate({ _sum: { earnings: true } }),
 
     // Recent deposits
     prisma.raiserightDeposit.findMany({
@@ -907,9 +913,17 @@ export async function getRaiserightDashboardStats(): Promise<RaiserightDashboard
       take: 10,
     }),
 
-    // Participant leaderboard
+    // Participant metadata (status, lastOrderDate)
     prisma.raiserightParticipant.findMany({
-      orderBy: { totalEarnings: 'desc' },
+      select: { name: true, status: true, lastOrderDate: true },
+    }),
+
+    // Per-participant earnings from order records (ground truth)
+    prisma.raiserightOrder.groupBy({
+      by: ['participantName'],
+      _sum: { earnings: true },
+      _count: true,
+      orderBy: { _sum: { earnings: 'desc' } },
       take: 20,
     }),
 
@@ -921,6 +935,7 @@ export async function getRaiserightDashboardStats(): Promise<RaiserightDashboard
   ]);
 
   const totalDeposits = Number(deposits._sum.amount ?? 0);
+  const totalEarnings = Number(orderEarningsAgg._sum.earnings ?? 0);
   const activeCount = participants.find((p) => p.status === 'active')?._count ?? 0;
   const dormantCount = participants.find((p) => p.status === 'dormant')?._count ?? 0;
 
@@ -932,17 +947,25 @@ export async function getRaiserightDashboardStats(): Promise<RaiserightDashboard
     }))
     .reverse();
 
-  // Total earnings from participant aggregation (more complete than deposits alone)
-  const totalEarningsAgg = await prisma.raiserightParticipant.aggregate({
-    _sum: { totalEarnings: true },
+  // Build leaderboard from order totals (accurate) enriched with participant metadata
+  const participantMeta = new Map(participantList.map((p) => [p.name, p]));
+  const participantLeaderboard = ordersByParticipant.map((row) => {
+    const meta = participantMeta.get(row.participantName);
+    return {
+      name: row.participantName,
+      totalEarnings: Number(row._sum.earnings ?? 0),
+      totalOrders: row._count,
+      lastOrderDate: meta?.lastOrderDate ?? null,
+      status: meta?.status ?? 'active',
+    };
   });
 
   return {
-    totalEarnings: Number(totalEarningsAgg._sum.totalEarnings ?? 0),
+    totalEarnings,
     totalDeposits,
     activeParticipants: activeCount,
     dormantParticipants: dormantCount,
-    totalOrders: orderAgg,
+    totalOrders: orderCount,
     recentDeposits: recentDeposits.map((d) => ({
       id: d.id,
       depositDate: d.depositDate,
@@ -955,13 +978,7 @@ export async function getRaiserightDashboardStats(): Promise<RaiserightDashboard
       totalEarnings: Number(b._sum.earnings ?? 0),
       orderCount: b._count,
     })),
-    participantLeaderboard: participantList.map((p) => ({
-      name: p.name,
-      totalEarnings: Number(p.totalEarnings),
-      totalOrders: p.totalOrders,
-      lastOrderDate: p.lastOrderDate,
-      status: p.status,
-    })),
+    participantLeaderboard,
     recentImports: recentImports.map((i) => ({
       id: i.id,
       filename: i.filename,
