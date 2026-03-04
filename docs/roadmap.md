@@ -2,7 +2,7 @@
 
 > Deferred work items and active handoffs. Reviewed at each planning session.
 > Location: steampunk-strategy/docs/roadmap.md
-> Last updated: 2026-03-02 (session 12 — click-to-remediate, expense-to-impact pipeline vision)
+> Last updated: 2026-03-04 (session 13 — RaiseRight double-count fix, security hardening, expense-to-impact pipeline)
 
 ---
 
@@ -14,9 +14,9 @@ None currently active.
 
 ## 🟡 Action Required — Manual Steps
 
-### Cancel Square Billing (URGENT — money leak)
+### Cancel Square Billing (deferred — one month overlap)
 
-**Priority:** Immediate — you are being charged monthly for services you no longer use
+**Priority:** Low — intentional one-month overlap decided 2026-03-04. Cancel before next billing cycle.
 **Discovered:** 2026-03-02 via Gmail `Expenses/Other Receipts` scan
 
 Two active Square subscriptions still billing:
@@ -24,7 +24,7 @@ Two active Square subscriptions still billing:
 1. **Square Services** — 11 payment receipts (Aug 2025–Feb 2026) from `messaging.squareup.com`
 2. **Square Online** — 7 renewal receipts (Aug 2025–Feb 2026) from `messaging.square.online`
 
-**Action:** Log into squareup.com dashboard → Settings → Subscriptions → Cancel both. All Square code has been removed from all repos.
+**Action:** Log into squareup.com dashboard → Settings → Subscriptions → Cancel both when overlap period ends.
 
 ---
 
@@ -34,20 +34,22 @@ Two active Square subscriptions still billing:
 
 **Priority:** High — pre-launch blocker for webhook-facing endpoints
 **Source:** Cross-site security audit (2026-03-01), `/Users/ericktronboll/Projects/cross-site-audit.md`
-**Fixed this session:** C1 (CRON_SECRET exposure), H2/H3/H8/H9/H10/H17/H18 (timing attacks, fail-open, session leak), M7/M8/M15/M16 (cron auth, webhook errors)
+**Fixed 2026-03-02:** C1 (CRON_SECRET exposure), H2/H3/H8/H9/H10/H17/H18 (timing attacks, fail-open, session leak), M7/M8/M15/M16 (cron auth, webhook errors)
+**Fixed 2026-03-04 (session 13):** C2 (Postmaster PayPal sig), C4+H14 (Cleanpunk RLS — code done, SQL still needs manual run), H12 (Postmaster default-deny proxy)
+**Fixed 2026-03-04 (session 14):** H7 (Every.org query-param removed), H5 (subscribers auth gate), H16 (Studiolo PayPal sig verification in donations + zapier routes via shared lib/paypal-verify.ts)
 
 **Still open — Critical:**
-- **C2:** PayPal webhook signature verification (Postmaster) — needs webhook ID from PayPal dashboard
+
 - **C3:** Cleanpunk admin auth replacement — single shared SHA256 password, no MFA, no audit trail. Replace with Supabase Auth or Azure AD.
-- **C4 + H14:** Enable RLS on 6 Cleanpunk Supabase tables (cart_events, cart_emails, abandoned_cart_sends, product_drafts, ingredients, enhancement_tracker)
+- **C4 + H14:** SQL still needs manual run in Supabase dashboard (project asnbmhnogtgunbdofqjf): `supabase-rls-hardening.sql` in cleanpunk-shop root
 
 **Still open — High:**
-- **H1:** Patreon webhook MD5→SHA256 HMAC (verify Patreon supports it)
-- **H4-H6:** Studiolo webhook signature verification (inbound, subscribers, GoFundMe) — need to coordinate with each sender
-- **H7:** Every.org webhook: remove query-param auth path, use header only
-- **H11-H12:** Add middleware.ts to Studiolo + Postmaster (default-deny for protected routes)
-- **H13:** Cleanpunk admin cookie: set httpOnly + secure in all environments
-- **H16:** Studiolo PayPal native webhooks skip secret check — add signature verification
+
+- **H1:** Patreon webhook uses MD5 HMAC — Patreon only supports MD5 (platform limitation). Current impl uses `timingSafeEqual` which is correct. No further action possible.
+- **H4:** Studiolo inbound webhook — no auth (routes by x-webhook-source header). Low priority: just a router.
+- **H6:** GoFundMe webhook stub — no auth, just logs. Low priority: no data processing.
+- **H16 (Studiolo):** PAYPAL_WEBHOOK_ID env var not yet set in Studiolo Vercel — verification code is deployed but fail-open until ID is configured. Get from PayPal dashboard → Webhooks → Webhook ID.
+- **Studiolo:** ZAPIER_WEBHOOK_SECRET not set in .env.local (may be set in Vercel env only)
 
 **Still open — Medium (batch later):**
 - M1: Restrict CORS to family domains (Postmaster public API)
