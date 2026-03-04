@@ -34,6 +34,14 @@ const VENDOR_MAP: Record<string, string> = {
   'raiseright': 'raiseright',
   'shopwithscrip': 'raiseright',
   'glscrip': 'raiseright',
+  // SaaS / dev infrastructure billing
+  'vercel': 'vercel',
+  'neon.tech': 'neon',
+  'supabase': 'supabase',
+  'github': 'github',
+  'anthropic': 'anthropic',
+  'microsoft': 'microsoft-365',
+  'microsoftemail': 'microsoft-365',
 };
 
 export function matchVendorSlug(senderEmail: string, senderName: string, subject: string): string | null {
@@ -191,6 +199,8 @@ export const FINANCIAL_QUERIES = [
   'from:(noreply@zeffy.com OR stripe.com OR paypal.com OR patreon.com) subject:(payment OR receipt OR confirmation OR donation)',
   // RaiseRight notifications (deposits, signups, order confirmations)
   'from:(raiseright.com OR shopwithscrip.com OR glscrip.com) subject:(deposit OR earning OR enrollment OR order OR statement)',
+  // SaaS / dev infrastructure billing emails
+  'from:(billing@vercel.com OR billing@neon.tech OR noreply@neon.tech OR billing@supabase.io OR noreply@supabase.com OR billing@github.com OR noreply@github.com OR api-billing@anthropic.com OR microsoft-noreply@microsoft.com OR msonlineservicesteam@microsoftemail.com) subject:(invoice OR receipt OR billing OR payment OR renewal OR statement OR subscription)',
   // Broader catch-all with attachments
   '(invoice OR receipt OR "payment confirmation" OR "order confirmation") has:attachment',
 ];
