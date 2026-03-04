@@ -3,12 +3,15 @@ export const dynamic = 'force-dynamic';
 import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import {
+  decodeCSVText,
   parseCSV,
   detectReportType,
   importEarningsSummary,
   importOrderHistory,
   importDepositSlip,
   importParticipantList,
+  importFamilySummary,
+  importOrgSalesProduct,
 } from '@/lib/raiseright';
 
 const MAX_SIZE = 5 * 1024 * 1024; // 5MB — CSVs are small
@@ -42,7 +45,8 @@ export async function POST(request: Request) {
       );
     }
 
-    const text = await file.text();
+    const buffer = await file.arrayBuffer();
+    const text = decodeCSVText(buffer);
     const allRows = parseCSV(text);
 
     if (allRows.length < 2) {
@@ -60,7 +64,7 @@ export async function POST(request: Request) {
       return NextResponse.json(
         {
           error: 'Could not detect report type from CSV headers.',
-          hint: 'Supported reports: Earnings Summary by Participant, Order History by Participant, Monthly Deposit Slip, Participant Summary and Email List.',
+          hint: 'Supported reports: Earnings Summary by Family, Order History by Family and Product, Monthly Deposit Slip, Family Summary and Email List, Organization Sales Summary by Product.',
           headers: headers.slice(0, 10),
         },
         { status: 400 },
@@ -80,6 +84,12 @@ export async function POST(request: Request) {
         break;
       case 'participant_list':
         result = await importParticipantList(dataRows, headers, file.name, 'csv-upload');
+        break;
+      case 'family_summary':
+        result = await importFamilySummary(dataRows, headers, file.name, 'csv-upload');
+        break;
+      case 'org_sales_product':
+        result = await importOrgSalesProduct(dataRows, headers, file.name, 'csv-upload');
         break;
     }
 

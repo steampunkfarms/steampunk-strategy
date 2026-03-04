@@ -811,7 +811,7 @@ model AuditLog {
 model RaiserightImport {
   id              String    @id @default(uuid())
   filename        String
-  reportType      String    @map("report_type") // "earnings_summary" | "order_history" | "deposit_slip" | "participant_list"
+  reportType      String    @map("report_type") // "earnings_summary" | "order_history" | "deposit_slip" | "participant_list" | "family_summary" | "org_sales_product"
   periodStart     DateTime? @map("period_start")
   periodEnd       DateTime? @map("period_end")
   recordCount     Int       @map("record_count")
@@ -822,6 +822,7 @@ model RaiserightImport {
   // Relations
   earnings        RaiserightEarning[]
   orders          RaiserightOrder[]
+  productSummaries RaiserightProductSummary[]
 
   importedAt      DateTime  @default(now()) @map("imported_at")
   importedBy      String?   @map("imported_by")
@@ -907,6 +908,12 @@ model RaiserightParticipant {
   totalEarnings   Decimal   @default(0) @map("total_earnings") @db.Decimal(10, 2)
   totalOrders     Int       @default(0) @map("total_orders")
   status          String    @default("active") // "active" | "dormant" | "new"
+  studentName     String?   @map("student_name")    // animal name association ("Pima and Snickers")
+  classroom       String?                            // teacher/group ("RCC Marching Tigers")
+  accountStatus   String?   @map("account_status")   // "Active" | "Inactive" from RaiseRight
+  registeredAt    DateTime? @map("registered_at")     // RaiseRight account creation date
+  bankLinkedAt    DateTime? @map("bank_linked_at")    // when bank account was linked
+  customFamilyId  String?   @map("custom_family_id")  // RaiseRight's family ID if present
 
   updatedAt       DateTime  @updatedAt @map("updated_at")
   createdAt       DateTime  @default(now()) @map("created_at")
@@ -914,6 +921,22 @@ model RaiserightParticipant {
   @@map("raiseright_participants")
   @@index([status])
   @@index([lastOrderDate])
+}
+
+// Aggregate product sales (from "Organization Sales Summary by Product" CSV)
+model RaiserightProductSummary {
+  id           String   @id @default(uuid())
+  importId     String   @map("import_id")
+  import       RaiserightImport @relation(fields: [importId], references: [id], onDelete: Cascade)
+  productName  String   @map("product_name")
+  quantity     Int
+  faceValue    Decimal  @map("face_value") @db.Decimal(10, 2)
+  netCost      Decimal  @map("net_cost") @db.Decimal(10, 2)
+  rebate       Decimal  @db.Decimal(10, 2)
+  createdAt    DateTime @default(now()) @map("created_at")
+
+  @@map("raiseright_product_summaries")
+  @@index([productName])
 }
 
 // =============================================================================

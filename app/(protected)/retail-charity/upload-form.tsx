@@ -15,10 +15,12 @@ interface ImportResult {
 }
 
 const REPORT_TYPE_LABELS: Record<string, string> = {
-  earnings_summary: 'Earnings Summary by Participant',
-  order_history: 'Order History by Participant',
+  earnings_summary: 'Earnings Summary by Family',
+  order_history: 'Order History by Family',
   deposit_slip: 'Monthly Deposit Slip',
   participant_list: 'Participant Summary',
+  family_summary: 'Family Summary & Email List',
+  org_sales_product: 'Organization Sales by Product',
 };
 
 export function RaiserightUpload() {
@@ -107,7 +109,7 @@ export function RaiserightUpload() {
               Drop a RaiseRight CSV here, or click to browse
             </p>
             <p className="text-[10px] text-slate-500">
-              Supported: Earnings Summary, Order History, Deposit Slip, Participant List
+              Supported: Earnings Summary, Order History, Deposit Slip, Family Summary, Sales by Product
             </p>
           </>
         )}
