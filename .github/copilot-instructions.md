@@ -9,7 +9,9 @@ If intent is ambiguous, ask one clarifying question before any write action.
 Before any write action, state: “Execution check passed: explicit approval phrase detected: <phrase>”.
 This gate overrides autonomy defaults and any implied “go ahead” behavior.
 
-## Changelog (v2026.03f)
+## Changelog (v2026.03g)
+
+- 2026-03-06g: Added mandatory change-history-first investigation protocol for fix-propagation requests (start with git/changelogs/handoffs before targeted code sweep).
 
 - 2026-03-06f: Added Environment Constraints block to all three brain files + CODEX-PREAMBLE (Next.js 16 lint fix, mandatory tsc --noEmit in verification, auth stack map, ESLint config map, cross-repo CI checkout flag).
 - 2026-03-06e: Added completion-integrity rules (accurate file counts in debriefs, scope evidence, verifier multi-repo support). Hardened auth override to require NODE_ENV !== production.
@@ -263,6 +265,16 @@ Default deterministic handoff planning remains Codex-first; use Opus-class plann
   1) `steampunk-strategy/docs/CODEX.md`
   2) `steampunk-strategy/CLAUDE.md`
   3) `.github/copilot-instructions.md`
+
+### Fix-propagation investigation order (mandatory)
+
+- When asked to reference a fix/change in one place and assess adoption elsewhere, start with change-history artifacts before sweeping code.
+- Required order:
+  1) `git log`/`git show` for the originating fix and adjacent commits
+  2) changelogs, handoff docs, roadmap/debrief/protocol notes
+  3) shared utilities/helpers that may already centralize behavior
+  4) targeted code sweep for drift, missing adoption, or intentional divergence
+- Do not begin with a broad full-codebase sweep unless history artifacts are absent or inconclusive.
 
 ### Environment Constraints (2026-03-06, apply to ALL generated Claude Code prompts)
 

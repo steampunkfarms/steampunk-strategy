@@ -2,7 +2,9 @@
 
 This file is the persistent operating contract for Codex when preparing Claude Code execution prompts.
 
-## Changelog (v2026.03f)
+## Changelog (v2026.03g)
+
+- 2026-03-06g: Added mandatory change-history-first investigation protocol for fix-propagation requests (start with git/changelogs/handoffs before targeted code sweep).
 
 - 2026-03-06f: Added Environment Constraints block to all three brain files + CODEX-PREAMBLE (Next.js 16 lint fix, mandatory tsc --noEmit in verification, auth stack map, ESLint config map, cross-repo CI checkout flag).
 - 2026-03-06e: Added completion-integrity rules (accurate file counts in debriefs, scope evidence, verifier multi-repo support). Hardened auth override to require NODE_ENV !== production.
@@ -200,6 +202,17 @@ cd steampunk-strategy && node scripts/roadmap-updater.js "(<HANDOFF_ID>) <ROADMA
 ## Scope Discipline
 
 Unless a handoff explicitly says otherwise, treat out-of-scope work as deferred and leave a note for roadmap/handoff follow-up.
+
+## Fix-Propagation Investigation Order (Mandatory)
+
+When the human asks to reference a fix/change in one place and determine whether it should be applied elsewhere, Codex must use this order:
+
+1. Inspect change history first: `git log`/`git show` for the known fix and recent related commits.
+2. Read change-tracking artifacts: changelogs, handoff docs, roadmap/debrief notes, and protocol notes.
+3. Check shared utilities/helpers that may already centralize the behavior.
+4. Run a targeted code sweep to detect drift, missing adoptions, or intentional deviations.
+
+Do not start with a broad full-codebase sweep unless change-history artifacts are missing or inconclusive.
 
 ## Completion Integrity (Mandatory)
 

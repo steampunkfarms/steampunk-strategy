@@ -1,6 +1,8 @@
 # CLAUDE.md — Steampunk Strategy: The Bridge
 
-## Changelog (v2026.03f)
+## Changelog (v2026.03g)
+
+- 2026-03-06g: Added mandatory change-history-first investigation protocol for fix-propagation requests (start with git/changelogs/handoffs before targeted code sweep).
 
 - 2026-03-06f: Added Environment Constraints block to all three brain files + CODEX-PREAMBLE (Next.js 16 lint fix, mandatory tsc --noEmit in verification, auth stack map, ESLint config map, cross-repo CI checkout flag).
 - 2026-03-06e: Added completion-integrity rules (accurate file counts in debriefs, scope evidence, verifier multi-repo support). Hardened auth override to require NODE_ENV !== production.
@@ -292,6 +294,17 @@ When protocol/workflow rules are changed, update these files in the same change:
 3. `../.github/copilot-instructions.md`
 
 Protocol changes are not complete until all three are updated together.
+
+### Fix-Propagation Investigation Order (Mandatory)
+
+When asked to reference a fix/change in one place and determine whether it should be applied elsewhere, use this order:
+
+1. Inspect change history first (`git log`/`git show` for the known fix and nearby commits).
+2. Review change-tracking artifacts (changelogs, handoff docs, roadmap/debrief/protocol notes).
+3. Check shared utilities/helpers for centralized behavior.
+4. Run a targeted code sweep to find drift, gaps, or intentional divergence.
+
+Do not start with a broad full-codebase sweep unless history artifacts are missing or inconclusive.
 
 ### Environment Constraints (2026-03-06, apply to ALL generated Claude Code prompts)
 
