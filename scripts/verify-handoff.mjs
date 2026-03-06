@@ -65,17 +65,36 @@ let hasErrors = false;
 
 // --- Section extraction: supports both legacy bold-label and heading-based formats ---
 
-function extractTargetRepo(content) {
-  // Legacy: **Target repo(s):** reponame
-  const legacyMatch = content.match(/\*\*Target repo\(s\):\*\*\s*([\w-]+)/);
-  if (legacyMatch) return legacyMatch[1];
-  // Heading-based: ## Repos in scope\n- `reponame` or - reponame
+function extractTargetRepos(content) {
+  const repos = new Set();
+  const repoPattern = /\b(steampunk-[\w-]+|cleanpunk-[\w-]+)\b/g;
+
+  // Legacy: **Target repo(s):** reponame, reponame2 (description)
+  const legacyMatch = content.match(/\*\*Target repo(?:\(s\))?:\*\*\s*([^\n]+)/);
+  if (legacyMatch) {
+    for (const m of legacyMatch[1].matchAll(repoPattern)) repos.add(m[1]);
+  }
+
+  // Plural label: **Target repos:** reponame (desc), reponame2 (desc)
+  const pluralMatch = content.match(/\*\*Target repos:\*\*\s*([^\n]+)/);
+  if (pluralMatch) {
+    for (const m of pluralMatch[1].matchAll(repoPattern)) repos.add(m[1]);
+  }
+
+  // Heading-based: ## Repos in scope\n- `reponame`\n- reponame
   const headingMatch = content.match(/^##\s+Repos in scope\b[^\n]*\n([\s\S]*?)(?=\n##|\n---)/m);
   if (headingMatch) {
-    const repoLine = headingMatch[1].match(/[-*]\s+`?(steampunk-[\w-]+|cleanpunk-[\w-]+)`?/);
-    if (repoLine) return repoLine[1];
+    for (const m of headingMatch[1].matchAll(repoPattern)) repos.add(m[1]);
   }
-  return null;
+
+  // Scan entire content for repo names mentioned in scope/target context
+  // (catches table-based and inline references in scope sections)
+  const scopeMatch = content.match(/^##\s+Scope\b[^\n]*\n([\s\S]*?)(?=\n##|\n---)/m);
+  if (scopeMatch) {
+    for (const m of scopeMatch[1].matchAll(repoPattern)) repos.add(m[1]);
+  }
+
+  return [...repos];
 }
 
 function extractFilesAffected(content) {
@@ -92,8 +111,21 @@ function extractFilesAffected(content) {
   return [];
 }
 
-const targetRepo = extractTargetRepo(handoffContent);
-const targetDir = targetRepo ? path.join(workspaceRoot, targetRepo) : process.cwd();
+const targetRepos = extractTargetRepos(handoffContent);
+const targetDirs = targetRepos.length > 0
+  ? targetRepos.map(r => path.join(workspaceRoot, r)).filter(d => fs.existsSync(d))
+  : [process.cwd()];
+
+// Log resolved repos for transparency
+if (targetRepos.length > 0) {
+  console.log(`📦 Target repos: ${targetRepos.join(', ')}`);
+  const missing = targetRepos.filter(r => !fs.existsSync(path.join(workspaceRoot, r)));
+  if (missing.length > 0) {
+    console.log(`⚠️  Repos not found on disk: ${missing.join(', ')}`);
+  }
+  console.log('');
+}
+
 const filesAffected = extractFilesAffected(handoffContent);
 
 // Check 1: All files exist or are new
@@ -120,7 +152,7 @@ filesAffected.forEach(line => {
 // Check 2: Prisma schema valid if modified
 if (handoffContent.includes('prisma/schema.prisma')) {
   console.log('\n🔍 Checking prisma schema...');
-  const schemaDirs = [targetDir, process.cwd()].filter((d, i, a) => a.indexOf(d) === i);
+  const schemaDirs = [...new Set([...targetDirs, process.cwd()])];
   let schemaChecked = false;
   for (const dir of schemaDirs) {
     const schemaPath = path.join(dir, 'prisma', 'schema.prisma');
@@ -142,7 +174,7 @@ if (handoffContent.includes('prisma/schema.prisma')) {
 
 // Check 3: JSON files are valid
 console.log('\n🔍 Checking JSON files...');
-const jsonDirs = [targetDir, process.cwd()].filter((d, i, a) => a.indexOf(d) === i);
+const jsonDirs = [...new Set([...targetDirs, process.cwd()])];
 jsonDirs.forEach(dir => {
   ['vercel.json', 'package.json', 'tsconfig.json'].forEach(jsonFile => {
     const fullPath = path.join(dir, jsonFile);
@@ -174,7 +206,7 @@ if (roadmapContent.includes(handoffName)) {
 // Check 5: Reference doc comments in code
 console.log('\n🔍 Checking for reference doc comments...');
 const commentScanRoots = ['src', 'app', 'lib'];
-const srcDirs = [targetDir, process.cwd()]
+const srcDirs = [...new Set([...targetDirs, process.cwd()])]
   .flatMap(d => commentScanRoots.map(root => path.join(d, root)))
   .filter((d, i, arr) => fs.existsSync(d) && arr.indexOf(d) === i);
 let commentCount = 0;
@@ -200,7 +232,7 @@ if (commentCount > 0) {
 
 // Check 6: No broken imports (TypeScript compilation)
 console.log('\n🔍 Checking for broken imports...');
-const tscDirs = targetDir !== process.cwd() ? [targetDir] : [process.cwd()];
+const tscDirs = [...new Set([...targetDirs, process.cwd()])];
 for (const dir of tscDirs) {
   const tsconfig = path.join(dir, 'tsconfig.json');
   if (fs.existsSync(tsconfig)) {
