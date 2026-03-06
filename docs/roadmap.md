@@ -1074,3 +1074,7 @@ Habit-formation onboarding redesign (#118), Impact page needs Krystal's 60-secon
 
 - 🤖 **2026-03-06:** Implemented central registry with locking/retries, removed site crons
 - (ORCH-101) Extend Orchestrator into single schedule registry with retry, locking, dynamic frequency, and cross-site job definitions
+- 🤖 **2026-03-05:** Removed CTA selector and CTA logic from ALL Content Storm input workflows. Removed UI selector, review summary display, series-specific supportPath defaults, tier/CTA variant injection from wisdom-margins, defaulted API to NONE. Supersedes DH-103 with broader scope.
+- (DH-103) Remove CTA selector from Content Storm input workflows (broadened from Dear Humans–only to all series)
+- 🤖 **2026-03-05:** Removed links/UTMs/CTAs from Dear Humans generation, enforced short non-anchor renditions, added DISABLE_CTAS kill switch in cron route.
+- (DH-101) Dear Humans Facebook optimization — no links, no UTMs, no CTA language
