@@ -1,0 +1,41 @@
+name: Guardrail Drift Check
+
+on:
+  push:
+    branches: ["**"]
+  pull_request:
+    branches: ["**"]
+
+jobs:
+  guardrail-drift:
+    name: Check guardrail parity (Postmaster vs Studiolo)
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout steampunk-strategy
+        uses: actions/checkout@v4
+        with:
+          repository: steampunkfarms/steampunk-strategy
+          path: steampunk-strategy
+
+      - name: Checkout steampunk-postmaster
+        uses: actions/checkout@v4
+        with:
+          repository: steampunkfarms/steampunk-postmaster
+          path: steampunk-postmaster
+
+      - name: Checkout steampunk-studiolo
+        uses: actions/checkout@v4
+        with:
+          repository: steampunkfarms/steampunk-studiolo
+          path: steampunk-studiolo
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+
+      - name: Run guardrail drift check
+        env:
+          PROJECTS_BASE: ${{ github.workspace }}/
+        run: node steampunk-strategy/scripts/check-guardrail-drift.mjs

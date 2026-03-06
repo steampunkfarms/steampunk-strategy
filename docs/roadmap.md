@@ -291,17 +291,18 @@ A mapping layer that learns which products serve which species. Sits between Cla
 **Future:** Once all monthly donors re-platformed to Rescue Barn/Stripe, remove remaining Zeffy webhook handling + Zapier integration.
 **Repos:** steampunk-studiolo + steampunk-rescuebarn
 
-### Dev Infrastructure Cost Dashboard (TARDIS)
+### Dev Infrastructure Cost Dashboard (TARDIS) — MVP SHIPPED
 **Priority:** Medium-High — visibility into monthly SaaS burn rate
 **What exists:** CostTracker + SeasonalBaseline models, expense categories with `tech-saas`/`tech-hosting`/`tech-hardware`, Gmail scanner cron (daily, matches vendors from VENDOR_MAP), `/expenses` transaction ledger, cost-creep scan API. Foundation is solid.
-**Gaps:**
-1. **SaaS vendors not seeded** — Add Vercel, Neon, Supabase, GitHub, Anthropic, Google Workspace, Medusa Cloud (if applicable) to vendor seed + VENDOR_MAP
-2. **Gmail queries missing SaaS** — Add `from:billing@vercel.com`, `from:noreply@neon.tech`, `from:noreply@supabase.com`, `from:billing@github.com`, `from:api-billing@anthropic.com` to FINANCIAL_QUERIES
-3. **No `/dev-costs` page** — Dashboard showing: monthly spend by vendor (Recharts line chart), YTD total vs. budget, recent invoices, usage trend alerts. Drill-down per vendor with invoice history.
-4. **No subscription model** — CostTracker is for unit prices (hay per bale). Need SaaSSubscription model for fixed monthly vs. usage-based costs. Track billing cycle, expected monthly cost, actual vs. budget variance.
-5. **No cost allocation across repos** — Vercel/Neon/GitHub shared across 6 projects. Need allocation rules to split costs proportionally.
-6. **No Q2 projection** — Extrapolate from current monthly trend + known rate changes.
-**MVP (fast):** Seed SaaS vendors + extend Gmail scanner + filter `/expenses` by tech category. Full dashboard later.
+**Gaps (resolved by MVP):**
+1. ~~**SaaS vendors not seeded**~~ — Already present: Vercel, Neon, Supabase, GitHub, Anthropic, Microsoft 365 in vendor seed + VENDOR_MAP + FINANCIAL_QUERIES.
+2. ~~**Gmail queries missing SaaS**~~ — Already covered in FINANCIAL_QUERIES with billing sender addresses.
+3. ~~**No `/dev-costs` page**~~ — Shipped: LineChart monthly spend, YTD total, avg monthly, vendor breakdown, recent invoices table. Driven from Transaction records filtered by SaaS vendor slugs (no SaaSSubscription dependency).
+**Remaining gaps:**
+4. **No cost allocation across repos** — Vercel/Neon/GitHub shared across 6 projects. Need allocation rules to split costs proportionally.
+5. **No Q2 projection** — Extrapolate from current monthly trend + known rate changes.
+6. **Budget variance tracking** — SaaSSubscription model exists in schema but is not wired to the dashboard yet. Could be used for expected vs. actual comparison.
+- 🤖 **2026-03-06:** Shipped /dev-costs MVP — rewrote page to use Transaction records filtered by SaaS vendor slugs, added Recharts LineChart, removed SaaSSubscription dependency. 2 files changed. (task completed)
 **Repo:** steampunk-strategy
 
 ### 990 Preparation Rollup (TARDIS Phase D, #96)

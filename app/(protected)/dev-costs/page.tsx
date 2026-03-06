@@ -2,7 +2,8 @@ import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth';
 import { redirect } from 'next/navigation';
 import { prisma } from '@/lib/prisma';
-import { Server, CreditCard, TrendingUp, AlertTriangle, CheckCircle2 } from 'lucide-react';
+import { Server, TrendingUp, CheckCircle2, AlertTriangle } from 'lucide-react';
+import { SpendChart } from './spend-chart';
 
 export const dynamic = 'force-dynamic';
 
@@ -32,42 +33,28 @@ function formatCurrency(n: number) {
   return '$' + n.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 }
 
-function getMonthRange(monthsBack: number): { start: Date; end: Date; label: string } {
-  const now = new Date();
-  const start = new Date(now.getFullYear(), now.getMonth() - monthsBack, 1);
-  const end = new Date(now.getFullYear(), now.getMonth() + 1, 0, 23, 59, 59);
-  return {
-    start,
-    end,
-    label: `${start.toLocaleDateString('en-US', { month: 'short', year: 'numeric' })} – ${now.toLocaleDateString('en-US', { month: 'short', year: 'numeric' })}`,
-  };
-}
-
 export default async function DevCostsPage() {
   const session = await getServerSession(authOptions);
   if (!session) redirect('/login');
 
-  const { start: ytdStart, end: ytdEnd } = getMonthRange(new Date().getMonth());
+  const now = new Date();
+  const ytdStart = new Date(now.getFullYear(), 0, 1);
+  const ytdEnd = new Date(now.getFullYear(), now.getMonth() + 1, 0, 23, 59, 59);
+  const sixMonthsAgo = new Date(now.getFullYear(), now.getMonth() - 5, 1);
 
-  // Subscriptions
-  const subscriptions = await prisma.saaSSubscription.findMany({
-    where: { active: true },
-    orderBy: { expectedMonthly: 'desc' },
-  });
-
-  // Recent SaaS transactions (last 6 months)
-  const { start: recentStart } = getMonthRange(5);
+  // Resolve SaaS vendor IDs
   const saasVendors = await prisma.vendor.findMany({
     where: { slug: { in: SAAS_VENDORS } },
     select: { id: true, slug: true, name: true },
   });
   const vendorIds = saasVendors.map(v => v.id);
 
+  // Recent SaaS transactions (last 6 months)
   const recentExpenses = vendorIds.length > 0 ? await prisma.transaction.findMany({
     where: {
       vendorId: { in: vendorIds },
       type: 'expense',
-      date: { gte: recentStart, lte: ytdEnd },
+      date: { gte: sixMonthsAgo, lte: ytdEnd },
     },
     include: { vendor: { select: { name: true, slug: true } } },
     orderBy: { date: 'desc' },
@@ -91,12 +78,10 @@ export default async function DevCostsPage() {
   }
 
   const ytdTotal = Object.values(ytdByVendor).reduce((s, v) => s + v, 0);
-  const expectedYtd = subscriptions.reduce((s, sub) => s + Number(sub.expectedMonthly) * new Date().getMonth() + 1, 0);
 
-  // Monthly totals for last 6 months (grouped)
+  // Monthly totals for chart (last 6 months)
   const monthlyData: Array<{ month: string; total: number }> = [];
   for (let i = 5; i >= 0; i--) {
-    const now = new Date();
     const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
     const dEnd = new Date(now.getFullYear(), now.getMonth() - i + 1, 0, 23, 59, 59);
     const label = d.toLocaleDateString('en-US', { month: 'short' });
@@ -106,12 +91,9 @@ export default async function DevCostsPage() {
     monthlyData.push({ month: label, total });
   }
 
-  const maxMonthly = Math.max(...monthlyData.map(m => m.total), 1);
-
-  // Upcoming billing dates (next 30 days)
-  const soon = new Date();
-  soon.setDate(soon.getDate() + 30);
-  const upcoming = subscriptions.filter(s => s.nextBillingDate && new Date(s.nextBillingDate) <= soon);
+  // Average monthly spend
+  const monthsWithSpend = monthlyData.filter(m => m.total > 0).length;
+  const avgMonthly = monthsWithSpend > 0 ? ytdTotal / monthsWithSpend : 0;
 
   return (
     <div className="p-6 space-y-6 max-w-5xl mx-auto">
@@ -131,28 +113,21 @@ export default async function DevCostsPage() {
         <div className="console-card p-4">
           <p className="text-xs text-slate-500 uppercase tracking-wider mb-1">YTD Actual</p>
           <p className="text-2xl font-mono text-slate-100">{formatCurrency(ytdTotal)}</p>
-          <p className="text-xs text-slate-600 mt-1">{new Date().getFullYear()} to date</p>
+          <p className="text-xs text-slate-600 mt-1">{now.getFullYear()} to date</p>
         </div>
         <div className="console-card p-4">
-          <p className="text-xs text-slate-500 uppercase tracking-wider mb-1">Monthly Run Rate</p>
-          <p className="text-2xl font-mono text-slate-100">
-            {formatCurrency(subscriptions.reduce((s, sub) => s + Number(sub.expectedMonthly), 0))}
-          </p>
-          <p className="text-xs text-slate-600 mt-1">expected / month</p>
+          <p className="text-xs text-slate-500 uppercase tracking-wider mb-1">Avg Monthly</p>
+          <p className="text-2xl font-mono text-slate-100">{formatCurrency(avgMonthly)}</p>
+          <p className="text-xs text-slate-600 mt-1">based on months with activity</p>
         </div>
         <div className="console-card p-4">
-          <p className="text-xs text-slate-500 uppercase tracking-wider mb-1">Active Subscriptions</p>
-          <p className="text-2xl font-mono text-slate-100">{subscriptions.length}</p>
-          <p className="text-xs text-slate-600 mt-1">
-            {upcoming.length > 0 && (
-              <span className="text-gauge-amber">{upcoming.length} billing soon</span>
-            )}
-            {upcoming.length === 0 && 'all current'}
-          </p>
+          <p className="text-xs text-slate-500 uppercase tracking-wider mb-1">Tracked Vendors</p>
+          <p className="text-2xl font-mono text-slate-100">{saasVendors.length}</p>
+          <p className="text-xs text-slate-600 mt-1">SaaS / dev infrastructure</p>
         </div>
       </div>
 
-      {/* Monthly spend chart */}
+      {/* Monthly spend line chart */}
       <div className="console-card p-5">
         <h2 className="text-sm font-semibold text-slate-200 mb-4 flex items-center gap-2">
           <TrendingUp className="w-4 h-4 text-gauge-blue" />
@@ -163,77 +138,12 @@ export default async function DevCostsPage() {
             No SaaS transactions found. Gmail scanner will populate this as invoices arrive.
           </p>
         ) : (
-          <div className="flex items-end gap-2 h-32">
-            {monthlyData.map((m, i) => (
-              <div key={i} className="flex-1 flex flex-col items-center gap-1">
-                <div
-                  className="w-full bg-tardis/60 rounded-t hover:bg-tardis transition-colors"
-                  style={{ height: `${(m.total / maxMonthly) * 100}%`, minHeight: m.total > 0 ? '4px' : '0' }}
-                  title={`${m.month}: ${formatCurrency(m.total)}`}
-                />
-                <span className="text-[10px] text-slate-500">{m.month}</span>
-              </div>
-            ))}
-          </div>
+          <SpendChart data={monthlyData} />
         )}
       </div>
 
+      {/* YTD by vendor + recent invoices side-by-side */}
       <div className="grid grid-cols-2 gap-6">
-        {/* Subscriptions table */}
-        <div className="console-card overflow-hidden">
-          <div className="px-5 py-3 border-b border-console-border">
-            <h2 className="text-sm font-semibold text-slate-200 flex items-center gap-2">
-              <CreditCard className="w-4 h-4 text-brass-gold" />
-              Active Subscriptions
-            </h2>
-          </div>
-          {subscriptions.length === 0 ? (
-            <div className="p-6 text-center">
-              <p className="text-sm text-slate-500 mb-3">No subscriptions configured yet.</p>
-              <p className="text-xs text-slate-600">
-                Use <code className="bg-console-light px-1 rounded">POST /api/dev-costs/subscriptions</code> to add subscriptions.
-              </p>
-            </div>
-          ) : (
-            <table className="w-full bridge-table">
-              <thead>
-                <tr>
-                  <th>Service</th>
-                  <th>Cycle</th>
-                  <th className="text-right">$/mo</th>
-                </tr>
-              </thead>
-              <tbody>
-                {subscriptions.map(sub => (
-                  <tr key={sub.id}>
-                    <td>
-                      <div className="flex items-center gap-2">
-                        <div className={`w-2 h-2 rounded-full ${VENDOR_COLORS[sub.vendor] ?? 'bg-slate-600'}`} />
-                        <div>
-                          <p className="text-sm text-slate-200">{sub.name}</p>
-                          <p className="text-[10px] text-slate-500">{VENDOR_LABELS[sub.vendor] ?? sub.vendor}</p>
-                        </div>
-                      </div>
-                    </td>
-                    <td>
-                      <span className="text-[10px] text-slate-500 capitalize">{sub.billingCycle}</span>
-                    </td>
-                    <td className="text-right font-mono text-sm text-brass-warm">
-                      {formatCurrency(Number(sub.expectedMonthly))}
-                    </td>
-                  </tr>
-                ))}
-                <tr className="border-t border-console-border/50">
-                  <td colSpan={2} className="text-xs text-slate-500 font-medium">Total</td>
-                  <td className="text-right font-mono text-sm text-slate-100 font-semibold">
-                    {formatCurrency(subscriptions.reduce((s, sub) => s + Number(sub.expectedMonthly), 0))}
-                  </td>
-                </tr>
-              </tbody>
-            </table>
-          )}
-        </div>
-
         {/* YTD by vendor */}
         <div className="console-card p-5">
           <h2 className="text-sm font-semibold text-slate-200 mb-4">YTD Actual by Vendor</h2>
@@ -260,6 +170,28 @@ export default async function DevCostsPage() {
             </div>
           )}
         </div>
+
+        {/* Vendor list */}
+        <div className="console-card overflow-hidden">
+          <div className="px-5 py-3 border-b border-console-border">
+            <h2 className="text-sm font-semibold text-slate-200">Tracked SaaS Vendors</h2>
+          </div>
+          {saasVendors.length === 0 ? (
+            <div className="p-6 text-center">
+              <p className="text-sm text-slate-500">No SaaS vendors configured. Run the database seed to populate.</p>
+            </div>
+          ) : (
+            <div className="divide-y divide-console-border/50">
+              {saasVendors.map(v => (
+                <div key={v.id} className="px-5 py-3 flex items-center gap-3">
+                  <div className={`w-2 h-2 rounded-full ${VENDOR_COLORS[v.slug] ?? 'bg-slate-600'}`} />
+                  <span className="text-sm text-slate-200">{v.name}</span>
+                  <span className="text-[10px] text-slate-500 ml-auto">{v.slug}</span>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
       </div>
 
       {/* Recent invoices */}
@@ -271,7 +203,7 @@ export default async function DevCostsPage() {
         {recentExpenses.length === 0 ? (
           <div className="p-6 text-center">
             <p className="text-sm text-slate-500">
-              No SaaS invoices imported yet. The Gmail scanner picks these up automatically once SaaS vendors receive emails.
+              No SaaS invoices imported yet. The Gmail scanner picks these up automatically once billing emails arrive.
             </p>
           </div>
         ) : (
@@ -320,27 +252,6 @@ export default async function DevCostsPage() {
           </table>
         )}
       </div>
-
-      {/* Upcoming billing */}
-      {upcoming.length > 0 && (
-        <div className="console-card p-4">
-          <h2 className="text-sm font-semibold text-slate-200 mb-3 flex items-center gap-2">
-            <AlertTriangle className="w-4 h-4 text-gauge-amber" />
-            Billing in the next 30 days
-          </h2>
-          <div className="space-y-2">
-            {upcoming.map(sub => (
-              <div key={sub.id} className="flex items-center justify-between text-sm">
-                <span className="text-slate-300">{sub.name}</span>
-                <span className="text-slate-500 text-xs">
-                  {sub.nextBillingDate ? new Date(sub.nextBillingDate).toLocaleDateString() : '—'}
-                </span>
-                <span className="font-mono text-brass-warm">{formatCurrency(Number(sub.expectedMonthly))}</span>
-              </div>
-            ))}
-          </div>
-        </div>
-      )}
     </div>
   );
 }

@@ -9,8 +9,9 @@ If intent is ambiguous, ask one clarifying question before any write action.
 Before any write action, state: “Execution check passed: explicit approval phrase detected: <phrase>”.
 This gate overrides autonomy defaults and any implied “go ahead” behavior.
 
-## Changelog (v2026.03e)
+## Changelog (v2026.03f)
 
+- 2026-03-06f: Added Environment Constraints block to all three brain files + CODEX-PREAMBLE (Next.js 16 lint fix, mandatory tsc --noEmit in verification, auth stack map, ESLint config map, cross-repo CI checkout flag).
 - 2026-03-06e: Added completion-integrity rules (accurate file counts in debriefs, scope evidence, verifier multi-repo support). Hardened auth override to require NODE_ENV !== production.
 - 2026-03-06d: Added mandatory Operator Effort Minimization rules (no placeholders in paste-ready packages, single-artifact completeness check, fail-and-regenerate if user assembly would be required).
 - 2026-03-06c: Added mandatory handoff-to-prompt pairing rule: every delivered handoff must include one matching single paste-ready Codex prompt in the same response unless the human opts out.
@@ -262,6 +263,16 @@ Default deterministic handoff planning remains Codex-first; use Opus-class plann
   1) `steampunk-strategy/docs/CODEX.md`
   2) `steampunk-strategy/CLAUDE.md`
   3) `.github/copilot-instructions.md`
+
+### Environment Constraints (2026-03-06, apply to ALL generated Claude Code prompts)
+
+- All Next.js repos are on 16.x. `next lint` was removed in Next.js 16. Use `eslint` or `npx eslint .` for linting, never `next lint`.
+- Every verification block MUST include `npx tsc --noEmit` for each modified repo. Do not claim PASS without zero-error tsc output.
+- Cross-repo CI workflows in GitHub Actions require explicit checkout of sibling repos — flag this in Sanity Pass if the workflow needs files from repos other than the hosting repo.
+- ESLint configs: strategy (`eslint.config.mjs`), postmaster (`eslint.config.mjs`), rescuebarn (`eslint.config.mjs`), studiolo (`.eslintrc.json`), orchestrator (none), cleanpunk (none — Turbo monorepo).
+- Auth stacks: Postmaster + Studiolo use NextAuth (`lib/auth.ts`). Rescue Barn uses Supabase auth (`src/proxy.ts` + `src/app/auth/callback/route.ts`). Cleanpunk uses Medusa built-in auth. Flag stack mismatches in Sanity Pass for auth-related prompts.
+- `.github/copilot-instructions.md` is tracked in steampunk-strategy repo (not a standalone parent repo).
+- Before marking any implementation complete, Claude MUST run `npx tsc --noEmit` in every modified repo and include the output in the Claim->Evidence table.
 
 ### Stoppage triage reference
 

@@ -15,3 +15,11 @@ Spec Sanity Pass and Bounded Deviation (2026-03-06b):
 - If deviation materially changes scope, Claude must stop and request human confirmation.
 
 Also enforce mode selection and preflight behavior: use Mapped Mode for high-risk/GenAI/protocol work, allow Lean Mode only for simple low-risk scoped tasks, require Lean->Mapped escalation when ambiguity/scope/risk increases, and if canonical handoff files are missing but complete inline execution details are present, create canonical working/handoff spec files first and then execute.
+Environment constraints (2026-03-06, apply to ALL generated Claude Code prompts):
+- All Next.js repos are on 16.x. `next lint` was removed in Next.js 16. Use `eslint` or `npx eslint .` for linting, never `next lint`.
+- Every verification block MUST include `npx tsc --noEmit` for each modified repo. Do not claim PASS without zero-error tsc output.
+- Cross-repo CI workflows in GitHub Actions require explicit checkout of sibling repos — flag this in Sanity Pass if the workflow needs files from repos other than the hosting repo.
+- ESLint configs per repo: strategy (eslint.config.mjs), postmaster (eslint.config.mjs), rescuebarn (eslint.config.mjs), studiolo (.eslintrc.json), orchestrator (none — create if needed), cleanpunk (none — Turbo monorepo).
+- Auth stacks: Postmaster + Studiolo use NextAuth (lib/auth.ts). Rescue Barn uses Supabase auth (src/proxy.ts + src/app/auth/callback/route.ts). Cleanpunk uses Medusa built-in auth. Flag stack mismatches in Sanity Pass when generating auth-related prompts.
+- `.github/copilot-instructions.md` is tracked in steampunk-strategy repo (not a standalone parent repo).
+- Before marking any implementation complete, Claude MUST run `npx tsc --noEmit` in every modified repo and include the output in the Claim->Evidence table.
