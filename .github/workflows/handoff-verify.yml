@@ -1,0 +1,83 @@
+name: Handoff Verification
+
+on:
+  pull_request:
+    branches: [main, develop]
+    paths:
+      - 'docs/handoffs/**'
+      - 'docs/roadmap.md'
+      - 'src/**'
+      - 'prisma/schema.prisma'
+      - 'vercel.json'
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+      
+      - name: Install dependencies
+        run: pnpm install
+      
+      - name: Extract handoff name from PR title or files
+        id: extract
+        run: |
+          # Try to extract from PR title first (e.g. "ORCH-101: Extend Orchestrator")
+          HANDOFF=$(echo "${{ github.event.pull_request.title }}" | grep -oE '\(ORCH-[0-9]+\)|ORCH-[0-9]+' | head -1 || echo "")
+          
+          # If not found, check which handoff spec files changed
+          if [ -z "$HANDOFF" ]; then
+            CHANGED_FILES=$(git diff --name-only ${{ github.event.pull_request.base.sha }}..${{ github.sha }} | grep 'docs/handoffs/')
+            if [ -n "$CHANGED_FILES" ]; then
+              HANDOFF=$(basename "$CHANGED_FILES" | sed 's/.md//' | tr '[:lower:]' '[:upper:]')
+            fi
+          fi
+          
+          echo "handoff=$HANDOFF" >> $GITHUB_OUTPUT
+      
+      - name: Run verification
+        id: verify
+        if: steps.extract.outputs.handoff != ''
+        run: node scripts/verify-handoff.mjs --handoff-name ${{ steps.extract.outputs.handoff }}
+        continue-on-error: true
+      
+      - name: Comment on PR with results
+        if: steps.extract.outputs.handoff != ''
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const fs = require('fs');
+            const handoff = '${{ steps.extract.outputs.handoff }}';
+            const verifyStatus = '${{ steps.verify.outcome }}';
+            
+            let comment = `## Handoff Verification: ${handoff}
+            
+            `;
+            
+            if (verifyStatus === 'success') {
+              comment += '✅ **All checks passed!** This handoff is ready to merge.';
+            } else {
+              comment += '⚠️ **Some checks did not pass.** See the workflow logs for details. Ask the agent to fix and retry.';
+            }
+            
+            // Try to add acceptance criteria summary
+            const handoffFile = `docs/handoffs/${handoff.toLowerCase().replace(/^orch-/, 'orchestrator-')}.md`;
+            if (fs.existsSync(handoffFile)) {
+              const content = fs.readFileSync(handoffFile, 'utf-8');
+              const summaryMatch = content.match(/## Implementation Summary[\s\S]*?(?=---|\*\*Deferred|$)/);
+              if (summaryMatch) {
+                comment += '\n\n### Implementation Summary\n' + summaryMatch[0].slice(0, 500) + '...\n';
+              }
+            }
+            
+            github.rest.issues.createComment({
+              issue_number: context.issue.number,
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              body: comment
+            });
