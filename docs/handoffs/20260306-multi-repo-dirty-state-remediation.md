@@ -68,12 +68,15 @@ Decomposed dirty state across 6 repos into 10 atomic concern-based branches:
 | steampunk-studiolo | `feat/atelier-and-intelligence` | Receipt improvements, intelligence, crons | 8 |
 | cleanpunk-shop | `hygiene/ignore-and-storms` | .gitignore + untrack tsbuildinfo + storms route | 3 |
 
-**Ignore hygiene fixes:**
-1. Added `*.tsbuildinfo` to `steampunk-postmaster/.gitignore` (was missing)
-2. Added `*.tsbuildinfo` to `cleanpunk-shop/.gitignore` (was missing)
-3. Removed tracked `tsconfig.tsbuildinfo` from git index in both repos via `git rm --cached`
+**Ignore hygiene fixes (branch-qualified):**
 
-**Guardrails:** All 6 repos now have `.gitignore` coverage for `*.tsbuildinfo`, `.next/`, `.env*`. The gitignore patterns serve as the primary guardrail against future generated artifact tracking.
+1. Added `*.tsbuildinfo` to `steampunk-postmaster/.gitignore` and untracked `tsconfig.tsbuildinfo` from index — on `hygiene/ignore-tsbuildinfo` branch. Not yet on `main` or `decommission` branch until merge.
+2. Added `*.tsbuildinfo` to `cleanpunk-shop/.gitignore` and untracked `apps/storefront/tsconfig.tsbuildinfo` from index — on `hygiene/ignore-and-storms` branch.
+3. Both fixes propagate to `main` and other branches upon merge.
+
+**Merge order for propagation:** hygiene branches first, then feature branches, then decommission branches.
+
+**Guardrails:** All 6 repos have `.gitignore` coverage for `*.tsbuildinfo`, `.next/`, `.env*` on their respective hygiene/feature branches. Patterns propagate to `main` after merge.
 
 ### What failed before and why
 

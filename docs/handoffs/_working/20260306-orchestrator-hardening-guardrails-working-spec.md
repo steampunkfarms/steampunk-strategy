@@ -41,3 +41,13 @@ CI catches schedule drift, admin/cron auth fails closed in prod, lock/DB errors 
 1. Admin APIs: `if (!secret) return true` — open when INTERNAL_SECRET unset
 2. Cron runner: `if (cronSecret && ...)` — unauthenticated execution when CRON_SECRET unset
 3. Lock: unexpected DB errors return `true` (fail-open) — concurrent execution risk
+
+## Post-Hardening Remediation Note (added by 20260306-orchestrator-hardening-remediation-audit-fixes)
+
+**Root cause of verifier target parsing issue:** `extractTargetRepo()` in `verify-handoff.mjs` only extracted a single repo name. For multi-repo handoffs it either returned the first match or fell back silently to `process.cwd()`, causing false-green verification results by checking only the strategy repo.
+
+**Fix:** Replaced with `extractTargetRepos()` returning an array. Supports legacy, plural, heading-based, and scope-section formats. All downstream checks (Prisma, JSON, comments, TypeScript) now iterate over the full resolved repo list.
+
+**Local-dev auth guard tightening:** Added `NODE_ENV !== "production"` check alongside `ALLOW_INSECURE_LOCAL_ADMIN` in all 3 orchestrator route files. This prevents accidental production exposure if the env var is mistakenly set in a deployed environment.
+
+**Sanity Deltas:** None applied during remediation.

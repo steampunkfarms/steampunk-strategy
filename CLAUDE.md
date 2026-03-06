@@ -1,7 +1,8 @@
 # CLAUDE.md — Steampunk Strategy: The Bridge
 
-## Changelog (v2026.03d)
+## Changelog (v2026.03e)
 
+- 2026-03-06e: Added completion-integrity rules (accurate file counts in debriefs, scope evidence, verifier multi-repo support). Hardened auth override to require NODE_ENV !== production.
 - 2026-03-06d: Added mandatory Operator Effort Minimization rules (no placeholders in paste-ready packages, single-artifact completeness check, fail-and-regenerate if user assembly would be required).
 - 2026-03-06c: Added mandatory handoff-to-prompt pairing rule: every delivered handoff must include one matching single paste-ready Codex prompt in the same response unless the human opts out.
 - 2026-03-06b: Added Claude pre-edit Spec Sanity Pass and bounded-deviation protocol; clarified default model policy (Codex default, escalate to Opus for high-ambiguity architecture/brand-planning decisions).
@@ -248,6 +249,13 @@ Claude Code may deviate from mapped instructions only when all are true:
 
 If scope expands materially, stop and request human confirmation before edits.
 All applied deviations must be logged as "Sanity Delta Applied" in completion summary.
+
+### Completion Integrity (Mandatory)
+
+- Debrief file counts must match the actual number of files modified, with evidence.
+- Multi-repo handoff debriefs must list each repo and its file count separately.
+- Scope isolation notes are required when a handoff touches files that overlap with other active branches.
+- Verification context notes are required when verification was run on a branch other than main or when the verifier version differs from the canonical version.
 
 ### Planning Model Preference
 

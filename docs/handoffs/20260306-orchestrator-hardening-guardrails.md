@@ -59,7 +59,7 @@ cd /Users/ericktronboll/Projects/steampunk-strategy && node scripts/verify-hando
 
 ### What was implemented
 
-12 files modified across steampunk-orchestrator + steampunk-strategy:
+12 files modified in steampunk-orchestrator (+ 3 strategy-side spec/roadmap files):
 
 1. **Admin API auth hardening** (`route.ts` + `[jobName]/route.ts`): Replaced `if (!secret) return true` fail-open with fail-closed pattern. Production blocks when `INTERNAL_SECRET` is unset unless `ALLOW_INSECURE_LOCAL_ADMIN=true` is explicitly set.
 2. **Cron runner auth hardening** (`cron-runner.ts`): Changed from skip-auth-when-missing to hard block when `CRON_SECRET` is not configured (403 response). Added structured `(degraded)` tag on DB fallback logging.
@@ -81,3 +81,11 @@ cd /Users/ericktronboll/Projects/steampunk-strategy && node scripts/verify-hando
 - `npx tsc --noEmit` — pass (zero errors)
 - `npm run check:cron-drift` — pass (24 jobs, no drift)
 - `verify-handoff.mjs` — pass (all required sections present)
+
+### Scope Isolation Note
+
+All 12 modified files are in steampunk-orchestrator on `feat/hardening-guardrails` branch. Strategy-side spec files are on `hygiene/protocol-docs` branch. No overlap with other active branches.
+
+### Verification Context Note
+
+Verification was run on `feat/hardening-guardrails` branch using the `.mjs` verifier from `hygiene/infra-scripts` branch (pre-multi-repo-remediation version). File count corrected in post-audit remediation handoff `20260306-orchestrator-hardening-remediation-audit-fixes`.

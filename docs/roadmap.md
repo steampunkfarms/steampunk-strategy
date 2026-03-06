@@ -24,6 +24,10 @@
   - 🤖 **2026-03-06:** Hardened admin/cron auth to fail-closed, replaced lock fail-open with fail-closed in production, added criticality metadata, enhanced cron-stats with degraded-mode fields, added dashboard degraded badges + effective source indicators, fixed social-harvest schedule drift, created cron drift CI enforcement. (task completed)
 - [x] (20260306-multi-repo-dirty-state-remediation) Multi-repo dirty-state remediation — see `docs/handoffs/20260306-multi-repo-dirty-state-remediation.md`
   - 🤖 **2026-03-06:** Normalized ignore hygiene, untracked generated artifacts, decomposed mixed changes into 10 atomic concern-based branches across 6 repos, added dirty-tree guardrails. (task completed)
+- [x] (20260306-orchestrator-hardening-remediation-audit-fixes) Post-hardening remediation audit fixes — see `docs/handoffs/20260306-orchestrator-hardening-remediation-audit-fixes.md`
+  - 🤖 **2026-03-06:** Fixed verifier false-green risk with multi-repo parsing, hardened auth override with NODE_ENV guard, synced brain files to v2026.03e with completion-integrity rules, corrected debrief file counts. (task completed)
+- [x] (20260306-consolidated-remediation-verifier-branch-propagation) Consolidated remediation: verifier branch propagation + evidence normalization — see `docs/handoffs/20260306-consolidated-remediation-verifier-branch-propagation.md`
+  - 🤖 **2026-03-06:** Propagated verifier .mjs to hygiene/protocol-docs branch, branch-qualified Postmaster tsbuildinfo evidence, clarified .github parent workspace path handling, added Claim→Evidence table and confidence label to remediation debrief. (task completed)
 
 ---
 
