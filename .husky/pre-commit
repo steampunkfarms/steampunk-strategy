@@ -1,0 +1,5 @@
+# Validate .env.local if staged (catches trailing \r, whitespace corruption)
+./scripts/validate-env.sh
+
+# Run lint-staged for TS/TSX files
+npx lint-staged
