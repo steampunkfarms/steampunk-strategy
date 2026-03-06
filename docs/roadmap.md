@@ -20,6 +20,10 @@
   - 🤖 **2026-03-06 (v2026.03b):** Hardened protocol core behavior with mandatory Spec Sanity Pass, bounded-deviation enforcement, canonical preamble reconstruction, and verifier coverage for section formats plus 2026-03-06 required artifacts. (task completed)
 - [x] (20260306-dear-humans-ig-anchor-compliance) IG caption compliance gates + sentence-safe shortening — see `docs/handoffs/20260306-dear-humans-ig-anchor-compliance.md`
   - 🤖 **2026-03-06:** Added sentence-safe IG caption handling and hard compliance gates in generate/regenerate/post-now/cron flows; blocked noncompliant IG publishing and aligned Dear Humans prompt policy. (task completed)
+- [x] (20260306-orchestrator-hardening-guardrails) Orchestrator auth hardening + fail-closed locks + schedule drift CI — see `docs/handoffs/20260306-orchestrator-hardening-guardrails.md`
+  - 🤖 **2026-03-06:** Hardened admin/cron auth to fail-closed, replaced lock fail-open with fail-closed in production, added criticality metadata, enhanced cron-stats with degraded-mode fields, added dashboard degraded badges + effective source indicators, fixed social-harvest schedule drift, created cron drift CI enforcement. (task completed)
+- [x] (20260306-multi-repo-dirty-state-remediation) Multi-repo dirty-state remediation — see `docs/handoffs/20260306-multi-repo-dirty-state-remediation.md`
+  - 🤖 **2026-03-06:** Normalized ignore hygiene, untracked generated artifacts, decomposed mixed changes into 10 atomic concern-based branches across 6 repos, added dirty-tree guardrails. (task completed)
 
 ---
 

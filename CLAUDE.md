@@ -1,5 +1,16 @@
 # CLAUDE.md — Steampunk Strategy: The Bridge
 
+## Changelog (v2026.03d)
+
+- 2026-03-06d: Added mandatory Operator Effort Minimization rules (no placeholders in paste-ready packages, single-artifact completeness check, fail-and-regenerate if user assembly would be required).
+- 2026-03-06c: Added mandatory handoff-to-prompt pairing rule: every delivered handoff must include one matching single paste-ready Codex prompt in the same response unless the human opts out.
+- 2026-03-06b: Added Claude pre-edit Spec Sanity Pass and bounded-deviation protocol; clarified default model policy (Codex default, escalate to Opus for high-ambiguity architecture/brand-planning decisions).
+- 2026-03-06a: Hardened core protocol — resolved stop-vs-preflight contradiction in CODEX.md, updated verifier for heading-based specs + 2026-03-06 artifact enforcement, added root verify-handoff.mjs wrapper.
+- 2026-03-06: Added Strategy Session Template, Cross-Site Checklist, Debrief Script, Family Planning Protocol, and Protocol Health Dashboard seed (per operator request).
+- Previous versions tracked in git history only.
+
+Any protocol change must include a new changelog entry and version bump in ALL THREE brain files in the same change set.
+
 ## Project Overview
 
 **The Bridge** is the 5th Vercel project in the Steampunk Farms family of sites. It serves as the central financial management, compliance tracking, and cross-site operations dashboard for Steampunk Farms Rescue Barn Inc., a 501(c)(3) nonprofit animal sanctuary.
@@ -127,6 +138,157 @@ docs/
 ├── roadmap.md                     # Deferred work items — CHECK BEFORE STARTING NEW WORK
 └── handoffs/                      # Claude Code handoff specs from planning sessions
 ```
+
+### Agent Workflow & Roadmap Automation
+
+To keep the roadmap in sync and conserve tokens during code generation:
+
+1. **Agent rules live in this file.** Claude Code should ingest the relevant sections as part of its context when executing a plan.  The slim family-of-sites summary may be used for high-level orientation.
+2. **After completing a task**, the agent **must** update `docs/roadmap.md` by:
+   * moving the completed bullet to the bottom of the file, preserving its original text,
+   * appending a one‑sentence summary of what was actually implemented and a timestamp, e.g.:
+     ```markdown
+     - 🤖 **2026‑03‑05:** Added centralized job registry to Orchestrator. (task completed)
+     ```
+   * leaving only outstanding/`TODO` items at the top.
+3. **Roadmap items should use a simple YAML‑like prefix** for metadata that the updater script can parse:
+   ```markdown
+   - [ ] (ORCH-101) central cron registry
+   - [ ] (STUD-204) grant-report PDF
+   ```
+4. A helper script (`scripts/roadmap-updater.js`) will be provided to perform the rearrangement automatically; agents may call it instead of editing by hand.
+5. **Verbose commenting convention:** when generating or editing code, Claude Code should insert a comment referencing the site-specific docs, e.g.:
+   ```ts
+   // see docs/postmaster-reference.md#cron-jobs for schedule patterns
+   ```
+   or
+   ```css
+   /* palette defined in steampunk-rescuebarn/tailwind.config.ts */
+   ```
+   This allows you to locate definitions without grepping across the repo.
+6. The `CLAUDE.md` documents (per‑app) act as the canonical rule set: any new guideline must be added here first, then propagated into the slim summary if appropriate.
+
+Agents should avoid re‑sending entire reference files; instead, they query for a specific section using the comment links above. This keeps token usage minimal while still giving precise navigation cues.
+
+### Codex -> Claude Code Execution Protocol (Mandatory)
+
+For handoff-driven implementation, use this strict order:
+
+1. Human identifies the next item.
+2. Human prepares a handoff spec in `docs/handoffs/` and customized prompts.
+3. Codex runs first and returns the ready-to-use Claude Code prompt.
+4. Claude Code executes the implementation.
+5. Human returns Claude Code wrap-up for verification against the handoff spec.
+6. Iterate until verification passes, then advance to the next item.
+
+### Default Execution Method (Always On)
+
+For scoped implementation work, the default method is:
+
+1. Discovery and findings capture in a temporary working spec.
+2. Collaborative plan refinement with iterative updates to that working spec.
+3. On human request for handoff, generation of a fully execution-mapped handoff spec containing exact insertion anchors, exact final text blocks, and a strict acceptance checklist.
+4. Codex prompt generation.
+5. Claude Code implementation.
+6. Post-work QA from returned summary.
+
+### Handoff Modes (Automatic Selection)
+
+- Mapped Mode (default for high-risk work): full file-by-file anchors, exact text blocks, strict checklist.
+- Lean Mode (simple low-risk work): objective, exact files, acceptance criteria, verification command.
+- If Lean Mode encounters ambiguity, scope expansion, blockers, or protocol-sensitive behavior, escalate to Mapped Mode before continuing.
+
+### Working Spec Path Convention (Single Source of Truth)
+
+- Use this canonical working spec path every time:
+   - `docs/handoffs/_working/<handoff-id>-working-spec.md`
+- Preferred `<handoff-id>` format: `YYYYMMDD-short-slug` (example: `20260306-postmaster-no-cta`).
+- If `<handoff-id>` is missing, generate one automatically (date + short slug) and continue.
+- Do not ask the human to choose naming or path structure.
+- Keep discovery findings and plan updates in this working spec until final handoff is produced.
+
+Rules:
+
+- Do not skip Codex when this workflow is requested.
+- Do not mark completion before verification is run and passing.
+- Keep implementation scoped to the current handoff spec acceptance criteria.
+- Do not rely on human memory for working-spec naming/paths; enforce the canonical convention automatically.
+- For GenAI workflow handoffs, Claude Code must execute a workflow-level insertion audit and confirm no links/CTAs are introduced by AI prompts or pipeline logic (prompt layers/templates, generation routes, preview/regenerate routes, closing/tagging helpers, and post-assembly). Include file paths and line anchors in wrap-up.
+- When Codex-generated prompts are used, execute file-by-file anchors and strict acceptance checklist items as written in the handoff spec; treat summarized or compressed instructions as non-compliant.
+- If canonical handoff/working spec files are missing but detailed execution instructions are provided inline, do not halt on missing artifacts: create canonical files first, then execute against them.
+
+Verification stack:
+
+- Layer 1: `node scripts/verify-handoff.mjs --handoff-name <ID>`
+- Layer 2: `.github/workflows/handoff-verify.yml` on PR
+- Layer 3: periodic human spot-check
+- Layer 4 (GenAI workflow handoffs only): no-link/no-CTA insertion audit with evidence. Handoff cannot pass if any insertion point remains active and unaddressed.
+- Preflight verification (required when specs were initially missing): confirm canonical working spec and handoff spec were created and used as source of truth before edits.
+
+### Pre-Edit Sanity Check (Required)
+
+Before implementing mapped steps, Claude Code must run a Spec Sanity Pass:
+
+- Validate architecture, protocol alignment, and Steampunk brand/voice intent.
+- If no issues: execute as mapped.
+- If issues: emit a "Sanity Delta" with:
+   - conflict,
+   - minimal correction,
+   - file/anchor evidence,
+   - risk if unchanged,
+   - acceptance-criteria adjustment (if needed).
+
+### Bounded Deviation Rule
+
+Claude Code may deviate from mapped instructions only when all are true:
+
+1. Evidence is file-anchored and reproducible.
+2. Deviation is minimal and risk-reducing.
+3. Scope does not expand materially.
+
+If scope expands materially, stop and request human confirmation before edits.
+All applied deviations must be logged as "Sanity Delta Applied" in completion summary.
+
+### Planning Model Preference
+
+Default protocol mapping remains Codex-first.
+For high-ambiguity, cross-site, brand-ethos, or architecture-planning decisions, Opus-class planning may be used before returning to deterministic mapped execution.
+
+### Handoff-to-Prompt Pairing Rule
+
+- When delivering any handoff spec to the human, include one matching single paste-ready Codex prompt in the same response by default.
+- Only omit the matching Codex prompt if the human explicitly opts out.
+
+### Operator Effort Minimization (Mandatory)
+
+- Default objective: minimize operator manual workload.
+- For any "single paste-ready" request, output must be fully executable as-is.
+- Do not output placeholders that require user substitution (forbidden examples: `<PASTE ...>`, `<FILL ...>`, `TODO`).
+- Inline the exact task body, concrete paths, IDs, and commands directly in the artifact.
+- Output exactly one artifact block unless the human explicitly requests multiple blocks.
+- Run this pre-send completeness check before responding:
+   1. No placeholders remain.
+   2. All required protocol sections are present.
+   3. All referenced paths/IDs are concrete.
+   4. Artifact is zero-edit runnable by the operator.
+- If any check fails, regenerate before sending.
+- If one value is truly unknowable, ask exactly one targeted question instead of offloading assembly work.
+
+### Protocol Change Sync Rule
+
+When protocol/workflow rules are changed, update these files in the same change:
+
+1. `docs/CODEX.md`
+2. `CLAUDE.md`
+3. `../.github/copilot-instructions.md`
+
+Protocol changes are not complete until all three are updated together.
+
+### Stoppage Triage Reference
+
+- For operator-facing stoppage handling (Codex/Claude alerts and routing), see:
+   - `docs/operator-stoppage-cheat-card.md`
+
 
 ### Handoff Protocol
 
