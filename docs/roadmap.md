@@ -10,7 +10,16 @@
 
 ## 🔴 Active Handoffs (specs in docs/handoffs/)
 
-None currently active.
+- [x] (PM-NoCTA) Remove CTA/link insertion from 5 Postmaster GenAI workflows — see `docs/handoffs/20260306-postmaster-no-cta.md`
+  - 🤖 **2026-03-06:** Neutralized all `getClosingFor*` functions and inline closing constants across Moostik Monday, Chance's Ante, One-Off Storm, Wisdom in the Margins, and Wishlist Wednesday (including victory/gratitude variants). 8 files modified, all insertion points return empty string. (task completed)
+- [x] (PM-ProductStorms) Migrate product storms to Cleanpunk, decommission in Postmaster — see `docs/handoffs/20260306-product-storms-cleanpunk-migration-postmaster-removal.md`
+  - 🤖 **2026-03-06:** Verified Cleanpunk One-Off/Soap/Collection parity, neutralized CTA closing injection for 3 product-storm series in Cleanpunk, decommissioned Postmaster UI/routing/API/lib wiring for ONE_OFF_STORM, AMB_SOAP_DROP, AMB_COLLECTION_DROP (9 route files deleted, 18+ files edited across repos). Schema enum members preserved for historical data readability. (task completed)
+- [x] (20260306-strategy-protocol-docs-sync) Synchronize strategy protocol docs and brain-file changelog/version rule — see `docs/handoffs/20260306-strategy-protocol-docs-sync.md`
+  - 🤖 **2026-03-06:** Synced strategy protocol docs, normalized changelog/version enforcement across all three brain files, replaced CODEX preamble placeholder with merged requirements, and completed mapped handoff + debrief artifacts. (task completed)
+- [x] (20260306-protocol-core-hardening) Harden protocol core docs + verifier compatibility — see `docs/handoffs/20260306-protocol-core-hardening.md`
+  - 🤖 **2026-03-06 (v2026.03b):** Hardened protocol core behavior with mandatory Spec Sanity Pass, bounded-deviation enforcement, canonical preamble reconstruction, and verifier coverage for section formats plus 2026-03-06 required artifacts. (task completed)
+- [x] (20260306-dear-humans-ig-anchor-compliance) IG caption compliance gates + sentence-safe shortening — see `docs/handoffs/20260306-dear-humans-ig-anchor-compliance.md`
+  - 🤖 **2026-03-06:** Added sentence-safe IG caption handling and hard compliance gates in generate/regenerate/post-now/cron flows; blocked noncompliant IG publishing and aligned Dear Humans prompt policy. (task completed)
 
 ---
 
