@@ -2,7 +2,9 @@
 
 > Deferred work items and active handoffs. Reviewed at each planning session.
 > Location: steampunk-strategy/docs/roadmap.md
-> Last updated: 2026-03-04 (session 13 — RaiseRight double-count fix, security hardening, expense-to-impact pipeline)
+> Last updated: 2026-03-04 (session 16 — HUG automation, Dev Costs dashboard, Donor BI, Cogworks Phase 2)
+>
+> **Agent Instructions:** When a Claude Code job completes, append the completion line with timestamp and summary, then move the original bullet to the bottom of this document. Outstanding items (unchecked boxes) should remain at the top. Use the provided `scripts/roadmap-updater.js` helper when possible.
 
 ---
 
@@ -30,6 +32,7 @@ Two active Square subscriptions still billing:
 
 ## 🔴 Priority One — Do Next
 
+
 ### Security Hardening — Remaining Audit Items
 
 **Priority:** High — pre-launch blocker for webhook-facing endpoints
@@ -37,18 +40,17 @@ Two active Square subscriptions still billing:
 **Fixed 2026-03-02:** C1 (CRON_SECRET exposure), H2/H3/H8/H9/H10/H17/H18 (timing attacks, fail-open, session leak), M7/M8/M15/M16 (cron auth, webhook errors)
 **Fixed 2026-03-04 (session 13):** C2 (Postmaster PayPal sig), C4+H14 (Cleanpunk RLS — code done, SQL still needs manual run), H12 (Postmaster default-deny proxy)
 **Fixed 2026-03-04 (session 14):** H7 (Every.org query-param removed), H5 (subscribers auth gate), H16 (Studiolo PayPal sig verification in donations + zapier routes via shared lib/paypal-verify.ts)
+**Fixed 2026-03-04 (session 15):** C4+H14 (Supabase RLS SQL confirmed run), H16 env var (PAYPAL_WEBHOOK_ID confirmed set — verified via 401 probe against production), C3 (finding was inaccurate — Cleanpunk uses Medusa's built-in emailpass provider with per-user credentials and server-side bcrypt hashing, not a shared SHA256 password)
 
 **Still open — Critical:**
 
-- **C3:** Cleanpunk admin auth replacement — single shared SHA256 password, no MFA, no audit trail. Replace with Supabase Auth or Azure AD.
-- **C4 + H14:** SQL still needs manual run in Supabase dashboard (project asnbmhnogtgunbdofqjf): `supabase-rls-hardening.sql` in cleanpunk-shop root
+_(none)_
 
 **Still open — High:**
 
 - **H1:** Patreon webhook uses MD5 HMAC — Patreon only supports MD5 (platform limitation). Current impl uses `timingSafeEqual` which is correct. No further action possible.
 - **H4:** Studiolo inbound webhook — no auth (routes by x-webhook-source header). Low priority: just a router.
 - **H6:** GoFundMe webhook stub — no auth, just logs. Low priority: no data processing.
-- **H16 (Studiolo):** PAYPAL_WEBHOOK_ID env var not yet set in Studiolo Vercel — verification code is deployed but fail-open until ID is configured. Get from PayPal dashboard → Webhooks → Webhook ID.
 - **Studiolo:** ZAPIER_WEBHOOK_SECRET not set in .env.local (may be set in Vercel env only)
 
 **Still open — Medium (batch later):**
@@ -872,6 +874,37 @@ Habit-formation onboarding redesign (#118), Impact page needs Krystal's 60-secon
 
 ## 🟢 Completed (Archive)
 
+### Session 16 — Feature Build Sprint (2026-03-04)
+
+**Completed:**
+
+- **Expense-to-Impact Pipeline (TARDIS):** `POST /api/programs/seed` seeds 7 programs. `GET /api/programs` powers enrichment UI. `GET /api/impact/[programSlug]` aggregates expenses by program/period. Document uploader line-item panel now has program dropdown.
+- **Dev Infrastructure Cost Dashboard (TARDIS):** New `SaaSSubscription` model + `prisma db push` needed. `/dev-costs` page with YTD actual, monthly run rate, 6-month bar chart, subscriptions table, YTD by vendor bars, recent invoices, upcoming billing alerts. Nav item added.
+- **HUG Automation Layer (Studiolo):**
+  - `GET /api/cron/anniversary-touches` — daily cron converts giving/Opus/barn-visit anniversaries within 14 days into queued Gratitude Touch records. Deduped by externalId.
+  - `GET /api/cron/friction-followup` — weekly cron (Tue 8am) converts unresolved FrictionAlerts (no-thankyou, lapsed-reply, bounce) into queued Touch records. Deduped by externalId.
+  - Both added to Studiolo `vercel.json`.
+- **Thank-you email animal affinity (Studiolo):** `buildThankYouEmail` now accepts `animalAffinities?: string[]`. Species-specific one-liner inserted before closing paragraph. Wired into auto-send engine, manual send route, and generate/preview route.
+- **Donor BI Dashboard (Studiolo):** `/intelligence` page with LTV distribution buckets (7 ranges), 5-year cohort retention table (acquired / repeat / repeat % / active 12mo / avg LTV), pipeline health breakdown (Lane A stages + Lane B pct), gift acquisition channels. Added to sidebar under Overview.
+- **Cogworks Phase 2 (Rescue Barn):**
+  - Migration `006_cogworks_reactions_comments.sql`: adds `reaction_count`, `comment_count`, `view_count` to `sanctuary_posts`; creates `post_reactions` (emoji toggle, one per visitor per post), `post_comments` (moderated), `cogworks_digest_subscribers` tables; triggers maintain counts automatically.
+  - `POST/GET /api/cogworks/reactions` — emoji toggle API with optimistic fingerprint-based dedup.
+  - `POST/GET /api/cogworks/comments` — submit + read approved comments.
+  - `POST /api/cogworks/digest/subscribe` + `GET /api/cogworks/digest/unsubscribe?token=` — digest opt-in/out.
+  - `GET /api/cogworks/digest/send` — weekly Resend digest cron (Mon 10am UTC). Added to `vercel.json`.
+  - `ReactionBar` client component: emoji palette with optimistic toggle, live counts.
+  - `CommentSection` client component: approved comment feed + moderated submit form.
+  - PostCard updated: reaction/comment count badges in footer.
+  - PostView updated: ReactionBar + CommentSection wired in after body content.
+
+**Still needs:**
+
+- `npx prisma db push` in TARDIS (SaaSSubscription model)
+- Supabase migration 006 run manually in Rescue Barn Supabase dashboard
+- Seed programs via `POST /api/programs/seed`
+
+---
+
 ### Session 10 — Configuration Optimization (Stazia's 14-Item List)
 
 **Completed:** 2026-03-01
@@ -1038,3 +1071,6 @@ Habit-formation onboarding redesign (#118), Impact page needs Krystal's 60-secon
 ### Ecosystem Health Audit
 **Completed:** 2026-02-28
 **Findings:** TARDIS version lag (→ handoff 001), guardrail drift (→ handoff 002), Postmaster Blob gap (→ handoff 003), Studiolo missing post-gen validation (→ handoff 002C).
+
+- 🤖 **2026-03-06:** Implemented central registry with locking/retries, removed site crons
+- (ORCH-101) Extend Orchestrator into single schedule registry with retry, locking, dynamic frequency, and cross-site job definitions

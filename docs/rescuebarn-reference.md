@@ -154,7 +154,7 @@ All tables have RLS enabled. Admin access uses `is_admin(auth.uid())` SECURITY D
 
 **Sibling sites:** Studiolo (steampunkstudiolo.org, admin hub) · Postmaster (postmaster.steampunkstudiolo.org, content automation) · Cleanpunk Shop (cleanpunk.shop, soap storefront) · TARDIS/Strategy (steampunk-strategy, compliance/financial).
 
-**Orchestrator:** Steampunk Orchestrator is planned but not yet operational. Cron scheduling is currently handled per-site via Vercel cron.
+**Orchestrator (ORCH-101, 2026-03-05):** Steampunk Orchestrator is now the central scheduler. Two Rescue Barn crons (`daily-maintenance`, `gift-expiry`) are managed by the Orchestrator — their `vercel.json` entries have been removed. Route handlers remain; the Orchestrator calls them via HTTP. The `cogworks/digest/send` cron remains site-local in Rescue Barn's `vercel.json`.
 
 ---
 

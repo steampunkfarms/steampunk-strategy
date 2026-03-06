@@ -106,6 +106,8 @@
 
 All crons export `GET` (Vercel requirement). Auth via `CRON_SECRET` or `INTERNAL_SECRET` bearer token (dual-accept for Orchestrator compatibility, updated 2026-03-01).
 
+> **ORCH-101 (2026-03-05):** 11 of these crons are now scheduled centrally by the Orchestrator (`steampunk-orchestrator/vercel.json`). Their `vercel.json` entries have been removed from Studiolo. Route handlers remain — the Orchestrator calls them via HTTP. Site-local crons (bulk-compose, atelier/receipt, atelier/tax-summary, anniversary-touches, friction-followup) remain in Studiolo's `vercel.json`.
+
 ---
 
 ## 6. Site-Specific Patterns

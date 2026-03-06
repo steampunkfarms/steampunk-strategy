@@ -105,6 +105,8 @@ CRUD · `/generate` · `/queue` · `/renditions/*` (CRUD, bulk, quick-edit)
 | Daily 2AM | `/api/cron/aggregate-traffic` | Roll up pageviews → daily |
 | Daily 2PM | `/api/cron/sync-studiolo` | Sync customer data → Studiolo CRM |
 
+> **ORCH-101 (2026-03-05):** 5 crons (inventory-alert, abandoned-cart, track-deliveries, promo-notify, refresh-customer-metrics) are now scheduled centrally by the Orchestrator (`steampunk-orchestrator/vercel.json`). Their `vercel.json` entries have been removed from Cleanpunk. Route handlers remain — the Orchestrator calls them via HTTP. Site-local crons (`aggregate-traffic`, `sync-studiolo`) remain in Cleanpunk's `vercel.json`.
+
 ---
 
 ## 6. Site-Specific Patterns

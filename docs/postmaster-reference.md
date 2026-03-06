@@ -179,6 +179,8 @@ See Cron Jobs section. `GET/POST auth/[...nextauth]`
 | `/api/cron/scan-engagement` | Every 30 min | Scan FB/IG comments on POSTED renditions from last 7 days. Classify signals. |
 | `/api/cron/sync-donors` | Daily 4 AM UTC | Fetch donor profiles from Studiolo for tier-aware CTAs. |
 
+> **ORCH-101 (2026-03-05):** All 3 crons are now scheduled centrally by the Orchestrator (`steampunk-orchestrator/vercel.json`). Their `vercel.json` entries have been removed from Postmaster. Route handlers remain — the Orchestrator calls them via HTTP.
+
 ---
 
 ## Content Series (8 active)
