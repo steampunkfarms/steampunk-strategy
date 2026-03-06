@@ -61,7 +61,7 @@
   },
   "lint-staged": {
     "*.{ts,tsx}": [
-      "next lint --file"
+      "eslint"
     ],
     "prisma/schema.prisma": [
       "prisma validate"

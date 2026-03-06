@@ -56,12 +56,12 @@ function parsePeriod(period: string): { start: Date; end: Date; label: string } 
 
 export async function GET(
   request: NextRequest,
-  { params }: { params: { programSlug: string } }
+  { params }: { params: Promise<{ programSlug: string }> }
 ) {
   const session = await getServerSession(authOptions);
   if (!session) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
 
-  const { programSlug } = params;
+  const { programSlug } = await params;
   const { searchParams } = new URL(request.url);
   const period = searchParams.get('period') ?? '';
   const donorId = searchParams.get('donorId');
