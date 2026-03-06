@@ -28,6 +28,8 @@
   - 🤖 **2026-03-06:** Fixed verifier false-green risk with multi-repo parsing, hardened auth override with NODE_ENV guard, synced brain files to v2026.03e with completion-integrity rules, corrected debrief file counts. (task completed)
 - [x] (20260306-consolidated-remediation-verifier-branch-propagation) Consolidated remediation: verifier branch propagation + evidence normalization — see `docs/handoffs/20260306-consolidated-remediation-verifier-branch-propagation.md`
   - 🤖 **2026-03-06:** Propagated verifier .mjs to hygiene/protocol-docs branch, branch-qualified Postmaster tsbuildinfo evidence, clarified .github parent workspace path handling, added Claim→Evidence table and confidence label to remediation debrief. (task completed)
+- [x] (20260306-cross-repo-typecheck-lint-hardening) Cross-repo TypeScript + lint pre-commit hardening — see `docs/handoffs/20260306-cross-repo-typecheck-lint-hardening.md`
+  - 🤖 **2026-03-06:** Installed missing husky/lint-staged pre-commit gates with tsc --noEmit across 5 repos, added typecheck CI workflows to all 6 repos, created missing ESLint configs for orchestrator and cleanpunk root. Brain files already at v2026.03f with tsc evidence policy. (task completed)
 
 ---
 
