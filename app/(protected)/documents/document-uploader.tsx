@@ -108,6 +108,8 @@ export default function DocumentUploader({ loadDocumentId, onComplete }: Uploade
   // Line-item species enrichment
   const [lineItemTags, setLineItemTags] = useState<Record<number, string[]>>({});
   const [lineItemNotes, setLineItemNotes] = useState<Record<number, string>>({});
+  const [lineItemPrograms, setLineItemPrograms] = useState<Record<number, string>>({});
+  const [programs, setPrograms] = useState<Array<{ id: string; name: string; slug: string }>>([]);
   const [expandedLineItem, setExpandedLineItem] = useState<number | null>(null);
 
   // Batch upload
@@ -159,11 +161,20 @@ export default function DocumentUploader({ loadDocumentId, onComplete }: Uploade
     setArrangement(null);
     setLineItemTags({});
     setLineItemNotes({});
+    setLineItemPrograms({});
     setExpandedLineItem(null);
     setExistingTransactionId(null);
     setBatchItems([]);
     onComplete?.();
   }, [onComplete]);
+
+  // Load programs for enrichment UI
+  useEffect(() => {
+    fetch('/api/programs')
+      .then(r => r.ok ? r.json() : [])
+      .then(setPrograms)
+      .catch(() => {});
+  }, []);
 
   // Load an existing document for remediation
   useEffect(() => {
@@ -381,6 +392,9 @@ export default function DocumentUploader({ loadDocumentId, onComplete }: Uploade
       }
       if (Object.keys(lineItemNotes).length > 0) {
         overrides.lineItemNotes = lineItemNotes;
+      }
+      if (Object.keys(lineItemPrograms).length > 0) {
+        overrides.lineItemPrograms = lineItemPrograms;
       }
 
       const isUpdate = !!existingTransactionId;
@@ -929,6 +943,22 @@ export default function DocumentUploader({ loadDocumentId, onComplete }: Uploade
                                         </button>
                                       ))}
                                     </div>
+                                    {programs.length > 0 && (
+                                      <div>
+                                        <label className="text-[10px] text-slate-500 block mb-1">Program</label>
+                                        <select
+                                          aria-label="Program"
+                                          value={lineItemPrograms[i] ?? ''}
+                                          onChange={(e) => setLineItemPrograms(prev => ({ ...prev, [i]: e.target.value }))}
+                                          className="w-full text-[11px] bg-console-default border border-console-border rounded px-2 py-1 text-slate-300 focus:border-brass-warm/40 focus:outline-none"
+                                        >
+                                          <option value="">— select program —</option>
+                                          {programs.map(p => (
+                                            <option key={p.id} value={p.id}>{p.name}</option>
+                                          ))}
+                                        </select>
+                                      </div>
+                                    )}
                                     <input
                                       type="text"
                                       value={lineItemNotes[i] ?? ''}

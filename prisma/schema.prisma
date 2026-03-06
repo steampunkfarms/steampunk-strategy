@@ -1174,3 +1174,43 @@ model MonthlyCostSnapshot {
   @@map("monthly_cost_snapshots")
   @@unique([month])
 }
+
+// =============================================================================
+// SAAS SUBSCRIPTIONS — Tracks recurring dev/ops subscriptions with expected
+// vs. actual cost, billing cycle, next billing date, and allocation across repos.
+// Sits alongside the Gmail-scanned Expense records for budget tracking.
+// =============================================================================
+
+model SaaSSubscription {
+  id              String    @id @default(uuid())
+
+  // Identity
+  name            String    // "Vercel Pro" | "Neon Scale" | "Supabase Pro" | "GitHub Teams"
+  vendor          String    // "vercel" | "neon" | "supabase" | "github" | "anthropic" | "microsoft-365"
+  service         String?   // Specific plan or service tier: "Pro", "Scale", "Teams"
+
+  // Billing
+  billingCycle    String    @default("monthly") @map("billing_cycle") // "monthly" | "annual" | "usage"
+  expectedMonthly Decimal   @map("expected_monthly") @db.Decimal(10, 2)  // Expected monthly charge (for annual: annual/12)
+  annualTotal     Decimal?  @map("annual_total") @db.Decimal(10, 2)   // Total annual cost if billed annually
+  nextBillingDate DateTime? @map("next_billing_date")
+
+  // Budget
+  monthlyBudget   Decimal?  @map("monthly_budget") @db.Decimal(10, 2) // Approved monthly budget cap
+
+  // Cost allocation across repos (JSON: { "steampunk-strategy": 0.25, "steampunk-studiolo": 0.25, ... })
+  repoAllocation  String?   @map("repo_allocation")
+
+  // Status
+  active          Boolean   @default(true)
+  notes           String?   // e.g., "Shared across 5 repos — Vercel team plan"
+
+  createdAt       DateTime  @default(now()) @map("created_at")
+  updatedAt       DateTime  @updatedAt @map("updated_at")
+
+  @@map("saas_subscriptions")
+  @@unique([vendor, name])
+  @@index([vendor])
+  @@index([active])
+  @@index([nextBillingDate])
+}
