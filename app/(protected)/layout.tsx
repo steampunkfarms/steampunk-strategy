@@ -21,6 +21,7 @@ import {
   LogOut,
   ChevronRight,
   Gauge,
+  Server,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
@@ -37,6 +38,7 @@ const navigation = [
     items: [
       { name: 'Expenses', href: '/expenses', icon: Receipt },
       { name: 'Cost Centers', href: '/cost-centers', icon: CircleDollarSign },
+      { name: 'Dev Costs', href: '/dev-costs', icon: Server },
       { name: 'Documents', href: '/documents', icon: FileText },
       { name: 'Vendors', href: '/vendors', icon: Building2 },
     ],
