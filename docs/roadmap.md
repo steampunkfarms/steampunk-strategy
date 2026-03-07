@@ -97,7 +97,8 @@ _(none)_
 **Three layers:**
 
 - [x] (BI-0) Foundation: shared chart library, /intelligence route scaffold, cross-site utils, intelligence cache — see `docs/handoffs/20260307-bi-platform-foundation.md`
-- [ ] (BI-1) Layer 1 — Operational BI: expense deep-dives by program/vendor/COA/season, burn rate, budget vs actual, vendor intelligence
+- [x] (BI-1) Layer 1 — Operational BI: expense deep-dives by program/vendor/COA/season, burn rate, budget vs actual, vendor intelligence — see `docs/handoffs/20260307-bi-operational-layer1.md`
+  - 🤖 **2026-03-07:** Built full Operational BI tab with 9 aggregation functions, 8 chart views (program spend, functional class, monthly trend, budget vs actual, vendor ranking, seasonality, price trends), fiscal year selector, and KPI cards — all using BI-0 shared chart library. (task completed)
 - [ ] (BI-2) Layer 2 — Analytical BI: unified P&L (donations + commerce + grants + expenses), program ROI, donor health dashboard, social temperature correlation, acquisition channel heatmap
 - [ ] (BI-3) Layer 3 — Strategic Intelligence Engine: AI insight generator, idea incubator, predictive forecasting, scenario modeling, board/grant PDF packs
 
