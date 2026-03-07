@@ -22,6 +22,30 @@ Import all FB export data into structured Prisma models, calculate temperature s
 - Sentiment analysis (warmthSignals and sentiment fields exist but are not AI-scored yet)
 - Automated cron integration with social harvester (future work)
 
+## Family Planning Protocol Gate
+
+**Major Initiative Criteria Screen:**
+- Affects 2+ sites? NO — Postmaster only (Studiolo documented as future, not touched)
+- Changes core data flow or auth? NO — new tables only, no existing model changes beyond one relation field
+- Impacts donor experience or compliance? NO — admin-only, no public-facing changes
+- Estimated effort > 8 handoffs? NO — single handoff
+
+**Verdict:** NOT a Major Initiative. Standard Tier 3 execution (CChat-planned, CC-executed).
+
+## Risk & Reversibility
+
+**Reversibility Score: 9/10**
+- All changes are new Prisma models (no existing table modifications beyond one `socialContacts` relation on DonorProfile)
+- Rollback: `prisma db push` with models removed, or drop tables directly
+- New files only (scripts, lib, API routes, admin page) — delete to revert
+- No existing functionality modified or broken
+
+**Risk Level: LOW**
+- New tables only, additive schema change
+- No authentication changes
+- No public-facing impact
+- Import script is idempotent (upserts with dedup)
+
 ## Cross-Site Impact Checklist
 
 Repos touched:
@@ -124,3 +148,69 @@ Studiolo's donor card will show a color-coded temperature badge. This is a futur
 12. `docs/handoffs/_working/20260307-social-intelligence-platform-working-spec.md` — This file
 13. `docs/handoffs/20260307-social-intelligence-platform.md` — Handoff spec
 14. `docs/roadmap-archive.md` — Completion entry
+
+## Structured Debrief
+
+**Handoff ID:** `20260307-social-intelligence-platform`
+**Tier:** 3 (CChat-planned, CC-executed)
+**Date:** 2026-03-07
+**Status:** COMPLETE
+
+### Claim → Evidence Table
+
+| Claim | Evidence |
+|-------|----------|
+| 7 Prisma models created | `prisma/schema.prisma` — SocialContact, SocialComment, SocialReaction, SocialConversation, SocialConversationParticipant, SocialMessage, SocialTemperatureLog |
+| DonorProfile relation added | `socialContacts SocialContact[]` field in existing DonorProfile model |
+| Schema validates | `npx prisma validate` → "The schema at prisma/schema.prisma is valid" |
+| Import script exists with all flags | `scripts/import-facebook-export.mjs` — --dry-run, --comments, --reactions, --messages, --followers, --all |
+| Mojibake decoding works | `decodeFBText()` function — latin1 → utf8 conversion |
+| Dedup via upsert | `findOrCreateContact()` with platform + normalizedName unique constraint |
+| Dual reaction format support | `importReactions()` handles both `data[].reaction` and `label_values` formats |
+| Temperature engine exists | `lib/social-intelligence/temperature-engine.ts` — 4-component weighted scoring |
+| Temperature labels correct | cold (0-15), cool (16-35), warm (36-55), hot (56-80), champion (81-100) |
+| SocialTemperatureLog records created | `recalculateTemperatures()` creates log entries on score changes |
+| Donor matcher exists | `lib/social-intelligence/donor-matcher.ts` — exact + fuzzy Levenshtein matching |
+| 5 API endpoints exist | recalculate-temperature, unmatched-contacts, link-contact, stats, contacts |
+| Admin page scaffolded | `app/(protected)/command-center/social-intelligence/page.tsx` |
+| Sidebar nav added | `components/Sidebar.tsx` — Thermometer icon + Social Intelligence link |
+| tsc --noEmit passes | Zero errors in steampunk-postmaster |
+| Verification passes | `verify-handoff.mjs` — all hard checks pass |
+
+### Repos Modified
+
+| Repo | Files Modified |
+|------|---------------|
+| steampunk-postmaster | 11 files (1 modified, 10 new) |
+| steampunk-strategy | 3 files (1 modified, 2 new) |
+| **Total** | **14 files** |
+
+### Sanity Deltas Applied
+
+1. **Reactions format divergence**: CChat expected single format. Actual export has TWO formats. Parser handles both — no spec change needed, additive handling.
+2. **Conversation count**: CChat estimated 190+, actual Export 2 has 106 inbox + filtered_threads (skipped as low-signal). No impact on implementation.
+3. **Follower count**: CChat said 237 (Export 1), actual Export 2 has ~2,856. No impact on implementation.
+4. **Scripts directory**: Created `scripts/` in postmaster (didn't exist). Minimal deviation.
+
+### Deferred Items (Documented, Not Implemented)
+
+- Studiolo temperature sync (schema fields ready, sync not built)
+- Instagram export support (schema is platform-agnostic, no IG data yet)
+- AI sentiment scoring for comments/messages (fields exist, scoring not implemented)
+- Social harvester cron integration (future: feed new engagement events)
+- Engagement velocity analytics
+- Content affinity analysis
+- Seasonal pattern detection
+
+### Protocol Compliance
+
+- [x] Working spec created
+- [x] Handoff spec with acceptance criteria
+- [x] Strategy Session Template answers
+- [x] Cross-Site Impact Checklist
+- [x] Family Planning Protocol gate (NOT a Major Initiative)
+- [x] Risk & Reversibility (9/10, LOW risk)
+- [x] Verification script run and passing
+- [x] tsc --noEmit clean in target repo
+- [x] Roadmap archive updated
+- [x] Structured debrief produced
