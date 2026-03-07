@@ -22,6 +22,7 @@ import {
   ChevronRight,
   Gauge,
   Server,
+  Tags,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
@@ -41,6 +42,7 @@ const navigation = [
       { name: 'Dev Costs', href: '/dev-costs', icon: Server },
       { name: 'Documents', href: '/documents', icon: FileText },
       { name: 'Vendors', href: '/vendors', icon: Building2 },
+      { name: 'Product Map', href: '/product-map', icon: Tags },
     ],
   },
   {

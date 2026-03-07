@@ -112,6 +112,10 @@ export default function DocumentUploader({ loadDocumentId, onComplete }: Uploade
   const [programs, setPrograms] = useState<Array<{ id: string; name: string; slug: string }>>([]);
   const [expandedLineItem, setExpandedLineItem] = useState<number | null>(null);
 
+  // Auto-suggest from ProductSpeciesMap
+  // see docs/handoffs/_working/20260307-product-species-map-learning-working-spec.md
+  const [suggestions, setSuggestions] = useState<Record<number, { species: string[]; programId: string; programName: string; notes: string | null; useCount: number } | null>>({});
+
   // Batch upload
   const [batchItems, setBatchItems] = useState<BatchItem[]>([]);
 
@@ -134,6 +138,16 @@ export default function DocumentUploader({ loadDocumentId, onComplete }: Uploade
     { id: 'dogs', label: 'Dogs', emoji: '🐶' },
     { id: 'general', label: 'General/Ops', emoji: '🏠' },
   ];
+
+  const applySuggestion = useCallback((itemIndex: number) => {
+    const suggestion = suggestions[itemIndex];
+    if (!suggestion) return;
+    setLineItemTags(prev => ({ ...prev, [itemIndex]: suggestion.species }));
+    setLineItemPrograms(prev => ({ ...prev, [itemIndex]: suggestion.programId }));
+    if (suggestion.notes && !lineItemNotes[itemIndex]) {
+      setLineItemNotes(prev => ({ ...prev, [itemIndex]: suggestion.notes! }));
+    }
+  }, [suggestions, lineItemNotes]);
 
   const toggleSpecies = useCallback((itemIndex: number, speciesId: string) => {
     setLineItemTags(prev => {
@@ -163,6 +177,7 @@ export default function DocumentUploader({ loadDocumentId, onComplete }: Uploade
     setLineItemNotes({});
     setLineItemPrograms({});
     setExpandedLineItem(null);
+    setSuggestions({});
     setExistingTransactionId(null);
     setBatchItems([]);
     onComplete?.();
@@ -175,6 +190,28 @@ export default function DocumentUploader({ loadDocumentId, onComplete }: Uploade
       .then(setPrograms)
       .catch(() => {});
   }, []);
+
+  // Fetch auto-suggest when a line item is expanded
+  useEffect(() => {
+    if (expandedLineItem === null || !parseResult?.extractedData) return;
+    const idx = expandedLineItem;
+    if (suggestions[idx] !== undefined) return; // already fetched
+
+    const desc = parseResult.extractedData.lineItems?.[idx]?.description;
+    if (!desc) return;
+
+    fetch(`/api/product-species-map/suggest?q=${encodeURIComponent(desc)}`)
+      .then(r => r.ok ? r.json() : [])
+      .then((results: Array<{ species: string[]; programId: string; program: { name: string }; notes: string | null; useCount: number }>) => {
+        if (results.length > 0) {
+          const best = results[0];
+          setSuggestions(prev => ({ ...prev, [idx]: { species: best.species, programId: best.programId, programName: best.program.name, notes: best.notes, useCount: best.useCount } }));
+        } else {
+          setSuggestions(prev => ({ ...prev, [idx]: null }));
+        }
+      })
+      .catch(() => setSuggestions(prev => ({ ...prev, [idx]: null })));
+  }, [expandedLineItem, parseResult?.extractedData, suggestions]);
 
   // Load an existing document for remediation
   useEffect(() => {
@@ -927,6 +964,22 @@ export default function DocumentUploader({ loadDocumentId, onComplete }: Uploade
                                 {/* Species tags + context (expanded) */}
                                 {isExpense && isExpanded && (
                                   <div className="px-3 pb-2 pt-0.5 space-y-1.5">
+                                    {/* Auto-suggest banner from ProductSpeciesMap */}
+                                    {suggestions[i] && !(lineItemTags[i]?.length) && (
+                                      <div className="flex items-center gap-2 px-2 py-1 rounded bg-tardis-dim/30 border border-tardis-glow/20 text-[10px]">
+                                        <span className="text-tardis-light">
+                                          Suggested: {suggestions[i]!.species.join(', ')} ({suggestions[i]!.programName})
+                                          {suggestions[i]!.notes && <span className="text-slate-500 ml-1">— {suggestions[i]!.notes}</span>}
+                                        </span>
+                                        <button
+                                          type="button"
+                                          onClick={() => applySuggestion(i)}
+                                          className="ml-auto px-2 py-0.5 rounded bg-tardis-default/50 border border-tardis-glow/30 text-tardis-light hover:bg-tardis-default/70 transition-colors"
+                                        >
+                                          Apply
+                                        </button>
+                                      </div>
+                                    )}
                                     <div className="flex flex-wrap gap-1">
                                       {SPECIES_OPTIONS.map(sp => (
                                         <button

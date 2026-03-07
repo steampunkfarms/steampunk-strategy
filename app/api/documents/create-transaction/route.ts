@@ -4,6 +4,7 @@ import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { matchVendorByName } from '@/lib/vendor-match';
 import { matchItemSlug } from '@/lib/item-match';
+import { synthesizeNotes } from '@/lib/synthesize-notes';
 import type { ExtractedReceipt } from '@/lib/receipt-parser';
 
 // Vendor type → expense category slug mapping
@@ -208,7 +209,70 @@ export async function POST(request: Request) {
       });
     }
 
-    // --- Journal note for multi-period income breakdown ---
+    // --- ProductSpeciesMap learning loop (upsert from user tags) ---
+    // see docs/handoffs/_working/20260307-product-species-map-learning-working-spec.md
+    if (overrides?.lineItemTags && extracted.lineItems?.length) {
+      const fallbackProgram = await prisma.program.findUnique({
+        where: { slug: 'sanctuary-operations' },
+      });
+
+      for (const [indexStr, species] of Object.entries(overrides.lineItemTags as Record<string, string[]>)) {
+        const idx = parseInt(indexStr, 10);
+        const lineItem = extracted.lineItems[idx];
+        if (!lineItem?.description || !species?.length) continue;
+
+        const productPattern = lineItem.description.trim();
+        if (!productPattern) continue;
+
+        const programIdOverride = (overrides.lineItemPrograms as Record<string, string>)?.[indexStr];
+        const programId = programIdOverride || fallbackProgram?.id;
+        if (!programId) continue;
+
+        const newNote = (overrides.lineItemNotes as Record<string, string>)?.[indexStr] || null;
+
+        try {
+          const existing = await prisma.productSpeciesMap.findUnique({
+            where: { productPattern },
+          });
+
+          if (existing) {
+            const existingSpecies: string[] = JSON.parse(existing.species);
+            const merged = [...new Set([...existingSpecies, ...species])];
+            const mergedNotes = (newNote && existing.notes && newNote !== existing.notes)
+              ? await synthesizeNotes(existing.notes, newNote)
+              : newNote || existing.notes;
+
+            await prisma.productSpeciesMap.update({
+              where: { productPattern },
+              data: {
+                species: JSON.stringify(merged),
+                ...(programIdOverride ? { programId: programIdOverride } : {}),
+                notes: mergedNotes,
+                useCount: { increment: 1 },
+                lastUsed: new Date(),
+              },
+            });
+          } else {
+            await prisma.productSpeciesMap.create({
+              data: {
+                productPattern,
+                species: JSON.stringify(species),
+                programId,
+                vendorId: vendorId || null,
+                notes: newNote,
+                useCount: 1,
+                lastUsed: new Date(),
+                createdBy: 'document-uploader',
+              },
+            });
+          }
+        } catch (err) {
+          console.error(`[ProductSpeciesMap] Error upserting "${productPattern}":`, err);
+        }
+      }
+    }
+
+        // --- Journal note for multi-period income breakdown ---
     if (isIncome && extracted.lineItems?.length > 0) {
       const periodLines = extracted.lineItems
         .filter(li => li.periodStart)

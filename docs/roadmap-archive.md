@@ -2,6 +2,10 @@
 
 > Completed and killed items. See [roadmap.md](roadmap.md) for active work.
 
+## Completed
+
+- **2026-03-07:** (20260307-product-species-map-learning) ProductSpeciesMap learning knowledge base + auto-suggest. Backfill script, CRUD API, suggest endpoint, document-uploader auto-suggest UI, create-transaction learning loop, Claude Haiku note synthesis, admin view page at /product-map. 8 files created, 3 modified.
+- **2026-03-07:** (20260307-cogworks-live-social-pull) Daily FB/IG post pull into Cogworks as drafts. Rescue Barn cron endpoint + Orchestrator job registration.
 
 ## ❌ Killed
 
