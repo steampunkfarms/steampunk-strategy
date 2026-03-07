@@ -265,7 +265,7 @@ A mapping layer that learns which products serve which species. Sits between Cla
 3. ~~Product-to-species mapping table + auto-suggest on repeat products~~ COMPLETED 2026-03-07 — see `docs/handoffs/20260307-product-species-map-learning.md`
 4. Design COA hierarchy + Program model (Prisma schema changes)
 5. ~~Build auto-allocation rules engine (consuming species/program tags from step 2-3)~~ COMPLETED 2026-03-07 — see `docs/handoffs/20260307-eip-auto-allocation.md`
-6. Impact metrics aggregation + API
+6. ~~Impact metrics aggregation + API~~ COMPLETED 2026-03-07 — see `docs/handoffs/20260307-eip-impact-api-enrichment.md`
 7. Cross-site integration handoffs (one per consuming site)
 
 ---

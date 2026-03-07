@@ -1,21 +1,28 @@
+// GET /api/impact/[programSlug]?period=2026-Q1&scope=public
+// Dual auth: session (TARDIS users) OR Bearer INTERNAL_SECRET (cross-site consumers like Rescue Barn)
+// see docs/handoffs/_working/20260307-eip-impact-api-enrichment-working-spec.md
+export const dynamic = 'force-dynamic';
+
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth';
-
-export const dynamic = 'force-dynamic';
+import { safeCompare } from '@/lib/safe-compare';
 
 /**
- * GET /api/impact/[programSlug]?period=2026-Q1&donorId=...
+ * GET /api/impact/[programSlug]?period=2026-Q1&donorId=...&scope=public
  *
  * Aggregates expense data for a program over a period.
- * Returns total spend, transaction count, category breakdown,
- * and optional per-donor attribution (proportional to giving pool).
+ * Returns total spend, transaction count, category/vendor/species breakdown,
+ * cost tracker items, and optional per-donor attribution.
  *
  * Period formats:
  *   2026-Q1 → Jan–Mar 2026
  *   2026-01 → January 2026
  *   2026    → full year 2026
+ *
+ * Auth: session OR Bearer INTERNAL_SECRET
+ * scope=public strips sensitive fields (transaction IDs, vendor slugs, notes)
  */
 
 function parsePeriod(period: string): { start: Date; end: Date; label: string } {
@@ -54,17 +61,46 @@ function parsePeriod(period: string): { start: Date; end: Date; label: string } 
   return { start, end, label: `Q${q + 1} ${now.getFullYear()}` };
 }
 
+async function isAuthorized(request: NextRequest): Promise<boolean> {
+  // Check session first (TARDIS internal users)
+  const session = await getServerSession(authOptions);
+  if (session) return true;
+
+  // Check Bearer token (cross-site consumers)
+  const secret = process.env.INTERNAL_SECRET;
+  if (!secret) return false;
+  const authHeader = request.headers.get('authorization');
+  const token = authHeader?.replace('Bearer ', '');
+  if (token && safeCompare(token, secret)) return true;
+
+  return false;
+}
+
+function setCorsHeaders(res: NextResponse, origin: string | null) {
+  if (origin && (
+    origin.includes('steampunkfarms.org') ||
+    origin.includes('steampunkrescuebarn') ||
+    origin.includes('localhost')
+  )) {
+    res.headers.set('Access-Control-Allow-Origin', origin);
+    res.headers.set('Access-Control-Allow-Methods', 'GET, OPTIONS');
+    res.headers.set('Access-Control-Allow-Headers', 'Authorization, Content-Type');
+  }
+}
+
 export async function GET(
   request: NextRequest,
   { params }: { params: Promise<{ programSlug: string }> }
 ) {
-  const session = await getServerSession(authOptions);
-  if (!session) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+  if (!(await isAuthorized(request))) {
+    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+  }
 
   const { programSlug } = await params;
   const { searchParams } = new URL(request.url);
   const period = searchParams.get('period') ?? '';
   const donorId = searchParams.get('donorId');
+  const isPublicScope = searchParams.get('scope') === 'public';
 
   const program = await prisma.program.findUnique({
     where: { slug: programSlug },
@@ -82,7 +118,7 @@ export async function GET(
     },
     include: {
       category: { select: { name: true, slug: true, coaCode: true } },
-      vendor: { select: { name: true, slug: true } },
+      vendor: { select: { id: true, name: true, slug: true } },
     },
     orderBy: { date: 'desc' },
   });
@@ -112,24 +148,102 @@ export async function GET(
     byVendor[key].count++;
   }
 
-  // Per-donor attribution (if donorId provided)
-  // TODO: connect to Studiolo donor giving pool when cross-site API is live
-  // For now, return placeholder attribution structure
+  // Species enrichment from ProductSpeciesMap
+  // see docs/handoffs/_working/20260307-eip-impact-api-enrichment-working-spec.md
+  const speciesMaps = await prisma.productSpeciesMap.findMany({
+    where: { programId: program.id },
+    select: { productPattern: true, species: true, notes: true, useCount: true },
+    orderBy: { useCount: 'desc' },
+  });
+
+  const speciesSet = new Set<string>();
+  const productMappings: Array<{ product: string; species: string[]; notes: string | null }> = [];
+  for (const m of speciesMaps) {
+    const speciesArr: string[] = JSON.parse(m.species);
+    for (const s of speciesArr) speciesSet.add(s);
+    productMappings.push({
+      product: m.productPattern,
+      species: speciesArr,
+      notes: m.notes,
+    });
+  }
+
+  // CostTracker items for vendors in this program's transactions
+  const vendorIds = [...new Set(transactions.map(t => t.vendor?.id).filter(Boolean))] as string[];
+  let costTrackerSummary: Array<{
+    item: string;
+    itemGroup: string | null;
+    vendorName: string;
+    avgUnitCost: number;
+    totalQuantity: number;
+    unit: string;
+    entries: number;
+  }> = [];
+
+  if (vendorIds.length > 0) {
+    const costEntries = await prisma.costTracker.findMany({
+      where: {
+        vendorId: { in: vendorIds },
+        recordedDate: { gte: start, lte: end },
+      },
+      include: { vendor: { select: { name: true } } },
+      orderBy: { recordedDate: 'desc' },
+    });
+
+    const itemMap: Record<string, {
+      vendorName: string;
+      itemGroup: string | null;
+      unit: string;
+      totalCost: number;
+      totalQty: number;
+      entries: number;
+    }> = {};
+    for (const e of costEntries) {
+      const key = `${e.vendorId}:${e.item}`;
+      if (!itemMap[key]) {
+        itemMap[key] = {
+          vendorName: e.vendor.name,
+          itemGroup: e.itemGroup,
+          unit: e.unit,
+          totalCost: 0,
+          totalQty: 0,
+          entries: 0,
+        };
+      }
+      itemMap[key].totalCost += Number(e.unitCost) * Number(e.quantity ?? 1);
+      itemMap[key].totalQty += Number(e.quantity ?? 1);
+      itemMap[key].entries++;
+    }
+
+    costTrackerSummary = Object.entries(itemMap).map(([key, v]) => ({
+      item: key.split(':')[1],
+      itemGroup: v.itemGroup,
+      vendorName: v.vendorName,
+      avgUnitCost: v.entries > 0 ? Math.round((v.totalCost / v.totalQty) * 100) / 100 : 0,
+      totalQuantity: Math.round(v.totalQty * 100) / 100,
+      unit: v.unit,
+      entries: v.entries,
+    })).sort((a, b) => (b.avgUnitCost * b.totalQuantity) - (a.avgUnitCost * a.totalQuantity));
+  }
+
+  // Per-donor attribution placeholder
   let donorAttribution: { donorId: string; poolTotal: number; donorGiving: number; attributedAmount: number } | null = null;
-  if (donorId) {
+  if (donorId && !isPublicScope) {
     donorAttribution = {
       donorId,
-      poolTotal: 0,       // will be populated when Studiolo impact API connects
+      poolTotal: 0,
       donorGiving: 0,
       attributedAmount: 0,
     };
   }
 
-  return NextResponse.json({
+  // Build response — public scope strips sensitive fields
+  const response: Record<string, unknown> = {
     program: {
       id: program.id,
       name: program.name,
       slug: program.slug,
+      description: program.description,
       species: program.species ? JSON.parse(program.species) : [],
     },
     period: { label, start: start.toISOString(), end: end.toISOString() },
@@ -138,17 +252,51 @@ export async function GET(
       transactionCount,
     },
     breakdown: {
-      byCategory: Object.values(byCategory).sort((a, b) => b.amount - a.amount),
-      byVendor: Object.values(byVendor).sort((a, b) => b.amount - a.amount),
+      byCategory: Object.values(byCategory)
+        .sort((a, b) => b.amount - a.amount)
+        .map(c => ({
+          name: c.name,
+          amount: Math.round(c.amount * 100) / 100,
+          count: c.count,
+        })),
+      byVendor: Object.values(byVendor)
+        .sort((a, b) => b.amount - a.amount)
+        .map(v => ({
+          name: v.name,
+          amount: Math.round(v.amount * 100) / 100,
+          count: v.count,
+        })),
     },
-    recentTransactions: transactions.slice(0, 10).map(t => ({
+    species: {
+      list: [...speciesSet].sort(),
+      productMappings: isPublicScope
+        ? productMappings.map(m => ({ product: m.product, species: m.species }))
+        : productMappings,
+    },
+    costTracker: costTrackerSummary,
+  };
+
+  // Non-public: include recent transactions and donor attribution
+  if (!isPublicScope) {
+    response.recentTransactions = transactions.slice(0, 10).map(t => ({
       id: t.id,
       date: t.date.toISOString().slice(0, 10),
       description: t.description,
       amount: Number(t.amount),
       vendor: t.vendor?.name ?? null,
       category: t.category?.name ?? null,
-    })),
-    donorAttribution,
-  });
+    }));
+    response.donorAttribution = donorAttribution;
+  }
+
+  const res = NextResponse.json(response);
+  setCorsHeaders(res, request.headers.get('origin'));
+  return res;
+}
+
+// CORS preflight
+export async function OPTIONS(request: NextRequest) {
+  const res = new NextResponse(null, { status: 204 });
+  setCorsHeaders(res, request.headers.get('origin'));
+  return res;
 }
