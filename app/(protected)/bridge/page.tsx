@@ -14,15 +14,27 @@ import {
   Database,
   Wheat,
   Heart,
+  BookOpen,
+  Plus,
 } from 'lucide-react';
 import { getBridgeStats, getComplianceTimeline, getTransparencySummary } from '@/lib/queries';
+import { prisma } from '@/lib/prisma';
 import { formatCurrency, formatDate } from '@/lib/utils';
 
 export default async function BridgeDashboard() {
-  const [stats, compliance, transparency] = await Promise.all([
+  const [stats, compliance, transparency, urgentLogEntries] = await Promise.all([
     getBridgeStats(),
     getComplianceTimeline(),
     getTransparencySummary(),
+    prisma.captainsLog.findMany({
+      where: {
+        status: { in: ['captured', 'in_progress', 'blocked'] },
+      },
+      orderBy: [
+        { createdAt: 'desc' },
+      ],
+      take: 5,
+    }),
   ]);
 
   const pendingStatus = stats.pendingExpenses === 0 ? 'green' : stats.pendingExpenses > 10 ? 'red' : 'amber';
@@ -173,6 +185,65 @@ export default async function BridgeDashboard() {
             ))}
           </div>
         </div>
+      </div>
+
+      {/* Captain's Log Widget */}
+      <div className="console-card">
+        <div className="px-5 py-4 border-b border-console-border flex items-center justify-between">
+          <h2 className="text-sm font-semibold text-slate-200 flex items-center gap-2">
+            <BookOpen className="w-4 h-4 text-brass-gold" />
+            Captain&apos;s Log
+          </h2>
+          <div className="flex items-center gap-2">
+            <Link href="/captains-log/new" className="text-xs text-tardis-glow hover:underline flex items-center gap-1">
+              <Plus className="w-3 h-3" /> Quick capture
+            </Link>
+            <span className="text-slate-700">·</span>
+            <Link href="/captains-log" className="text-xs text-tardis-glow hover:underline">
+              View all →
+            </Link>
+          </div>
+        </div>
+        {urgentLogEntries.length > 0 ? (
+          <div className="divide-y divide-console-border">
+            {urgentLogEntries.map((entry) => (
+              <Link
+                key={entry.id}
+                href={`/captains-log/${entry.id}`}
+                className="px-5 py-3 flex items-center gap-3 hover:bg-console-hover transition-colors"
+              >
+                <div className={`gauge-dot gauge-dot-${
+                  entry.priority === 'critical' ? 'red' :
+                  entry.priority === 'high' ? 'amber' :
+                  entry.priority === 'normal' ? 'green' : 'blue'
+                } flex-shrink-0`} />
+                <div className="flex-1 min-w-0">
+                  <p className="text-sm text-slate-200 truncate">{entry.title}</p>
+                  <p className="text-[10px] text-slate-500">{entry.source.replace(/_/g, ' ')}</p>
+                </div>
+                {entry.assignee && (
+                  <span className="text-[10px] text-slate-500">{entry.assignee}</span>
+                )}
+                {entry.dueDate && (
+                  <span className={`text-[10px] ${new Date(entry.dueDate) < new Date() ? 'text-gauge-red' : 'text-slate-500'}`}>
+                    {formatDate(entry.dueDate)}
+                  </span>
+                )}
+                <span className={`badge text-[10px] ${
+                  entry.status === 'blocked' ? 'badge-red' :
+                  entry.status === 'in_progress' ? 'badge-blue' : 'badge-amber'
+                }`}>
+                  {entry.status.replace(/_/g, ' ')}
+                </span>
+              </Link>
+            ))}
+          </div>
+        ) : (
+          <div className="p-5 text-center">
+            <BookOpen className="w-8 h-8 text-slate-600 mx-auto mb-2" />
+            <p className="text-sm text-slate-400">All clear, Captain.</p>
+          </div>
+        )}
       </div>
 
       {/* Recent Transactions */}

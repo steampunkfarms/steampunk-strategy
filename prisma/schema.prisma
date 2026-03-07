@@ -649,6 +649,42 @@ model JournalNote {
 }
 
 // =============================================================================
+// CAPTAIN'S LOG — General-purpose executive action log with AI classification
+// Fills the gap between ComplianceTask (regulatory only), ActionItem (board only),
+// and JournalNote (no task tracking). Captures tasks from strategy sessions,
+// advisor conversations, audit notes, grant prep, etc.
+// =============================================================================
+
+model CaptainsLog {
+  id              String    @id @default(uuid())
+  createdAt       DateTime  @default(now()) @map("created_at")
+  updatedAt       DateTime  @updatedAt @map("updated_at")
+
+  title           String
+  body            String?   // markdown-formatted context/notes
+  source          String    @default("manual") // manual | strategy_session | board_meeting | advisor | audit | ai_suggestion
+  sourceRef       String?   @map("source_ref") // optional link to session ID, meeting ID, etc.
+
+  status          String    @default("captured") // captured | in_progress | blocked | done | deferred
+  priority        String    @default("normal") // critical | high | normal | low
+  dueDate         DateTime? @map("due_date")
+  assignee        String?   // fred | krystal | tierra | stazia | cc
+
+  tags            Json      @default("[]") // string[] — AI-classified + manually editable
+  aiClassification Json?    @map("ai_classification") // { domain: string[], actionType: string[], urgency: string[], prepCategory: string[] }
+
+  relatedEntity   String?   @map("related_entity") // polymorphic: 'compliance:uuid' | 'vendor:uuid' | 'transaction:uuid' | 'meeting:uuid'
+  completedAt     DateTime? @map("completed_at")
+  completionNote  String?   @map("completion_note")
+
+  @@map("captains_log")
+  @@index([status])
+  @@index([priority])
+  @@index([dueDate])
+  @@index([assignee])
+}
+
+// =============================================================================
 // COST TRACKING — Unit price history for ANY tracked item
 // Covers soap COGS, hay, grain, specialty feeds, supplements — anything
 // where you want to detect price creep or negotiate better.

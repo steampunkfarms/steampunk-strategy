@@ -115,6 +115,11 @@ _(none)_
 **Repos:** steampunk-strategy (primary) + Studiolo/Postmaster/Cleanpunk API reads (BI-2+).
 **Cross-site auth:** INTERNAL_SECRET header pattern.
 
+### Captain's Log — Executive Action Log
+
+- [x] (CLOG-1) Captain's Log — Executive Action Log with AI Classification — see `docs/handoffs/20260307-captains-log.md`
+  - 🤖 **2026-03-07:** Built general-purpose action-item capture system with Claude AI classification (domain/actionType/urgency/prepCategory), full CRUD APIs, summary gauges, filter bar, new entry form with AI preview, detail/edit page, Bridge dashboard widget (top 5 urgent), sidebar nav, and board meeting prep filtered view. 10 files created/modified. (task completed)
+
 ### Studiolo Donor BI Dashboard
 
 - [x] (STUD-BI-1) Phase 1: Recharts upgrade, giving heatmap, drill-down modals, board exports — see `docs/handoffs/20260307-studiolo-donor-bi-phase1.md`

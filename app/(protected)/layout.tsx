@@ -26,6 +26,7 @@ import {
   Brain,
   TrendingUp,
   Sparkles,
+  ScrollText,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
@@ -34,6 +35,7 @@ const navigation = [
     label: 'Command',
     items: [
       { name: 'The Bridge', href: '/bridge', icon: LayoutDashboard },
+      { name: "Captain's Log", href: '/captains-log', icon: ScrollText },
       { name: 'Monitoring', href: '/monitoring', icon: Activity },
     ],
   },

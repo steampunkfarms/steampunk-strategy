@@ -4,6 +4,7 @@
 
 ## Completed
 
+- **2026-03-07:** (20260307-captains-log) CLOG-1 Captain's Log — Executive action log with AI classification, CRUD APIs, summary gauges, filter bar, new entry with AI preview, detail/edit page, Bridge widget, sidebar nav, board meeting prep view. 10 files across 1 repo.
 - **2026-03-07:** (20260307-bi-analytical-layer2) BI-2 Analytical BI — first cross-site integration. Internal API endpoints on Studiolo + Postmaster, TARDIS cross-site.ts Bearer auth fix, analytical aggregation library (5 functions), 5 chart components, analytical tab page with graceful degradation. 10 files across 3 repos.
 - **2026-03-07:** (20260307-product-species-map-learning) ProductSpeciesMap learning knowledge base + auto-suggest. Backfill script, CRUD API, suggest endpoint, document-uploader auto-suggest UI, create-transaction learning loop, Claude Haiku note synthesis, admin view page at /product-map. 8 files created, 3 modified.
 - **2026-03-07:** (20260307-cogworks-live-social-pull) Daily FB/IG post pull into Cogworks as drafts. Rescue Barn cron endpoint + Orchestrator job registration.
