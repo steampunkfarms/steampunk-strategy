@@ -14,7 +14,6 @@ import {
   Package,
   CreditCard,
   Handshake,
-  Pencil,
 } from 'lucide-react';
 import { getVendors } from '@/lib/queries';
 
@@ -131,7 +130,7 @@ function VendorCard({ vendor }: { vendor: VendorWithCounts }) {
   };
 
   return (
-    <div className="console-card p-5 panel-hover">
+    <Link href={`/vendors/${vendor.id}`} className="block console-card p-5 panel-hover transition-all hover:border-brass-muted">
       <div className="flex items-start gap-4">
         <div className="w-10 h-10 rounded-lg bg-console flex items-center justify-center border border-console-border flex-shrink-0">
           <Building2 className="w-5 h-5 text-brass-gold" />
@@ -145,9 +144,9 @@ function VendorCard({ vendor }: { vendor: VendorWithCounts }) {
                 Donor-payable
               </span>
             )}
-            <Link href={`/vendors/${vendor.id}`} className="ml-auto text-slate-500 hover:text-brass-gold transition-colors" title="Edit vendor">
-              <Pencil className="w-3.5 h-3.5" />
-            </Link>
+            <span className="ml-auto text-slate-500 hover:text-brass-gold transition-colors" title="View vendor details">
+              <ExternalLink className="w-3.5 h-3.5" />
+            </span>
           </div>
           <span className="text-xs text-tardis-glow">{typeLabels[vendor.type] ?? vendor.type}</span>
 
@@ -241,6 +240,6 @@ function VendorCard({ vendor }: { vendor: VendorWithCounts }) {
           </div>
         </div>
       </div>
-    </div>
+    </Link>
   );
 }
