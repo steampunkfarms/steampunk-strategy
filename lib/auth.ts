@@ -12,6 +12,7 @@ export const authOptions: NextAuthOptions = {
           scope:
             'openid profile email offline_access ' +
             'Mail.Read User.Read',
+          prompt: 'select_account',
         },
       },
     }),
