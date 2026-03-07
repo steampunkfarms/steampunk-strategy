@@ -9,6 +9,9 @@ import {
   AlertTriangle,
   Loader2,
   Trash2,
+  CheckSquare,
+  Square,
+  Zap,
 } from 'lucide-react';
 import { formatDate } from '@/lib/utils';
 import DocumentUploader from './document-uploader';
@@ -23,6 +26,7 @@ interface DocumentRow {
   confidence: number | null;
   uploadedAt: Date | string;
   vendor: { name: string; slug: string } | null;
+  hasTransaction?: boolean;
 }
 
 const typeLabels: Record<string, string> = {
@@ -53,6 +57,55 @@ export default function DocumentsClient({ documents }: { documents: DocumentRow[
   const [docs, setDocs] = useState(documents);
   const [selectedDocId, setSelectedDocId] = useState<string | null>(null);
   const [deletingId, setDeletingId] = useState<string | null>(null);
+  const [bulkSelected, setBulkSelected] = useState<Set<string>>(new Set());
+  const [bulkCreating, setBulkCreating] = useState(false);
+  const [bulkResult, setBulkResult] = useState<{ created: number; skipped: number; errors: Array<{ documentId: string; error: string }> } | null>(null);
+
+  // Documents eligible for bulk conversion: parsed, no linked transaction
+  const eligibleForBulk = docs.filter(d => d.parseStatus === 'complete' && !d.hasTransaction);
+
+  const toggleBulkSelect = (docId: string) => {
+    setBulkSelected(prev => {
+      const next = new Set(prev);
+      if (next.has(docId)) next.delete(docId);
+      else next.add(docId);
+      return next;
+    });
+  };
+
+  const toggleSelectAll = () => {
+    if (bulkSelected.size === eligibleForBulk.length) {
+      setBulkSelected(new Set());
+    } else {
+      setBulkSelected(new Set(eligibleForBulk.map(d => d.id)));
+    }
+  };
+
+  const handleBulkCreate = useCallback(async () => {
+    if (bulkSelected.size === 0) return;
+    setBulkCreating(true);
+    setBulkResult(null);
+    try {
+      const res = await fetch('/api/documents/bulk-create-transactions', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ documentIds: Array.from(bulkSelected) }),
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        alert(data.error || 'Bulk create failed');
+        return;
+      }
+      setBulkResult(data);
+      // Mark converted docs as having transactions
+      setDocs(prev => prev.map(d => bulkSelected.has(d.id) ? { ...d, hasTransaction: true } : d));
+      setBulkSelected(new Set());
+    } catch {
+      alert('Network error — bulk create failed');
+    } finally {
+      setBulkCreating(false);
+    }
+  }, [bulkSelected]);
 
   const handleRowClick = (doc: DocumentRow) => {
     if (doc.parseStatus === 'processing') return;
@@ -92,12 +145,50 @@ export default function DocumentsClient({ documents }: { documents: DocumentRow[
         onComplete={() => setSelectedDocId(null)}
       />
 
+      {/* Bulk action bar */}
+      {eligibleForBulk.length > 0 && (
+        <div className="console-card p-3 flex items-center gap-3 flex-wrap">
+          <button
+            type="button"
+            onClick={toggleSelectAll}
+            className="flex items-center gap-1.5 text-xs text-slate-400 hover:text-brass-warm transition-colors"
+          >
+            {bulkSelected.size === eligibleForBulk.length
+              ? <CheckSquare className="w-4 h-4" />
+              : <Square className="w-4 h-4" />
+            }
+            {bulkSelected.size === eligibleForBulk.length ? 'Deselect All' : `Select All (${eligibleForBulk.length})`}
+          </button>
+          {bulkSelected.size > 0 && (
+            <button
+              type="button"
+              onClick={handleBulkCreate}
+              disabled={bulkCreating}
+              className="flex items-center gap-1.5 text-xs px-3 py-1.5 rounded bg-tardis hover:bg-tardis-light text-white transition-colors disabled:opacity-50"
+            >
+              {bulkCreating
+                ? <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                : <Zap className="w-3.5 h-3.5" />
+              }
+              Create {bulkSelected.size} Transaction{bulkSelected.size !== 1 ? 's' : ''}
+            </button>
+          )}
+          {bulkResult && (
+            <span className="text-xs text-gauge-green">
+              Created {bulkResult.created}, skipped {bulkResult.skipped}
+              {bulkResult.errors.length > 0 && `, ${bulkResult.errors.length} errors`}
+            </span>
+          )}
+        </div>
+      )}
+
       {/* Document list */}
       {docs.length > 0 && (
         <div className="console-card overflow-hidden">
           <table className="w-full bridge-table">
             <thead>
               <tr>
+                <th className="w-8"></th>
                 <th>Document</th>
                 <th>Type</th>
                 <th>Vendor</th>
@@ -115,6 +206,9 @@ export default function DocumentsClient({ documents }: { documents: DocumentRow[
                 const isClickable = doc.parseStatus !== 'processing';
                 const isSelected = doc.id === selectedDocId;
 
+                const isEligible = doc.parseStatus === 'complete' && !doc.hasTransaction;
+                const isBulkChecked = bulkSelected.has(doc.id);
+
                 return (
                   <tr
                     key={doc.id}
@@ -125,6 +219,22 @@ export default function DocumentsClient({ documents }: { documents: DocumentRow[
                       transition-colors
                     `}
                   >
+                    <td>
+                      {isEligible ? (
+                        <button
+                          type="button"
+                          onClick={(e) => { e.stopPropagation(); toggleBulkSelect(doc.id); }}
+                          className="text-slate-500 hover:text-brass-warm transition-colors"
+                        >
+                          {isBulkChecked
+                            ? <CheckSquare className="w-4 h-4 text-tardis-glow" />
+                            : <Square className="w-4 h-4" />
+                          }
+                        </button>
+                      ) : doc.hasTransaction ? (
+                        <CheckCircle2 className="w-4 h-4 text-gauge-green" />
+                      ) : null}
+                    </td>
                     <td>
                       <div className="flex items-center gap-2">
                         <Icon className="w-4 h-4 text-brass-muted flex-shrink-0" />

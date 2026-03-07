@@ -275,7 +275,10 @@ export async function getDocuments(filters?: {
 
   return prisma.document.findMany({
     where,
-    include: { vendor: true },
+    include: {
+      vendor: true,
+      transactions: { select: { transactionId: true }, take: 1 },
+    },
     orderBy: { uploadedAt: 'desc' },
     take: filters?.limit ?? 50,
   });

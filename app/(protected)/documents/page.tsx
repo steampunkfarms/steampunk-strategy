@@ -57,7 +57,13 @@ export default async function DocumentsPage() {
       </div>
 
       {/* Quick Capture + clickable document table (client component) */}
-      <DocumentsClient documents={JSON.parse(JSON.stringify(documents))} />
+      <DocumentsClient documents={JSON.parse(JSON.stringify(
+        documents.map(d => ({
+          ...d,
+          hasTransaction: d.transactions.length > 0,
+          transactions: undefined,
+        }))
+      ))} />
 
       {/* Stats row */}
       {docStats.total > 0 && (
