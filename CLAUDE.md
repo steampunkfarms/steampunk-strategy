@@ -1,9 +1,16 @@
 # CLAUDE.md — Steampunk Strategy: The Bridge
 
-## Changelog (v2026.03g)
+## Changelog (v2026.03k)
+
+- 2026-03-06k: Protocol Metrics Instrumentation Phase A. Instrumented verify-handoff.mjs with inline counters (checksPassed, checksWarned, checksFailed, tscErrorCount, satelliteStale) and append-only JSONL metric emission to docs/protocol-metrics.jsonl. Created protocol-health-log.md template, protocol-health-summary.mjs CLI helper. Rewrote tardis-protocol-health-dashboard-spec.md with Phase A (file-based) / Phase B (UI) structure.
+
+- 2026-03-06j: Created GOVERNANCE.md — centralized governance charter with decision authority matrix, risk appetite statement, exception process, amendment rules, family roles, governance review cadence, and document hierarchy. Added cross-references from CLAUDE.md and CODEX.md. Added GOVERNANCE.md to satellite sync list.
+
+- 2026-03-06i: CChat protocol hardening audit. Fixed stale Copilot ref in strategy-session-template. Widened protocol sync rule to list satellite docs. Added Tier 0 Hotfix path with mandatory backfill. Added Novel Pattern trigger for Tier 3. Hardened tsc error reporting in verifier (error count + combined stdout/stderr). Added satellite doc freshness Check 9 to verifier. Split roadmap into 3 files (roadmap.md, roadmap-deferred.md, roadmap-archive.md) and updated verifier + updater script.
+
+- 2026-03-06h: Restructured to three-actor model with tiered workflows. Tier 1 (quick fixes, no ceremony), Tier 2 (standard work: Human + CC plan and execute, Codex QA audits, full protocol), Tier 3 (strategic: CChat plans, Codex audits, CC executes). CC self-enforces protocol compliance for all non-trivial work. CChat reserved for strategic/complex work only. Copilot retired and archived. Protocol sync rule reduced from three files to two (CLAUDE.md + CODEX.md).
 
 - 2026-03-06g: Added mandatory change-history-first investigation protocol for fix-propagation requests (start with git/changelogs/handoffs before targeted code sweep).
-
 - 2026-03-06f: Added Environment Constraints block to all three brain files + CODEX-PREAMBLE (Next.js 16 lint fix, mandatory tsc --noEmit in verification, auth stack map, ESLint config map, cross-repo CI checkout flag).
 - 2026-03-06e: Added completion-integrity rules (accurate file counts in debriefs, scope evidence, verifier multi-repo support). Hardened auth override to require NODE_ENV !== production.
 - 2026-03-06d: Added mandatory Operator Effort Minimization rules (no placeholders in paste-ready packages, single-artifact completeness check, fail-and-regenerate if user assembly would be required).
@@ -13,7 +20,7 @@
 - 2026-03-06: Added Strategy Session Template, Cross-Site Checklist, Debrief Script, Family Planning Protocol, and Protocol Health Dashboard seed (per operator request).
 - Previous versions tracked in git history only.
 
-Any protocol change must include a new changelog entry and version bump in ALL THREE brain files in the same change set.
+Any protocol change must include a new changelog entry and version bump in BOTH brain files in the same change set.
 
 ## Project Overview
 
@@ -24,6 +31,10 @@ Any protocol change must include a new changelog entry and version bump in ALL T
 - **Auth:** Azure AD via NextAuth (shared app registration with Studiolo + Postmaster)
 - **Database:** Neon PostgreSQL (dedicated instance, separate from Studiolo and Postmaster)
 - **Theme:** TARDIS control room — deep blues, brass instruments, temporal glows
+
+## Governance
+
+For decision authority, risk appetite, exception handling, and protocol amendment rules, see `GOVERNANCE.md` at the repo root. GOVERNANCE.md is the authoritative source for "who can authorize what." This file (CLAUDE.md) is the authoritative source for "how work gets done."
 
 ## Architecture
 
@@ -74,10 +85,10 @@ Core entities: Transaction, Document, Vendor, ExpenseCategory, DonorPaidBill, Ba
 
 | Site | Connection | Data Flow |
 |------|-----------|-----------|
-| Studiolo | Shared Azure AD, donor data sync | Donor-paid bills ↔ donor records |
+| Studiolo | Shared Azure AD, donor data sync | Donor-paid bills <-> donor records |
 | Postmaster | Shared Azure AD, animal data | `/api/public/residents` for transparency |
-| Rescue Barn | Transparency API consumer | Published financial data → The Fine Print |
-| Cleanpunk Shop | COGS tracking, sales data | Medusa inventory/orders → cost analysis |
+| Rescue Barn | Transparency API consumer | Published financial data -> The Fine Print |
+| Cleanpunk Shop | COGS tracking, sales data | Medusa inventory/orders -> cost analysis |
 
 ## Cron Jobs (6 planned)
 
@@ -118,15 +129,67 @@ A key differentiator: donors sometimes call vendors (Elston's Feed, Star Milling
 3. **Phase 3:** Bank import, Gmail receipt scanning, expense categorization
 4. **Phase 4:** Compliance automation, reminders, filing links
 5. **Phase 5:** Cross-site monitoring, Vercel API integration
-6. **Phase 6:** Transparency API → Rescue Barn integration
+6. **Phase 6:** Transparency API -> Rescue Barn integration
 7. **Phase 7:** COGS tracking for Cleanpunk, cost creep detection
 
 
 ---
 
-## Cross-Site Reference Library & Handoff System
+## Execution Model & Workflow Tiers
 
 This repo serves double duty: it's both the TARDIS codebase AND the central reference library for all 5 Steampunk Farms web properties. A consolidated Claude project space handles all planning, specs, and handoffs across the family of sites.
+
+### Workflow Tiers (How Work Gets Done)
+
+Not all work needs the same ceremony. Use the tier that matches the scope:
+
+**Tier 0 — Hotfix (production emergency, backfill required)**
+- Scope: production is broken — users can't log in, data is corrupting, pages are 500ing
+- Flow: Human + CC fix immediately -> backfill protocol artifacts after the fix is deployed
+- Protocol: fix first, then within the same session: create a retrospective handoff spec, update roadmap, run verification
+- The hotfix itself has no gate. The backfill is mandatory and must happen before the session ends.
+- Examples: auth callback broken in prod, database migration failed, critical API returning errors
+
+**Tier 1 — Quick Fix (no protocol ceremony)**
+- Scope: typo fixes, one-line config changes, minor CSS tweaks, single-file corrections
+- Flow: Human asks CC -> CC does it
+- Protocol: none required — just do the work
+- Examples: fix a broken import, update an env var, correct a typo in copy
+
+**Tier 2 — Standard Work (Human + CC, protocol required)**
+- Scope: feature implementation, bug fixes spanning multiple files, refactors, new routes, schema changes — anything beyond a quick tweak
+- Flow: Human + CC plan together -> CC creates working spec + handoff spec -> Codex QA audit -> CC implements -> Codex post-flight audit
+- Protocol: FULL — working spec, handoff spec, changelogs, verification, roadmap update, debrief
+- This is the DEFAULT for most work. When in doubt, use Tier 2.
+- CC is responsible for planning AND execution in this tier. CC drafts the working spec, generates the handoff spec with mapped anchors, and implements.
+
+**Tier 3 — Strategic / High-Risk (CChat + Codex + CC, full ceremony)**
+- Scope: cross-site architecture changes, deep codebase archaeology, major initiatives, complex debugging, protocol evolution, brand/voice strategy
+- Flow: CChat (Opus in Cline) plans -> Codex pre-flight audit -> CC implements -> Codex post-flight audit
+- Protocol: FULL — plus Strategy Session Template, Cross-Site Checklist, Family Planning Protocol gating
+- Use when: the human explicitly invokes CChat, or the work meets Major Initiative criteria (affects 2+ sites, changes core data flow/auth, impacts donor experience/compliance, estimated effort > 8 handoffs)
+- Also triggers for Novel Patterns: first-time use of a new technology, integration pattern, or architectural approach not yet established in the codebase (e.g., first WebSocket integration, first external OAuth provider beyond Azure AD, first Turbo monorepo package)
+
+### Protocol Compliance Rule (Non-Negotiable)
+
+**Any work beyond Tier 1 must follow protocols.** This means:
+- Create a working spec at `docs/handoffs/_working/<handoff-id>-working-spec.md`
+- Generate a handoff spec with acceptance criteria
+- Run verification (`node scripts/verify-handoff.mjs --handoff-name <ID>`)
+- Run `npx tsc --noEmit` in every modified repo
+- Update `docs/roadmap.md` on completion
+- Update changelogs when protocol/brain files change
+- Produce a structured debrief
+
+CC must self-enforce this. Do not wait for the human to ask. If the work is non-trivial, follow the protocol automatically.
+
+### Actor Roles
+
+| Actor | Tool | Role | When Used |
+|-------|------|------|-----------|
+| **CC** (Claude Code 4.6) | Claude Code CLI | Planner + Executor: plans with human, creates specs, implements, verifies, debriefs | Tier 1 and Tier 2 (most work) |
+| **CChat** (Claude Chat 4.6 Opus) | Cline (VSCode) — planning-only mode | Deep Strategist: codebase archaeology, cross-site analysis, complex planning, protocol evolution | Tier 3 only (human invokes explicitly) |
+| **Codex** (OpenAI Codex) | Codex | QA Engineer: pre-flight audit of specs/prompts, post-flight audit of debriefs | Tier 2 and Tier 3 (mandatory QA gate) |
 
 ### Reference Library
 
@@ -148,14 +211,15 @@ docs/
 To keep the roadmap in sync and conserve tokens during code generation:
 
 1. **Agent rules live in this file.** Claude Code should ingest the relevant sections as part of its context when executing a plan.  The slim family-of-sites summary may be used for high-level orientation.
-2. **After completing a task**, the agent **must** update `docs/roadmap.md` by:
-   * moving the completed bullet to the bottom of the file, preserving its original text,
-   * appending a one‑sentence summary of what was actually implemented and a timestamp, e.g.:
+2. **After completing a task**, the agent **must** update the roadmap by:
+   * removing the completed bullet from `docs/roadmap.md` (or `docs/roadmap-deferred.md`),
+   * appending it with a completion summary and timestamp to `docs/roadmap-archive.md`, e.g.:
      ```markdown
-     - 🤖 **2026‑03‑05:** Added centralized job registry to Orchestrator. (task completed)
+     - 🤖 **2026-03-05:** Added centralized job registry to Orchestrator.
+     - (ORCH-101) central cron registry
      ```
-   * leaving only outstanding/`TODO` items at the top.
-3. **Roadmap items should use a simple YAML‑like prefix** for metadata that the updater script can parse:
+   * The `scripts/roadmap-updater.js` helper automates this across all three files.
+3. **Roadmap items should use a simple YAML-like prefix** for metadata that the updater script can parse:
    ```markdown
    - [ ] (ORCH-101) central cron registry
    - [ ] (STUD-204) grant-report PDF
@@ -170,42 +234,43 @@ To keep the roadmap in sync and conserve tokens during code generation:
    /* palette defined in steampunk-rescuebarn/tailwind.config.ts */
    ```
    This allows you to locate definitions without grepping across the repo.
-6. The `CLAUDE.md` documents (per‑app) act as the canonical rule set: any new guideline must be added here first, then propagated into the slim summary if appropriate.
+6. The `CLAUDE.md` documents (per-app) act as the canonical rule set: any new guideline must be added here first, then propagated into the slim summary if appropriate.
 
-Agents should avoid re‑sending entire reference files; instead, they query for a specific section using the comment links above. This keeps token usage minimal while still giving precise navigation cues.
+Agents should avoid re-sending entire reference files; instead, they query for a specific section using the comment links above. This keeps token usage minimal while still giving precise navigation cues.
 
-### Codex -> Claude Code Execution Protocol (Mandatory)
+### Tier 2 Execution Flow (Standard — Most Work)
 
-For handoff-driven implementation, use this strict order:
+1. Human and CC discuss the work and agree on scope.
+2. CC captures discovery/findings in a working spec at `docs/handoffs/_working/<handoff-id>-working-spec.md`.
+3. CC generates a fully execution-mapped handoff spec with exact insertion anchors, exact final text blocks, and a strict acceptance checklist.
+4. Human sends handoff spec to Codex for pre-flight QA audit.
+5. CC implements the work.
+6. CC runs verification, produces structured debrief.
+7. Human sends CC's debrief to Codex for post-flight QA audit.
 
-1. Human identifies the next item.
-2. Human prepares a handoff spec in `docs/handoffs/` and customized prompts.
-3. Codex runs first and returns the ready-to-use Claude Code prompt.
-4. Claude Code executes the implementation.
-5. Human returns Claude Code wrap-up for verification against the handoff spec.
-6. Iterate until verification passes, then advance to the next item.
+CC drives both planning and execution. Codex is the QA gate — it audits but does not plan or implement.
 
-### Default Execution Method (Always On)
+### Tier 3 Execution Flow (Strategic — CChat-Led)
 
-For scoped implementation work, the default method is:
+1. Human works with CChat (Opus in Cline) for deep discovery and planning.
+2. CChat generates working spec, handoff spec, and CC execution prompt.
+3. Human sends to Codex for pre-flight QA audit.
+4. CC implements from the audited spec/prompt.
+5. CC runs verification, produces structured debrief.
+6. Human sends CC's debrief to Codex for post-flight QA audit.
 
-1. Discovery and findings capture in a temporary working spec.
-2. Collaborative plan refinement with iterative updates to that working spec.
-3. On human request for handoff, generation of a fully execution-mapped handoff spec containing exact insertion anchors, exact final text blocks, and a strict acceptance checklist.
-4. Codex prompt generation.
-5. Claude Code implementation.
-6. Post-work QA from returned summary.
+Used only when the human explicitly invokes CChat for strategic/complex work.
 
 ### Handoff Modes (Automatic Selection)
 
-- Mapped Mode (default for high-risk work): full file-by-file anchors, exact text blocks, strict checklist.
+- Mapped Mode (default for all work): full file-by-file anchors, exact text blocks, strict checklist.
 - Lean Mode (simple low-risk work): objective, exact files, acceptance criteria, verification command.
 - If Lean Mode encounters ambiguity, scope expansion, blockers, or protocol-sensitive behavior, escalate to Mapped Mode before continuing.
 
 ### Working Spec Path Convention (Single Source of Truth)
 
 - Use this canonical working spec path every time:
-   - `docs/handoffs/_working/<handoff-id>-working-spec.md`
+  - `docs/handoffs/_working/<handoff-id>-working-spec.md`
 - Preferred `<handoff-id>` format: `YYYYMMDD-short-slug` (example: `20260306-postmaster-no-cta`).
 - If `<handoff-id>` is missing, generate one automatically (date + short slug) and continue.
 - Do not ask the human to choose naming or path structure.
@@ -213,12 +278,12 @@ For scoped implementation work, the default method is:
 
 Rules:
 
-- Do not skip Codex when this workflow is requested.
+- For Tier 2/3 work, do not skip Codex audit when the human routes through Codex.
 - Do not mark completion before verification is run and passing.
 - Keep implementation scoped to the current handoff spec acceptance criteria.
 - Do not rely on human memory for working-spec naming/paths; enforce the canonical convention automatically.
 - For GenAI workflow handoffs, Claude Code must execute a workflow-level insertion audit and confirm no links/CTAs are introduced by AI prompts or pipeline logic (prompt layers/templates, generation routes, preview/regenerate routes, closing/tagging helpers, and post-assembly). Include file paths and line anchors in wrap-up.
-- When Codex-generated prompts are used, execute file-by-file anchors and strict acceptance checklist items as written in the handoff spec; treat summarized or compressed instructions as non-compliant.
+- When CC executes from handoff specs, execute file-by-file anchors and strict acceptance checklist items as written in the handoff spec; treat summarized or compressed instructions as non-compliant.
 - If canonical handoff/working spec files are missing but detailed execution instructions are provided inline, do not halt on missing artifacts: create canonical files first, then execute against them.
 
 Verification stack:
@@ -236,11 +301,11 @@ Before implementing mapped steps, Claude Code must run a Spec Sanity Pass:
 - Validate architecture, protocol alignment, and Steampunk brand/voice intent.
 - If no issues: execute as mapped.
 - If issues: emit a "Sanity Delta" with:
-   - conflict,
-   - minimal correction,
-   - file/anchor evidence,
-   - risk if unchanged,
-   - acceptance-criteria adjustment (if needed).
+  - conflict,
+  - minimal correction,
+  - file/anchor evidence,
+  - risk if unchanged,
+  - acceptance-criteria adjustment (if needed).
 
 ### Bounded Deviation Rule
 
@@ -260,15 +325,31 @@ All applied deviations must be logged as "Sanity Delta Applied" in completion su
 - Scope isolation notes are required when a handoff touches files that overlap with other active branches.
 - Verification context notes are required when verification was run on a branch other than main or when the verifier version differs from the canonical version.
 
-### Planning Model Preference
+### CChat Planning Role (Tier 3 Only — Strategist)
 
-Default protocol mapping remains Codex-first.
-For high-ambiguity, cross-site, brand-ethos, or architecture-planning decisions, Opus-class planning may be used before returning to deterministic mapped execution.
+CChat (Claude Chat 4.6 Opus, running in Cline with planning-only mode) is invoked by the human for:
 
-### Handoff-to-Prompt Pairing Rule
+- Deep codebase archaeology and complex problem diagnosis
+- Cross-site architecture decisions and impact analysis
+- Strategy sessions and brand/voice planning
+- Protocol evolution and brain-file updates
+- Major Initiative planning (2+ sites, core data flow changes, etc.)
 
-- When delivering any handoff spec to the human, include one matching single paste-ready Codex prompt in the same response by default.
-- Only omit the matching Codex prompt if the human explicitly opts out.
+CChat is NOT used for standard work. Most planning happens between the human and CC directly.
+
+When CChat IS used, it generates the working spec, handoff spec, and CC execution prompt (including Strategy Session Template answers, Cross-Site Checklist, and Risk & Reversibility summary).
+
+### CC Planning Responsibilities (Tier 2 — Standard Work)
+
+For most work, CC (Claude Code) handles both planning and execution:
+
+- Discuss scope and approach with the human
+- Create working spec and handoff spec with mapped anchors
+- Implement the work
+- Run verification and produce structured debrief
+- Update changelogs, roadmap, and any affected protocol files
+
+CC must self-enforce protocol compliance for all Tier 2 work without being asked.
 
 ### Operator Effort Minimization (Mandatory)
 
@@ -278,10 +359,10 @@ For high-ambiguity, cross-site, brand-ethos, or architecture-planning decisions,
 - Inline the exact task body, concrete paths, IDs, and commands directly in the artifact.
 - Output exactly one artifact block unless the human explicitly requests multiple blocks.
 - Run this pre-send completeness check before responding:
-   1. No placeholders remain.
-   2. All required protocol sections are present.
-   3. All referenced paths/IDs are concrete.
-   4. Artifact is zero-edit runnable by the operator.
+  1. No placeholders remain.
+  2. All required protocol sections are present.
+  3. All referenced paths/IDs are concrete.
+  4. Artifact is zero-edit runnable by the operator.
 - If any check fails, regenerate before sending.
 - If one value is truly unknowable, ask exactly one targeted question instead of offloading assembly work.
 
@@ -289,11 +370,21 @@ For high-ambiguity, cross-site, brand-ethos, or architecture-planning decisions,
 
 When protocol/workflow rules are changed, update these files in the same change:
 
-1. `docs/CODEX.md`
-2. `CLAUDE.md`
-3. `../.github/copilot-instructions.md`
+1. `CLAUDE.md` (primary brain file)
+2. `docs/CODEX.md` (QA contract)
 
-Protocol changes are not complete until all three are updated together.
+Protocol changes are not complete until both are updated together.
+
+**Satellite docs** — these derive from the brain files. When a protocol change affects their content, update them in the same change set:
+
+- `docs/strategy-session-template.md`
+- `docs/cross-site-impact-checklist.md`
+- `docs/family-planning-protocol.md`
+- `docs/operator-stoppage-cheat-card.md`
+- `docs/CODEX-PREAMBLE.md`
+- `GOVERNANCE.md` — decision authority, risk appetite, exception process, amendment rules
+
+Satellite docs must not contradict the brain files. If drift is detected, the brain file is authoritative.
 
 ### Fix-Propagation Investigation Order (Mandatory)
 
@@ -313,18 +404,17 @@ Do not start with a broad full-codebase sweep unless history artifacts are missi
 - Cross-repo CI workflows in GitHub Actions require explicit checkout of sibling repos — flag this in Sanity Pass if the workflow needs files from repos other than the hosting repo.
 - ESLint configs: strategy (`eslint.config.mjs`), postmaster (`eslint.config.mjs`), rescuebarn (`eslint.config.mjs`), studiolo (`.eslintrc.json`), orchestrator (none), cleanpunk (none — Turbo monorepo).
 - Auth stacks: Postmaster + Studiolo use NextAuth (`lib/auth.ts`). Rescue Barn uses Supabase auth (`src/proxy.ts` + `src/app/auth/callback/route.ts`). Cleanpunk uses Medusa built-in auth. Flag stack mismatches in Sanity Pass for auth-related prompts.
-- `.github/copilot-instructions.md` is tracked in steampunk-strategy repo (not a standalone parent repo).
 - Before marking any implementation complete, Claude MUST run `npx tsc --noEmit` in every modified repo and include the output in the Claim->Evidence table.
 
 ### Stoppage Triage Reference
 
 - For operator-facing stoppage handling (Codex/Claude alerts and routing), see:
-   - `docs/operator-stoppage-cheat-card.md`
+  - `docs/operator-stoppage-cheat-card.md`
 
 
 ### Handoff Protocol
 
-When a handoff spec exists in `docs/handoffs/`, it was written by a planning session in the consolidated Claude project space. The spec will specify:
+When a handoff spec exists in `docs/handoffs/`, it was written by CChat during a planning session. The spec will specify:
 - **Target repo(s):** Which codebase(s) to modify (may be this repo or others under /Users/ericktronboll/Projects/)
 - **Files affected:** Exact paths to create/modify
 - **Database changes:** Prisma migrations or Supabase schema changes if any

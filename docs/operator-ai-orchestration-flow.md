@@ -5,8 +5,8 @@
 This is the practical operating model for running enterprise-grade delivery as a solo operator:
 
 - Human sets intent and constraints.
-- Copilot performs governed discovery and maps execution.
-- Codex converts mapped intent into a deterministic Claude Code runbook prompt.
+- CChat (Claude Chat 4.6 Opus) performs governed discovery, maps execution, and generates the CC prompt.
+- Codex audits the handoff spec + CC prompt (mandatory pre-flight) and audits CC's output (mandatory post-flight).
 - Claude Code executes changes and verification.
 - Verification layers prevent false completion.
 
@@ -14,48 +14,52 @@ This flow is the reason a small team (or one operator) can move at high speed wi
 
 ## Core control files
 
-- Governance gate and execution policy: `/.github/copilot-instructions.md`
-- Codex protocol contract: `/steampunk-strategy/docs/CODEX.md`
-- Codex prompt preamble template: `/steampunk-strategy/docs/CODEX-PREAMBLE.md`
-- Family-wide execution protocol: `/steampunk-strategy/CLAUDE.md`
+- Unified brain (execution + planning protocol): `/steampunk-strategy/CLAUDE.md`
+- Codex QA contract: `/steampunk-strategy/docs/CODEX.md`
+- Codex QA audit preamble: `/steampunk-strategy/docs/CODEX-PREAMBLE.md`
 - Handoff verifier: `/steampunk-strategy/scripts/verify-handoff.mjs`
 - Operator triage reference: `/steampunk-strategy/docs/operator-stoppage-cheat-card.md`
+- Archived (retired): `/steampunk-strategy/docs/archive/copilot-instructions-retired.md`
 
 ## End-to-end flow (human to delivery)
 
 ```mermaid
 flowchart TD
   A[Human request] --> B{Request type?}
-  B -->|Analysis| C[Copilot read-only audit]
-  B -->|Implementation scoped| D[Copilot builds working spec]
-  B -->|Direct write asked| E{Approval phrase present?}
+  B -->|Analysis| C[CChat read-only analysis]
+  B -->|Implementation| D[CChat builds working spec]
 
-  E -->|No| C
-  E -->|Yes| D
-
-  D --> F[Execution-mapped handoff spec]
-  F --> G[Codex generates one Claude prompt]
-  G --> H[Claude Code executes edits]
-  H --> I[Run verification commands]
-  I --> J{Verification passes?}
-  J -->|No| K[Fix and rerun verification]
-  K --> I
-  J -->|Yes| L[Completion report + roadmap/handoff update]
+  D --> E[CChat generates handoff spec + CC prompt]
+  E --> F[Codex pre-flight audit]
+  F --> G{Pre-flight passes?}
+  G -->|No| H[CChat reworks spec/prompt]
+  H --> F
+  G -->|Yes| I[Claude Code executes edits]
+  I --> J[Run verification commands]
+  J --> K{Verification passes?}
+  K -->|No| L[Fix and rerun verification]
+  L --> J
+  K -->|Yes| M[CC produces debrief]
+  M --> N[Codex post-flight audit]
+  N --> O{Post-flight passes?}
+  O -->|No| P[Return to CC for fixes]
+  P --> J
+  O -->|Yes| Q[Completion report + roadmap/handoff update]
 ```
 
 ## Decision gates (what happens when you ask for work)
 
 1. **Intent gate**
-   - Copilot classifies request: analysis-only, handoff prep, or implementation.
+   - CChat classifies request: analysis-only, handoff prep, or implementation.
 
-2. **Write-authorization gate**
-   - Default is read-only.
-   - File changes only occur when the request includes an explicit approval phrase.
-
-3. **Mode gate (risk-aware execution)**
+2. **Mode gate (risk-aware execution)**
    - **Mapped Mode** for GenAI, protocol-sensitive, or cross-repo work.
    - **Lean Mode** only for low-risk, simple scoped tasks.
    - Lean escalates to Mapped if ambiguity/risk/scope increases.
+
+3. **Pre-flight gate (mandatory)**
+   - Codex audits CChat's handoff spec + CC prompt before execution begins.
+   - Work does not proceed to CC until Codex issues PASS or PASS WITH CORRECTIONS.
 
 4. **Preflight-unblock gate**
    - If canonical handoff files are missing but details are complete inline, canonical files are created first, then execution proceeds.
@@ -63,35 +67,49 @@ flowchart TD
 5. **Verification gate**
    - Work is not complete until required checks pass.
 
+6. **Post-flight gate (mandatory)**
+   - Codex audits CC's debrief against acceptance criteria.
+   - Handoff is not closed until Codex issues PASS or PASS WITH NOTES.
+
 ## Role specialization (why each AI is used)
 
-- **Copilot (you are here):**
-  - High-fidelity repo archaeology.
+- **CChat (Claude Chat 4.6 Opus — The Strategist):**
+  - High-fidelity codebase archaeology and discovery.
   - Dependency mapping and risk detection.
-  - Protocol enforcement and handoff structuring.
+  - Working-spec and handoff-spec generation with mapped anchors.
+  - CC execution prompt generation (absorbs former Codex prompt role).
+  - Strategy sessions, cross-site impact analysis, protocol evolution.
+  - Runs in Cline (VSCode) with planning-only mode — no file writes.
 
-- **Codex:**
-  - Converts mapped scope into a deterministic Claude execution prompt.
-  - Preserves anchors/checklists verbatim (prevents lossy handoff summaries).
+- **Codex (The QA Engineer):**
+  - Mandatory pre-flight audit of CChat's handoff spec + CC prompt.
+  - Mandatory post-flight audit of CC's debrief against acceptance criteria.
+  - Flags gaps, contradictions, scope creep, protocol violations.
+  - Issues PASS / PASS WITH CORRECTIONS / FAIL verdicts.
+  - Does NOT generate prompts or implement code.
 
-- **Claude Code:**
+- **Claude Code (The Executor):**
   - High-throughput implementation and iterative fix/verify loops.
   - Executes against explicit file anchors and strict acceptance criteria.
+  - Runs Spec Sanity Pass before any file modifications.
+  - Produces structured debrief with evidence for post-flight audit.
 
 ## Verification layers (anti-drift design)
 
-1. **Agent self-verification** with the handoff verifier script.
-2. **CI verification** from repository workflows.
-3. **Human spot-check** against handoff acceptance checklist.
+1. **Pre-flight QA** — Codex audits handoff spec + CC prompt before execution.
+2. **Agent self-verification** with the handoff verifier script.
+3. **CI verification** from repository workflows.
+4. **Post-flight QA** — Codex audits CC debrief against acceptance criteria.
+5. **Human spot-check** against handoff acceptance checklist.
 
-This three-layer pattern reduces silent failures and "looks done" regressions.
+This five-layer pattern reduces silent failures and "looks done" regressions.
 
 ## Operator branch logic (quick reference)
 
-- If you want exploration only: request analysis; no approval phrase needed.
-- If you want implementation prep: request handoff; Copilot builds mapped spec + Codex prompt.
-- If you want direct edits now: include explicit approval phrase.
-- If Claude reports blockers: use the stoppage cheat card and re-run from the last failed verification point.
+- If you want exploration only: request analysis from CChat; no handoff needed.
+- If you want implementation prep: request handoff from CChat; CChat builds mapped spec + CC prompt.
+- If you want QA review: send CChat's output to Codex for pre-flight audit.
+- If Claude Code reports blockers: use the stoppage cheat card and re-run from the last failed verification point.
 
 ## Strategic value (case-study framing)
 
@@ -129,6 +147,7 @@ This system is not "AI does everything." It is **protocolized orchestration**:
 
 - Human judgment stays in control.
 - AI roles are specialized.
+- QA is mandatory, not optional.
 - Verification is mandatory.
 - Completion is evidence-based, not optimism-based.
 

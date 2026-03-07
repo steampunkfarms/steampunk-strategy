@@ -20,13 +20,13 @@ What single metric improves? (lead time, handoff pass rate, first-pass verificat
 **5. Reversibility**  
 Can it be rolled back cleanly in <15 minutes with no data loss? (Yes/No + method)
 
-**Protocol Fit Score** (0–10):  
-[Copilot fills after review]
+**Protocol Fit Score** (0–10):
+[CC fills during working spec creation (Tier 2) or CChat fills during planning (Tier 3)]
 
-**Recommended Lane:**  
-- Analysis-only  
-- Handoff preparation (default)  
-- Direct implementation (requires explicit approval phrase)
+**Recommended Tier:**
+- Tier 1 — Quick Fix (no ceremony needed)
+- Tier 2 — Standard Work (Human + CC, Codex QA) — **default**
+- Tier 3 — Strategic (CChat plans, Codex audits, CC executes)
 
 **Next Action:**  
 If score ≥ 7 and reversible, proceed to working spec at `docs/handoffs/_working/YYYYMMDD-short-slug-working-spec.md`.

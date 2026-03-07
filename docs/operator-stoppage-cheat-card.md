@@ -4,7 +4,7 @@ Use this whenever Codex or Claude Code raises a stoppage alert.
 
 ## First Rule
 
-- Send stoppage alerts to Copilot (this agent) first.
+- Send stoppage alerts to CChat (Claude Chat in Cline) first.
 - Include:
   - full alert text,
   - the last prompt you sent,
@@ -35,17 +35,27 @@ Use this whenever Codex or Claude Code raises a stoppage alert.
     - `YYYYMMDD-short-slug`
 
 - Prompt too vague / not enough detail:
-  - Request execution-mapped handoff (anchors + exact text blocks + strict checklist).
+  - Request execution-mapped handoff from CChat (anchors + exact text blocks + strict checklist).
 
 - Scope too broad / risk increased:
   - Switch to Mapped Mode.
 
 - Verification failed:
-  - Return full failure output to Copilot.
+  - Return full failure output to CChat for diagnosis.
   - Follow fix loop and rerun verification.
 
 - Protocol conflict / cannot proceed safely:
-  - Return alert to Copilot for protocol reconciliation and explicit unblock instruction.
+  - Return alert to CChat for protocol reconciliation and explicit unblock instruction.
+
+- Codex pre-flight FAIL:
+  - Return Codex's failure notes to CChat.
+  - CChat reworks the handoff spec / CC prompt.
+  - Resubmit to Codex for re-audit.
+
+- Codex post-flight FAIL:
+  - Return Codex's failure notes to CC.
+  - CC fixes the identified issues.
+  - Resubmit CC debrief to Codex for re-audit.
 
 ## Preflight Checklist (Before Implementation)
 
@@ -54,10 +64,13 @@ Use this whenever Codex or Claude Code raises a stoppage alert.
 - If missing and inline details are complete, create working and handoff specs first.
 - Confirm selected mode (Mapped or Lean) and escalation criteria.
 - Confirm acceptance checklist and verification command are present.
+- Confirm Codex pre-flight audit has been run and passed.
 
 ## Output Expectations for Claude Code Wrap-up
 
 - Changed file list.
 - File/line evidence for required checks.
 - Verification command output summary.
+- `npx tsc --noEmit` output for every modified repo.
 - Any remaining blockers or deferred items.
+- Sanity Delta items (if any) labeled and justified.

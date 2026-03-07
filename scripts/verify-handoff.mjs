@@ -56,12 +56,22 @@ console.log(`📋 Using handoff spec: ${path.basename(handoffFile)}\n`);
 
 const handoffContent = fs.readFileSync(handoffFile, 'utf-8');
 const roadmapPath = path.join(process.cwd(), 'docs', 'roadmap.md');
+const roadmapArchivePath = path.join(process.cwd(), 'docs', 'roadmap-archive.md');
+const roadmapDeferredPath = path.join(process.cwd(), 'docs', 'roadmap-deferred.md');
 const roadmapContent = fs.readFileSync(roadmapPath, 'utf-8');
+const roadmapArchiveContent = fs.existsSync(roadmapArchivePath) ? fs.readFileSync(roadmapArchivePath, 'utf-8') : '';
+const roadmapDeferredContent = fs.existsSync(roadmapDeferredPath) ? fs.readFileSync(roadmapDeferredPath, 'utf-8') : '';
+const allRoadmapContent = roadmapContent + '\n' + roadmapArchiveContent + '\n' + roadmapDeferredContent;
 
 // Determine the workspace root (parent of steampunk-strategy)
 const workspaceRoot = path.resolve(process.cwd(), '..');
 
 let hasErrors = false;
+let checksPassed = 0;
+let checksWarned = 0;
+let checksFailed = 0;
+let tscErrorCount = 0;
+let satelliteStale = 0;
 
 // --- Section extraction: supports both legacy bold-label and heading-based formats ---
 
@@ -138,14 +148,19 @@ filesAffected.forEach(line => {
   const cwdPath = path.join(process.cwd(), file);
   if (fs.existsSync(fullPath)) {
     console.log(`  ✅ ${file}`);
+    checksPassed++;
   } else if (fs.existsSync(cwdPath)) {
     console.log(`  ✅ ${file}`);
+    checksPassed++;
   } else if (line.includes('(new)') || line.includes('(created)') || line.includes('(reference)')) {
     console.log(`  ⚠️  ${file} (marked as new/reference — skipped)`);
+    checksWarned++;
   } else if (file.includes('*')) {
     console.log(`  ⏭️  ${file} (glob pattern, skipped)`);
+    checksWarned++;
   } else {
     console.log(`  ⚠️  File not found: ${file}`);
+    checksWarned++;
   }
 });
 
@@ -160,15 +175,18 @@ if (handoffContent.includes('prisma/schema.prisma')) {
       try {
         execSync('npx prisma validate', { stdio: 'pipe', cwd: dir });
         console.log(`  ✅ Schema is valid (${path.basename(dir)})`);
+        checksPassed++;
         schemaChecked = true;
       } catch (e) {
         console.log(`  ❌ Schema validation failed in ${path.basename(dir)}: ${e.message}`);
+        checksFailed++;
         hasErrors = true;
       }
     }
   }
   if (!schemaChecked) {
     console.log('  ⚠️  No prisma schema found to validate');
+    checksWarned++;
   }
 }
 
@@ -182,8 +200,10 @@ jsonDirs.forEach(dir => {
       try {
         JSON.parse(fs.readFileSync(fullPath, 'utf-8'));
         console.log(`  ✅ ${path.basename(dir)}/${jsonFile}`);
+        checksPassed++;
       } catch (e) {
         console.log(`  ❌ ${path.basename(dir)}/${jsonFile} is invalid JSON`);
+        checksFailed++;
         hasErrors = true;
       }
     }
@@ -192,15 +212,21 @@ jsonDirs.forEach(dir => {
 
 // Check 4: Roadmap updated
 console.log('\n🔍 Checking roadmap...');
-if (roadmapContent.includes('🤖 **2026-')) {
+if (allRoadmapContent.includes('🤖 **2026-')) {
   console.log('  ✅ Roadmap has been updated with completion timestamp');
+  checksPassed++;
 } else {
   console.log('  ⚠️  Roadmap may not have been updated (no 🤖 timestamp found)');
+  checksWarned++;
 }
-if (roadmapContent.includes(handoffName)) {
-  console.log(`  ✅ ${handoffName} found in roadmap`);
+if (allRoadmapContent.includes(handoffName)) {
+  const loc = roadmapContent.includes(handoffName) ? 'roadmap.md' :
+    roadmapArchiveContent.includes(handoffName) ? 'roadmap-archive.md' : 'roadmap-deferred.md';
+  console.log(`  ✅ ${handoffName} found in ${loc}`);
+  checksPassed++;
 } else {
-  console.log(`  ⚠️  ${handoffName} not found in roadmap`);
+  console.log(`  ⚠️  ${handoffName} not found in any roadmap file`);
+  checksWarned++;
 }
 
 // Check 5: Reference doc comments in code
@@ -226,8 +252,10 @@ const scanDir = (dir) => {
 srcDirs.forEach(d => scanDir(d));
 if (commentCount > 0) {
   console.log(`  ✅ Found ${commentCount} files with reference doc comments`);
+  checksPassed++;
 } else {
   console.log(`  ⚠️  No reference doc comments found (optional but recommended)`);
+  checksWarned++;
 }
 
 // Check 6: No broken imports (TypeScript compilation)
@@ -239,9 +267,15 @@ for (const dir of tscDirs) {
     try {
       execSync('npx tsc --noEmit', { stdio: 'pipe', cwd: dir, timeout: 120000 });
       console.log(`  ✅ TypeScript compilation clean (${path.basename(dir)})`);
+      checksPassed++;
     } catch (e) {
-      const output = (e.stdout || e.stderr || '').toString().slice(0, 2000);
-      console.log(`  ❌ TypeScript errors in ${path.basename(dir)}:\n${output}`);
+      const stdout = (e.stdout || '').toString();
+      const stderr = (e.stderr || '').toString();
+      const combined = (stdout + '\n' + stderr).trim().slice(0, 3000);
+      const errorCount = (stdout.match(/error TS\d+/g) || []).length;
+      tscErrorCount += errorCount;
+      console.log(`  ❌ TypeScript errors in ${path.basename(dir)} (${errorCount} error${errorCount !== 1 ? 's' : ''}):\n${combined}`);
+      checksFailed++;
       hasErrors = true;
     }
   }
@@ -251,8 +285,10 @@ for (const dir of tscDirs) {
 console.log('\n🔍 Checking handoff completion status...');
 if (handoffContent.match(/COMPLETE|completed/i)) {
   console.log('  ✅ Handoff spec marked as complete');
+  checksPassed++;
 } else {
   console.log('  ⚠️  Handoff spec may not be marked as complete');
+  checksWarned++;
 }
 
 // Check 8: 2026-03-06 Protocol Artifact Enforcement
@@ -270,56 +306,126 @@ if (workingSpecCandidates.length > 0) {
   // Strategy Session Template answers
   if (workingContent.match(/Strategy Session Template|Protocol Fit|Failure Mode Impact|Operator Burden|Measurable Gain/i)) {
     console.log('  ✅ Strategy Session Template answers found in working spec');
+    checksPassed++;
   } else {
     console.log('  ❌ Strategy Session Template answers missing from working spec');
+    checksFailed++;
     hasErrors = true;
   }
 
   // Cross-Site Impact Checklist
   if (workingContent.match(/Cross-Site Impact Checklist|Repos touched/i)) {
     console.log('  ✅ Cross-Site Impact Checklist found in working spec');
+    checksPassed++;
   } else {
     console.log('  ❌ Cross-Site Impact Checklist missing from working spec');
+    checksFailed++;
     hasErrors = true;
   }
 
   // Family Planning Protocol gate + reversibility score
   if (workingContent.match(/Family Planning Protocol|Major Initiative Criteria/i)) {
     console.log('  ✅ Family Planning Protocol gate found in working spec');
+    checksPassed++;
   } else {
     console.log('  ❌ Family Planning Protocol gate missing from working spec');
+    checksFailed++;
     hasErrors = true;
   }
 
   if (workingContent.match(/Reversibility Score|reversibility.*\d/i)) {
     console.log('  ✅ Reversibility score found in working spec');
+    checksPassed++;
   } else {
     console.log('  ❌ Reversibility score missing from working spec');
+    checksFailed++;
     hasErrors = true;
   }
 } else {
   console.log('  ⚠️  No working spec found for this handoff (skipping artifact checks)');
+  checksWarned++;
 }
 
 // Risk & Reversibility in handoff spec or prompt context
 if (handoffContent.match(/Risk\s*[&+]\s*Reversibility/i)) {
   console.log('  ✅ Risk & Reversibility reference found in handoff spec');
+  checksPassed++;
 } else {
   console.log('  ⚠️  Risk & Reversibility not found in handoff spec (check prompt context)');
+  checksWarned++;
 }
 
 // Debrief section after verification pass
 if (handoffContent.match(/Debrief|What worked well|What could be improved/i)) {
   console.log('  ✅ Debrief section found in handoff spec');
+  checksPassed++;
 } else {
   console.log('  ⚠️  Debrief section not found (required post-verification)');
+  checksWarned++;
+}
+
+// Check 9: Satellite doc freshness — no satellite doc should be older than CLAUDE.md
+console.log('\n🔍 Checking satellite doc freshness...');
+const brainMtime = fs.statSync(path.join(process.cwd(), 'CLAUDE.md')).mtimeMs;
+const satelliteDocs = [
+  'docs/strategy-session-template.md',
+  'docs/cross-site-impact-checklist.md',
+  'docs/family-planning-protocol.md',
+  'docs/operator-stoppage-cheat-card.md',
+  'docs/CODEX-PREAMBLE.md',
+];
+for (const doc of satelliteDocs) {
+  const docPath = path.join(process.cwd(), doc);
+  if (fs.existsSync(docPath)) {
+    const docMtime = fs.statSync(docPath).mtimeMs;
+    if (docMtime < brainMtime) {
+      console.log(`  ⚠️  ${doc} is older than CLAUDE.md — may need sync`);
+      satelliteStale++;
+      checksWarned++;
+    } else {
+      console.log(`  ✅ ${doc}`);
+      checksPassed++;
+    }
+  } else {
+    console.log(`  ⚠️  ${doc} not found`);
+    checksWarned++;
+    satelliteStale++;
+  }
+}
+if (satelliteStale === 0) {
+  console.log('  ✅ All satellite docs are up to date');
+  checksPassed++;
 }
 
 // Final summary
 console.log('');
 if (hasErrors) {
   console.log('❌ Handoff verification found errors. Fix issues and re-run.');
-  process.exit(1);
 } else {
   console.log('✅ Handoff verification complete! Ready to merge.');
+}
+
+// Emit JSONL metric event — append-only structured log
+// see docs/tardis-protocol-health-dashboard-spec.md#phase-a
+const checksRun = checksPassed + checksWarned + checksFailed;
+const metric = {
+  handoffId: handoffName,
+  timestamp: new Date().toISOString(),
+  passed: !hasErrors,
+  reposChecked: targetDirs.length,
+  filesListed: filesAffected.length,
+  mode: handoffContent.match(/Lean Mode/i) ? 'lean' : 'mapped',
+  checksRun,
+  checksPassed,
+  checksWarned,
+  checksFailed,
+  tscErrorCount,
+  satelliteStale,
+};
+const metricsPath = path.join(process.cwd(), 'docs', 'protocol-metrics.jsonl');
+fs.appendFileSync(metricsPath, JSON.stringify(metric) + '\n');
+console.log(`\n📊 Metric emitted to docs/protocol-metrics.jsonl`);
+
+if (hasErrors) {
+  process.exit(1);
 }
