@@ -90,6 +90,21 @@ _(none)_
 **Repos:** All 4 + Supabase dashboard
 **Approach:** Tackle criticals first (C2/C3/C4), then middleware (H11/H12), then batch remaining
 
+### Priority One: TARDIS BI Intelligence Platform
+
+**Parent initiative:** Turns TARDIS from transaction ledger into the sanctuary's single source of truth for decisions and future planning.
+**Foundation:** Existing Transaction model, Receipt OCR, Expense-to-Impact API, /dev-costs Recharts, Studiolo KPI APIs.
+**Three layers:**
+
+- [x] (BI-0) Foundation: shared chart library, /intelligence route scaffold, cross-site utils, intelligence cache — see `docs/handoffs/20260307-bi-platform-foundation.md`
+- [ ] (BI-1) Layer 1 — Operational BI: expense deep-dives by program/vendor/COA/season, burn rate, budget vs actual, vendor intelligence
+- [ ] (BI-2) Layer 2 — Analytical BI: unified P&L (donations + commerce + grants + expenses), program ROI, donor health dashboard, social temperature correlation, acquisition channel heatmap
+- [ ] (BI-3) Layer 3 — Strategic Intelligence Engine: AI insight generator, idea incubator, predictive forecasting, scenario modeling, board/grant PDF packs
+
+**Placement:** `/intelligence` route with Operational | Analytical | Strategic tabs.
+**Repos:** steampunk-strategy (primary) + Studiolo/Postmaster/Cleanpunk API reads (BI-2+).
+**Cross-site auth:** INTERNAL_SECRET header pattern.
+
 ---
 
 ## 🟡 Priority Two — High Value, Needs Handoff Spec

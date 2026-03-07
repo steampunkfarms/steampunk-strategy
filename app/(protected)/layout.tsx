@@ -23,6 +23,9 @@ import {
   Gauge,
   Server,
   Tags,
+  Brain,
+  TrendingUp,
+  Sparkles,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
@@ -32,6 +35,14 @@ const navigation = [
     items: [
       { name: 'The Bridge', href: '/bridge', icon: LayoutDashboard },
       { name: 'Monitoring', href: '/monitoring', icon: Activity },
+    ],
+  },
+  {
+    label: 'Intelligence',
+    items: [
+      { name: 'Overview', href: '/intelligence', icon: Brain },
+      { name: 'Analytical', href: '/intelligence/analytical', icon: TrendingUp },
+      { name: 'Strategic', href: '/intelligence/strategic', icon: Sparkles },
     ],
   },
   {

@@ -562,3 +562,13 @@ The Bray expansion, Academy Levels 3–4, Mercantile phases, Surrender Deflectio
 
 ### RaiseRight
 Habit-formation onboarding redesign (#118), Impact page needs Krystal's 60-second how-to video (#119)
+
+---
+
+## 🟡 Deferred — TARDIS BI Intelligence Platform Future Extensions
+
+- [ ] (BI-FUTURE) Persistent cache in Prisma (replace in-memory TTL with database-backed cache for multi-instance deployments)
+- [ ] (BI-FUTURE) Real-time WebSocket updates for live dashboard refresh
+- [ ] (BI-FUTURE) Embeddable chart widgets for Rescue Barn transparency pages
+- [ ] (BI-FUTURE) Scheduled PDF report generation + email delivery
+- [ ] (BI-FUTURE) Custom dashboard builder (user-configurable widget layout)
