@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useRef, useCallback, useEffect } from 'react';
+import { useState, useRef, useCallback, useEffect, useMemo } from 'react';
 import {
   Upload,
   Loader2,
@@ -15,6 +15,7 @@ import {
   Info,
 } from 'lucide-react';
 import type { ExtractedReceipt } from '@/lib/receipt-parser';
+import { validateReceipt, type ValidationResult } from '@/lib/receipt-validator-client';
 import { formatCurrency } from '@/lib/utils';
 
 type Phase = 'idle' | 'uploading' | 'parsing' | 'review' | 'creating' | 'done' | 'error' | 'batch';
@@ -48,6 +49,13 @@ interface CreateResult {
   donorPortion: number | null;
   farmPortion: number | null;
   journalNoteId: string | null;
+  allocation?: {
+    method: string;
+    confidence: string;
+    programName: string | null;
+    species: string[];
+  } | null;
+  validation?: { valid: boolean; errors: string[]; warnings: string[] } | null;
 }
 
 interface ArrangementResult {
@@ -590,6 +598,26 @@ export default function DocumentUploader({ loadDocumentId, onComplete }: Uploade
 
   const extracted = parseResult?.extractedData;
 
+  // Receipt math validation (client-side preview)
+  // see docs/handoffs/_working/20260307-eip-auto-allocation-working-spec.md
+  const validation: ValidationResult | null = useMemo(() => {
+    if (!extracted) return null;
+    return validateReceipt({
+      lineItems: extracted.lineItems?.map(li => ({
+        description: li.description,
+        total: li.total,
+        quantity: li.quantity ?? null,
+        unitPrice: li.unitPrice ?? null,
+      })),
+      subtotal: extracted.subtotal ?? null,
+      tax: extracted.tax ?? null,
+      shipping: extracted.shipping ?? null,
+      discount: extracted.discount ?? null,
+      total: extracted.total,
+      amountPaid: extracted.amountPaid ?? null,
+    });
+  }, [extracted]);
+
   return (
     <div className="console-card">
       {/* Header */}
@@ -888,6 +916,27 @@ export default function DocumentUploader({ loadDocumentId, onComplete }: Uploade
               </div>
             )}
 
+            {/* Receipt math validation */}
+            {validation && (validation.errors.length > 0 || validation.warnings.length > 0) && (
+              <div className={`flex items-start gap-2 p-2.5 rounded-lg text-left ${
+                validation.errors.length > 0
+                  ? 'bg-gauge-red/10 border border-gauge-red/20'
+                  : 'bg-gauge-amber/10 border border-gauge-amber/20'
+              }`}>
+                <AlertTriangle className={`w-3.5 h-3.5 flex-shrink-0 mt-0.5 ${
+                  validation.errors.length > 0 ? 'text-gauge-red' : 'text-gauge-amber'
+                }`} />
+                <div className="text-xs">
+                  {validation.errors.map((e, i) => (
+                    <p key={`e-${i}`} className="text-gauge-red">&bull; {e}</p>
+                  ))}
+                  {validation.warnings.map((w, i) => (
+                    <p key={`w-${i}`} className="text-gauge-amber">&bull; {w}</p>
+                  ))}
+                </div>
+              </div>
+            )}
+
             {/* Line items (collapsible) */}
             {extracted.lineItems && extracted.lineItems.length > 0 && (
               <div>
@@ -1170,6 +1219,15 @@ export default function DocumentUploader({ loadDocumentId, onComplete }: Uploade
                     <p key={i}>&bull; {f}</p>
                   ))}
                 </div>
+              </div>
+            )}
+
+            {createResult.allocation?.programName && (
+              <div className="text-xs text-slate-400">
+                Program: <span className="text-brass-warm">{createResult.allocation.programName}</span>
+                <span className="text-slate-600 ml-1">
+                  ({createResult.allocation.method.replace(/_/g, ' ')}, {createResult.allocation.confidence})
+                </span>
               </div>
             )}
 

@@ -5,6 +5,8 @@ import { prisma } from '@/lib/prisma';
 import { matchVendorByName } from '@/lib/vendor-match';
 import { matchItemSlug } from '@/lib/item-match';
 import { synthesizeNotes } from '@/lib/synthesize-notes';
+import { allocateTransaction } from '@/lib/allocation-engine';
+import { validateReceipt } from '@/lib/receipt-validator';
 import type { ExtractedReceipt } from '@/lib/receipt-parser';
 
 // Vendor type → expense category slug mapping
@@ -122,6 +124,58 @@ export async function POST(request: Request) {
       }
     }
 
+    // --- Receipt validation ---
+    // see docs/handoffs/_working/20260307-eip-auto-allocation-working-spec.md
+    const validation = validateReceipt({
+      lineItems: extracted.lineItems?.map(li => ({
+        description: li.description,
+        total: li.total,
+        quantity: li.quantity ?? null,
+        unitPrice: li.unitPrice ?? null,
+      })),
+      subtotal: extracted.subtotal ?? null,
+      tax: extracted.tax ?? null,
+      shipping: extracted.shipping ?? null,
+      discount: extracted.discount ?? null,
+      total: extracted.total,
+      amountPaid: extracted.amountPaid ?? null,
+    });
+
+    // --- Auto-allocation (expenses only) ---
+    // see docs/handoffs/_working/20260307-eip-auto-allocation-working-spec.md
+    let allocationProgramId: string | null = null;
+    let allocationFunctionalClass: string | null = null;
+    let allocationDetails: Record<string, unknown> | null = null;
+
+    if (!isIncome) {
+      const allocation = await allocateTransaction({
+        vendorId,
+        categoryId,
+        lineItems: (extracted.lineItems ?? []).map(li => ({
+          description: li.description,
+          total: li.total,
+        })),
+        extractedReceipt: {
+          tax: extracted.tax ?? null,
+          shipping: extracted.shipping ?? null,
+          discount: extracted.discount ?? null,
+          subtotal: extracted.subtotal ?? null,
+          total: extracted.total,
+        },
+      });
+
+      allocationProgramId = allocation.programId;
+      allocationFunctionalClass = allocation.functionalClass;
+      allocationDetails = {
+        method: allocation.method,
+        confidence: allocation.confidence,
+        programName: allocation.programName,
+        species: allocation.species,
+        allocableComponents: allocation.allocableComponents,
+        notes: allocation.notes,
+      };
+    }
+
     // --- Build transaction data ---
     const txDate = overrides?.date
       ? new Date(overrides.date)
@@ -162,6 +216,14 @@ export async function POST(request: Request) {
       flags.push('Multi-period payout — review period allocation');
     }
 
+    // Validation errors become flags; warnings become informational flags
+    if (validation.errors.length > 0) {
+      flags.push(`Receipt math error: ${validation.errors.join('; ')}`);
+    }
+    if (validation.warnings.length > 0) {
+      flags.push(`Receipt warning: ${validation.warnings.join('; ')}`);
+    }
+
     // Chewy gift card payment split — informational only (journal note has breakdown)
     const hasGiftCardSplit = extracted.giftCardAmount != null && extracted.giftCardAmount > 0;
 
@@ -185,6 +247,8 @@ export async function POST(request: Request) {
         status,
         flagReason,
         taxDeductible: !isIncome, // Expenses deductible; income is not
+        ...(allocationProgramId ? { programId: allocationProgramId } : {}),
+        ...(allocationFunctionalClass ? { functionalClass: allocationFunctionalClass } : {}),
       },
     });
 
@@ -507,6 +571,8 @@ export async function POST(request: Request) {
             incomeProgram: extracted.incomeProgram,
             periodCount: extracted.lineItems?.filter(li => li.periodStart).length ?? 0,
           } : {}),
+          ...(allocationDetails ? { allocation: allocationDetails } : {}),
+          validation: { valid: validation.valid, errors: validation.errors, warnings: validation.warnings },
         }),
       },
     });
@@ -525,6 +591,8 @@ export async function POST(request: Request) {
         donorPortion,
         farmPortion,
         journalNoteId,
+        allocation: allocationDetails,
+        validation: { valid: validation.valid, errors: validation.errors, warnings: validation.warnings },
       },
       { status: 201 },
     );
