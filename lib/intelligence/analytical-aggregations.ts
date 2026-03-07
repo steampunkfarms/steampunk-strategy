@@ -1,13 +1,15 @@
 // Analytical aggregation functions for BI-2 Cross-Site Intelligence
-// Combines TARDIS expense data with Studiolo donor + Postmaster social metrics
+// Combines TARDIS expense data with Studiolo donor + Postmaster social + Cleanpunk commerce metrics
 // see docs/handoffs/_working/20260307-bi-analytical-layer2-working-spec.md
 import { prisma } from '@/lib/prisma';
 import { intelligenceCache } from '@/lib/intelligence-cache';
 import {
   fetchStudioloBIMetrics,
   fetchPostmasterBIMetrics,
+  fetchCleanpunkBIMetrics,
   type StudioloBIMetrics,
   type PostmasterBIMetrics,
+  type CleanpunkBIMetrics,
 } from '@/lib/cross-site';
 import { getExpenseKPIs, getExpensesByProgram } from './expense-aggregations';
 
@@ -20,6 +22,7 @@ export type UnifiedPnLData = {
   net: number;
   donorGiving: number;
   recurringRevenue: number;
+  commerceRevenue: number;
 };
 
 export type ProgramROIData = {
@@ -66,8 +69,10 @@ export type AnalyticalKPIs = {
   donorRetention: number;
   avgTemperature: number;
   monthlyRecurring: number;
+  commerceRevenue: number;
+  commerceOrderCount: number;
   revenueSourceCount: number;
-  crossSiteStatus: { studiolo: boolean; postmaster: boolean };
+  crossSiteStatus: { studiolo: boolean; postmaster: boolean; cleanpunk: boolean };
 };
 
 // ── Helpers ────────────────────────────────────────────────────────────
@@ -92,6 +97,15 @@ async function fetchPostmasterSafe(): Promise<PostmasterBIMetrics | null> {
   }
 }
 
+async function fetchCleanpunkSafe(): Promise<CleanpunkBIMetrics | null> {
+  try {
+    return await intelligenceCache.get('cleanpunk-bi-metrics', () => fetchCleanpunkBIMetrics(), 5 * 60 * 1000);
+  } catch (error) {
+    console.error('[analytical] Cleanpunk fetch failed, degrading gracefully:', error);
+    return null;
+  }
+}
+
 function monthLabel(date: Date): string {
   return date.toLocaleDateString('en-US', { month: 'short', year: 'numeric' });
 }
@@ -103,13 +117,14 @@ export async function getUnifiedPnL(months = 12): Promise<UnifiedPnLData[]> {
   since.setMonth(since.getMonth() - months);
   since.setDate(1);
 
-  const [expensesByMonth, studiolo] = await Promise.all([
+  const [expensesByMonth, studiolo, cleanpunk] = await Promise.all([
     prisma.transaction.findMany({
       where: { date: { gte: since }, status: { in: VALID_EXPENSE_STATUSES } },
       select: { amount: true, date: true, type: true },
       orderBy: { date: 'asc' },
     }),
     fetchStudioloSafe(),
+    fetchCleanpunkSafe(),
   ]);
 
   // Build month map from TARDIS data
@@ -136,6 +151,14 @@ export async function getUnifiedPnL(months = 12): Promise<UnifiedPnLData[]> {
 
   const monthlyRecurring = studiolo?.giving.monthlyRecurring ?? 0;
 
+  // Build commerce revenue by month from Cleanpunk
+  const commerceByMonth = new Map<string, number>();
+  if (cleanpunk?.revenue.byMonth) {
+    for (const m of cleanpunk.revenue.byMonth) {
+      commerceByMonth.set(m.month, m.gross);
+    }
+  }
+
   return [...byMonth.entries()]
     .sort(([a], [b]) => a.localeCompare(b))
     .map(([month, data]) => ({
@@ -145,6 +168,7 @@ export async function getUnifiedPnL(months = 12): Promise<UnifiedPnLData[]> {
       net: data.revenue - data.expenses,
       donorGiving: donorByMonth.get(month) ?? 0,
       recurringRevenue: monthlyRecurring,
+      commerceRevenue: commerceByMonth.get(month) ?? 0,
     }));
 }
 
@@ -247,20 +271,22 @@ export async function getTemperatureCorrelation(): Promise<TemperatureCorrelatio
 }
 
 export async function getAnalyticalKPIs(fiscalYear?: number): Promise<AnalyticalKPIs> {
-  const [expenseKpis, studiolo, postmaster] = await Promise.all([
+  const [expenseKpis, studiolo, postmaster, cleanpunk] = await Promise.all([
     getExpenseKPIs(fiscalYear),
     fetchStudioloSafe(),
     fetchPostmasterSafe(),
+    fetchCleanpunkSafe(),
   ]);
 
   const donorRevenue = studiolo?.giving.last12Months ?? 0;
-  const totalRevenue = expenseKpis.totalYtdIncome + donorRevenue;
+  const commerceRevenue = cleanpunk?.revenue.grossYTD ?? 0;
+  const totalRevenue = expenseKpis.totalYtdIncome + donorRevenue + commerceRevenue;
 
   // Count active revenue sources
   let revenueSourceCount = 0;
   if (expenseKpis.totalYtdIncome > 0) revenueSourceCount++;
   if (studiolo && donorRevenue > 0) revenueSourceCount++;
-  // Cleanpunk would be source 3 when added
+  if (cleanpunk && commerceRevenue > 0) revenueSourceCount++;
 
   return {
     totalRevenue,
@@ -269,10 +295,13 @@ export async function getAnalyticalKPIs(fiscalYear?: number): Promise<Analytical
     donorRetention: studiolo?.donors.retentionRate ?? 0,
     avgTemperature: postmaster?.temperature.avgScore ?? 0,
     monthlyRecurring: studiolo?.giving.monthlyRecurring ?? 0,
+    commerceRevenue,
+    commerceOrderCount: cleanpunk?.orders.countYTD ?? 0,
     revenueSourceCount,
     crossSiteStatus: {
       studiolo: studiolo !== null,
       postmaster: postmaster !== null,
+      cleanpunk: cleanpunk !== null,
     },
   };
 }

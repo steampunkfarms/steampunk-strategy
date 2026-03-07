@@ -37,8 +37,8 @@ export default async function AnalyticalIntelligencePage() {
           Postmaster
         </span>
         <span className="flex items-center gap-1.5">
-          <span className="w-2 h-2 rounded-full bg-gauge-amber" />
-          Cleanpunk (deferred)
+          <span className={`w-2 h-2 rounded-full ${kpis.crossSiteStatus.cleanpunk ? 'bg-gauge-green' : 'bg-gauge-red'}`} />
+          Cleanpunk
         </span>
       </div>
 

@@ -22,6 +22,7 @@ export function AnalyticalKPICards({ kpis }: { kpis: AnalyticalKPIs }) {
   const siteStatus = [
     kpis.crossSiteStatus.studiolo ? 'Studiolo' : null,
     kpis.crossSiteStatus.postmaster ? 'Postmaster' : null,
+    kpis.crossSiteStatus.cleanpunk ? 'Cleanpunk' : null,
   ]
     .filter(Boolean)
     .join(', ');

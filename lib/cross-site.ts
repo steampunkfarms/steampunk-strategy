@@ -61,6 +61,34 @@ export interface StudioloBIMetrics {
   generatedAt: string;
 }
 
+export interface CleanpunkBIMetrics {
+  orders: {
+    totalAllTime: number;
+    totalYTD: number;
+    totalPriorYear: number;
+    countYTD: number;
+    avgOrderValue: number;
+  };
+  revenue: {
+    grossYTD: number;
+    grossPriorYear: number;
+    yoyChangePct: number;
+    byMonth: Array<{ month: string; gross: number; orderCount: number }>;
+    byCollection: Array<{ collection: string; revenue: number; units: number }>;
+  };
+  customers: {
+    total: number;
+    newYTD: number;
+    repeatPurchasers: number;
+  };
+  products: {
+    totalActive: number;
+    lowStock: Array<{ name: string; variant: string; inventory: number }>;
+    topSellers: Array<{ name: string; units: number; revenue: number }>;
+  };
+  fetchedAt: string;
+}
+
 export interface PostmasterBIMetrics {
   temperature: {
     totalContacts: number;
@@ -154,4 +182,8 @@ export async function fetchStudioloBIMetrics(options?: CrossSiteFetchOptions): P
 
 export async function fetchPostmasterBIMetrics(options?: CrossSiteFetchOptions): Promise<PostmasterBIMetrics> {
   return internalFetch<PostmasterBIMetrics>(`${postmasterUrl()}/api/internal/bi-metrics`, options);
+}
+
+export async function fetchCleanpunkBIMetrics(options?: CrossSiteFetchOptions): Promise<CleanpunkBIMetrics> {
+  return internalFetch<CleanpunkBIMetrics>(`${cleanpunkUrl()}/api/internal/bi-metrics`, options);
 }
