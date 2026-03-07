@@ -105,6 +105,12 @@ _(none)_
 **Repos:** steampunk-strategy (primary) + Studiolo/Postmaster/Cleanpunk API reads (BI-2+).
 **Cross-site auth:** INTERNAL_SECRET header pattern.
 
+### Studiolo Donor BI Dashboard
+
+- [x] (STUD-BI-1) Phase 1: Recharts upgrade, giving heatmap, drill-down modals, board exports — see `docs/handoffs/20260307-studiolo-donor-bi-phase1.md`
+  - 🤖 **2026-03-07:** Upgraded intelligence page from CSS charts to interactive Recharts. Added giving heatmap (7x12 SVG grid), LTV Score analytics with top-10 table, drill-down modals with sortable tables + CSV export, board-ready CSV/PDF export with Claude narrative generation. Rewrote MetricsCharts.tsx to use Recharts. (task completed)
+- [ ] (STUD-BI-2) Phase 2: Donor health scoring, predictive churn, segment migration tracking
+
 ---
 
 ## 🟡 Priority Two — High Value, Needs Handoff Spec
