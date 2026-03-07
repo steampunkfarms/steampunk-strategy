@@ -1,11 +1,11 @@
 export const dynamic = 'force-dynamic';
 
 import Link from 'next/link';
-import { Receipt, Plus, Upload, TrendingUp } from 'lucide-react';
-import { getTransactions, getExpenseCategories, getExpenseSummary } from '@/lib/queries';
-import { formatCurrency } from '@/lib/utils';
+import { Receipt, Plus, Upload } from 'lucide-react';
+import { getTransactions, getExpenseCategories } from '@/lib/queries';
 import TransactionTable from './transaction-table';
 import ExpenseFilters from './expense-filters';
+import ExpenseAnalytics from './expense-analytics';
 
 type Props = {
   searchParams: Promise<{
@@ -19,15 +19,10 @@ export default async function ExpensesPage(props: Props) {
   const searchParams = await props.searchParams;
   const { status, category, q } = searchParams;
 
-  const [transactions, categories, summary] = await Promise.all([
+  const [transactions, categories] = await Promise.all([
     getTransactions({ limit: 200, status: status || undefined, categoryId: category || undefined, search: q || undefined }),
     getExpenseCategories(),
-    getExpenseSummary(),
   ]);
-
-  const statusCounts = Object.fromEntries(
-    summary.byStatus.map((s) => [s.status, s._count])
-  );
 
   return (
     <div className="space-y-6">
@@ -48,22 +43,8 @@ export default async function ExpensesPage(props: Props) {
         </div>
       </div>
 
-      {/* Summary bar */}
-      {transactions.length > 0 && (
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-          {[
-            { label: 'Total Transactions', value: transactions.length, color: 'text-slate-200' },
-            { label: 'Pending Review', value: statusCounts.pending ?? 0, color: 'text-gauge-amber' },
-            { label: 'Verified', value: statusCounts.verified ?? 0, color: 'text-gauge-green' },
-            { label: 'Flagged', value: statusCounts.flagged ?? 0, color: 'text-gauge-red' },
-          ].map((s) => (
-            <div key={s.label} className="console-card p-4">
-              <p className={`text-xl font-mono font-bold ${s.color}`}>{s.value}</p>
-              <p className="text-xs text-slate-500 mt-1">{s.label}</p>
-            </div>
-          ))}
-        </div>
-      )}
+      {/* BI Analytics Dashboard */}
+      <ExpenseAnalytics />
 
       {/* Filters bar */}
       <ExpenseFilters
@@ -76,31 +57,6 @@ export default async function ExpensesPage(props: Props) {
         currentCategory={category ?? ''}
         currentSearch={q ?? ''}
       />
-
-      {/* Category breakdown — if we have transactions */}
-      {summary.byCategory.length > 0 && (
-        <div className="console-card">
-          <div className="px-5 py-4 border-b border-console-border">
-            <h2 className="text-sm font-semibold text-slate-200 flex items-center gap-2">
-              <TrendingUp className="w-4 h-4 text-brass-gold" />
-              Spending by Category (YTD)
-            </h2>
-          </div>
-          <div className="divide-y divide-console-border">
-            {summary.byCategory.map((item, i) => (
-              <div key={i} className="px-5 py-3 flex items-center justify-between">
-                <div className="flex items-center gap-3">
-                  <span className="text-sm text-slate-200">{item.category?.name ?? 'Uncategorized'}</span>
-                  <span className="text-xs text-slate-500">{item.count} transactions</span>
-                </div>
-                <span className="font-mono text-sm text-slate-200">
-                  {item.total ? formatCurrency(item.total.toString()) : '$0.00'}
-                </span>
-              </div>
-            ))}
-          </div>
-        </div>
-      )}
 
       {/* Transaction table or empty state */}
       {transactions.length > 0 ? (
