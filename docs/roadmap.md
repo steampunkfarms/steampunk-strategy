@@ -248,15 +248,9 @@ A mapping layer that learns which products serve which species. Sits between Cla
 
 ## 🟡 Priority Three — Important, Revisit Soon
 
-### Cogworks Social Ingest — Live FB/IG Post Pull
-**Priority:** Medium — reduces manual content porting
-**What's built:** Postmaster has Meta Graph API v24.0 integration — posts *to* Facebook/Instagram and pulls *comments* back via `engagementScanner.ts`. Same Page token + Page ID used by both platforms. Batch seed script (`scripts/seed-cogworks-posts.mjs`) handles manual backfill from markdown files.
-**Completed (2026-03-07):** Historical FB Page post backfill via static export — `20260306-sfrb-page-export-parser` handoff built a Facebook page export parser that imports posts into Cogworks as drafts with species detection, Tiptap conversion, image handling, and admin review queue with batch approve/publish. Also built `20260307-social-intelligence-platform` for engagement analytics (temperature scoring, donor matching) from FB export data (comments, reactions, messages, followers).
-**Remaining gap:** No *live* ingest pipeline pulling new FB/IG posts into Cogworks on an ongoing basis. Need:
-1. **Pull endpoint** — `GET /{PAGE_ID}/feed` (FB) and `GET /{IG_ACCOUNT_ID}/media` (IG) to fetch recent posts with text, images, timestamps. Deduplicate by `externalId`.
-2. **Cron or manual trigger** — Daily pull or on-demand "Import from Social" button in Cogworks admin.
-**Species detection, Tiptap conversion, and draft creation already work** via the export parser — the live pull just needs to feed the same pipeline.
-**Repos:** steampunk-postmaster (API pull) + steampunk-rescuebarn (Cogworks ingest)
+### ~~Cogworks Social Ingest — Live FB/IG Post Pull~~ COMPLETED 2026-03-07
+
+See `docs/handoffs/20260307-cogworks-live-social-pull.md`. Daily cron pulls FB/IG posts into Cogworks as drafts via Graph API. Historical backfill also complete via export parser.
 
 ### HUG Automation Layer — Anniversary Touches, Auto-Follow-Up, Personalized Receipts
 **Priority:** Medium — elevates existing infrastructure from detection to action
