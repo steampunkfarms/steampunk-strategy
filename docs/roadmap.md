@@ -3,7 +3,7 @@
 > Active handoffs and prioritized work items. Reviewed at each planning session.
 > Location: steampunk-strategy/docs/roadmap.md
 > Split: deferred items in [roadmap-deferred.md](roadmap-deferred.md), archive in [roadmap-archive.md](roadmap-archive.md)
-> Last updated: 2026-03-06 (v2026.03i — roadmap split)
+> Last updated: 2026-03-07 (COG-1 completed)
 >
 > **Agent Instructions:** When a Claude Code job completes, append the completion line with timestamp and summary to `roadmap-archive.md`, then remove the original bullet from this file. Use `scripts/roadmap-updater.js` for automation.
 
@@ -283,6 +283,10 @@ A mapping layer that learns which products serve which species. Sits between Cla
 ---
 
 ## 🟡 Priority Three — Important, Revisit Soon
+
+### ~~COG-1: Cogworks New Post Upgrade~~ COMPLETED 2026-03-07
+
+See `docs/handoffs/20260307-cogworks-new-post-upgrade.md`. Upgraded Cogworks CMS post editor with Gen AI content composition (Claude Sonnet), Postmaster-grade TipTap editor (24 extensions), multi-species selection, platform targeting, YouTube copy generation, scheduling UI, and mini-Storm toggle. 7 files across 1 repo.
 
 ### ~~Cogworks Social Ingest — Live FB/IG Post Pull~~ COMPLETED 2026-03-07
 
