@@ -296,6 +296,10 @@ See `docs/handoffs/20260307-cogworks-mini-storm-pipeline.md`. Wired Cogworks -> 
 
 See `docs/handoffs/20260307-postmaster-cogworks-reverse-feed.md`. Added COGWORKS as 8th platform target in Postmaster Content Storm. Shared blog generation helper (two Claude calls), cross-site dispatch to Rescue Barn as draft, storm origin dedup in mini-Storm pipeline, UI indicators in PostEditor and review queue. 19 files across 2 repos (Postmaster + Rescue Barn).
 
+### ~~COG-4: Engagement-Driven Storm Automation~~ COMPLETED 2026-03-07
+
+See `docs/handoffs/20260307-engagement-driven-storms.md`. Comment monitoring cron detects activity spikes, selects best engagement anchor (AI framing idea), triggers community-celebrating Storms via existing mini-Storm pipeline. Engagement anchors CRUD with admin UI. Postmaster enhanced with engagement-specific Claude prompts. 10 files across 2 repos (Rescue Barn + Postmaster).
+
 ### ~~Cogworks Social Ingest — Live FB/IG Post Pull~~ COMPLETED 2026-03-07
 
 See `docs/handoffs/20260307-cogworks-live-social-pull.md`. Daily cron pulls FB/IG posts into Cogworks as drafts via Graph API. Historical backfill also complete via export parser.
