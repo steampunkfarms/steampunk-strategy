@@ -304,6 +304,10 @@ See `docs/handoffs/20260307-engagement-driven-storms.md`. Comment monitoring cro
 
 See `docs/handoffs/20260307-newsletter-foundation.md`. Resend-powered batch send pipeline, HTML email templates (weekly/monthly/seasonal), subscriber management with cadence preferences and unsubscribe, newsletter issue CRUD, admin dashboard. Postmaster: NewsletterDraft model, cross-site content ingestion, editorial review page, dispatch to Rescue Barn. 23 files across 2 repos (Rescue Barn + Postmaster).
 
+### ~~CHRON-1: Caretaker Chronicle System~~ COMPLETED 2026-03-07
+
+See `docs/handoffs/20260307-caretaker-chronicle.md`. Voice + SMS + omnipresent button chronicle system. JournalEntry model, Whisper transcription, Twilio SMS gateway, Claude auto-tagging, ChronicleButton on every admin page with local auth proxies. 27 files across 4 repos (Postmaster + Rescue Barn + Studiolo + TARDIS).
+
 ### ~~Cogworks Social Ingest — Live FB/IG Post Pull~~ COMPLETED 2026-03-07
 
 See `docs/handoffs/20260307-cogworks-live-social-pull.md`. Daily cron pulls FB/IG posts into Cogworks as drafts via Graph API. Historical backfill also complete via export parser.

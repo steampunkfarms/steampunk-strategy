@@ -29,6 +29,7 @@ import {
   ScrollText,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import ChronicleButton from '@/components/ChronicleButton';
 
 const navigation = [
   {
@@ -159,6 +160,8 @@ export default function ProtectedLayout({ children }: { children: React.ReactNod
           </div>
         </div>
       </aside>
+
+      <ChronicleButton />
 
       {/* Main content */}
       <main className="flex-1 ml-64">
