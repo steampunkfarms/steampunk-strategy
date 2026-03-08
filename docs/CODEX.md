@@ -1,6 +1,14 @@
-# CODEX.md — Steampunk Farms Codex QA Contract
+# CODEX.md — DEPRECATED
 
-This file is the persistent operating contract for Codex as the mandatory QA engineer in the CChat -> Codex -> CC pipeline.
+> **⚠️ DEPRECATED as of CLAUDE.md v2026.03l (2026-03-08)**
+>
+> Codex is no longer a mandatory actor in the Steampunk Farms workflow. QA responsibilities have been absorbed into the CC Post-Execution QA Protocol (see CLAUDE.md). Codex remains available as an optional ad-hoc tool for independent code review when the operator wants a non-Anthropic perspective.
+>
+> This file is retained for historical reference only. Do not follow the procedures below as mandatory protocol.
+
+---
+
+*Historical content below — previously the persistent operating contract for Codex as the mandatory QA engineer in the CChat -> Codex -> CC pipeline.*
 
 ## Changelog (v2026.03k)
 
