@@ -308,6 +308,10 @@ See `docs/handoffs/20260307-newsletter-foundation.md`. Resend-powered batch send
 
 See `docs/handoffs/20260307-caretaker-chronicle.md`. Voice + SMS + omnipresent button chronicle system. JournalEntry model, Whisper transcription, Twilio SMS gateway, Claude auto-tagging, ChronicleButton on every admin page with local auth proxies. 27 files across 4 repos (Postmaster + Rescue Barn + Studiolo + TARDIS).
 
+### ~~NEWS-2: Weekly Dispatch + Monthly Barn Letter~~ COMPLETED 2026-03-07
+
+See `docs/handoffs/20260307-news2-composition-engine.md`. AI composition engine for weekly dispatch (~400 words, format variety) and monthly barn letter (narrative arc, 800-1200 words). Content selector, animal continuity tracker, engagement echo, subject line engine (3 options), cron schedules, manual compose trigger. 12 files across 1 repo (Postmaster).
+
 ### ~~Cogworks Social Ingest — Live FB/IG Post Pull~~ COMPLETED 2026-03-07
 
 See `docs/handoffs/20260307-cogworks-live-social-pull.md`. Daily cron pulls FB/IG posts into Cogworks as drafts via Graph API. Historical backfill also complete via export parser.
