@@ -292,6 +292,10 @@ See `docs/handoffs/20260307-cogworks-new-post-upgrade.md`. Upgraded Cogworks CMS
 
 See `docs/handoffs/20260307-cogworks-mini-storm-pipeline.md`. Wired Cogworks -> Postmaster mini-Storm pipeline for social media distribution on publish. Added admin engagement controls page with threshold configuration, comment spotlight-to-storm, mini-storm activity log. Scheduled post auto-publish cron (every 5 min). 11 files across 2 repos (Rescue Barn + Postmaster).
 
+### ~~COG-3: Postmaster -> Cogworks Reverse Feed~~ COMPLETED 2026-03-07
+
+See `docs/handoffs/20260307-postmaster-cogworks-reverse-feed.md`. Added COGWORKS as 8th platform target in Postmaster Content Storm. Shared blog generation helper (two Claude calls), cross-site dispatch to Rescue Barn as draft, storm origin dedup in mini-Storm pipeline, UI indicators in PostEditor and review queue. 19 files across 2 repos (Postmaster + Rescue Barn).
+
 ### ~~Cogworks Social Ingest — Live FB/IG Post Pull~~ COMPLETED 2026-03-07
 
 See `docs/handoffs/20260307-cogworks-live-social-pull.md`. Daily cron pulls FB/IG posts into Cogworks as drafts via Graph API. Historical backfill also complete via export parser.
