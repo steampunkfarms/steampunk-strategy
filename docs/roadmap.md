@@ -300,6 +300,10 @@ See `docs/handoffs/20260307-postmaster-cogworks-reverse-feed.md`. Added COGWORKS
 
 See `docs/handoffs/20260307-engagement-driven-storms.md`. Comment monitoring cron detects activity spikes, selects best engagement anchor (AI framing idea), triggers community-celebrating Storms via existing mini-Storm pipeline. Engagement anchors CRUD with admin UI. Postmaster enhanced with engagement-specific Claude prompts. 10 files across 2 repos (Rescue Barn + Postmaster).
 
+### ~~NEWS-1: Newsletter Foundation~~ COMPLETED 2026-03-07
+
+See `docs/handoffs/20260307-newsletter-foundation.md`. Resend-powered batch send pipeline, HTML email templates (weekly/monthly/seasonal), subscriber management with cadence preferences and unsubscribe, newsletter issue CRUD, admin dashboard. Postmaster: NewsletterDraft model, cross-site content ingestion, editorial review page, dispatch to Rescue Barn. 23 files across 2 repos (Rescue Barn + Postmaster).
+
 ### ~~Cogworks Social Ingest — Live FB/IG Post Pull~~ COMPLETED 2026-03-07
 
 See `docs/handoffs/20260307-cogworks-live-social-pull.md`. Daily cron pulls FB/IG posts into Cogworks as drafts via Graph API. Historical backfill also complete via export parser.
