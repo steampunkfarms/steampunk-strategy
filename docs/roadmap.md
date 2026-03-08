@@ -3,7 +3,7 @@
 > Active handoffs and prioritized work items. Reviewed at each planning session.
 > Location: steampunk-strategy/docs/roadmap.md
 > Split: deferred items in [roadmap-deferred.md](roadmap-deferred.md), archive in [roadmap-archive.md](roadmap-archive.md)
-> Last updated: 2026-03-07 (HUG-1 completed)
+> Last updated: 2026-03-07 (COMMONS-1 completed)
 >
 > **Agent Instructions:** When a Claude Code job completes, append the completion line with timestamp and summary to `roadmap-archive.md`, then remove the original bullet from this file. Use `scripts/roadmap-updater.js` for automation.
 
@@ -323,6 +323,22 @@ See `docs/handoffs/20260307-cogworks-live-social-pull.md`. Daily cron pulls FB/I
 ### ~~HUG-1: Atelier Lane HUG Digest~~ COMPLETED 2026-03-07
 
 See `docs/handoffs/20260307-hug1-atelier-digest.md`. Monthly personalized donor letters using 5-layer voice engine. Per-donor content matching (animal bonds, species interests), mood selection, anti-CTA enforcement, Postmaster content feed API. 8 files across 2 repos (Studiolo + Postmaster).
+
+### ~~COMMONS-1: Rescue Commons Foundation~~ COMPLETED 2026-03-07
+
+See `docs/handoffs/20260307-commons1-rescue-commons.md`. Authenticated community platform with three zones (Bray, Corral, Punkyard), Claude Haiku AI moderation (toxicity scoring + auto-action), strike system, threaded comments (depth 3), Supabase Realtime, admin moderation queue, blog post discussion integration. 24 new + 2 modified files in 1 repo (Rescue Barn).
+
+### COMMONS-2: AI Intelligence Layer
+**Priority:** Medium — builds on COMMONS-1 community foundation
+**What it is:** AI-powered thread summaries, knowledge harvest from community discussions, Barn Sage RAG chatbot (answers questions from community-generated knowledge), social media amplification of top community content.
+**Requires:** COMMONS-1 complete, community content accumulation
+**Repo:** steampunk-rescuebarn + steampunk-postmaster (social amplification)
+
+### COMMONS-3: Gamification & Premium Features
+**Priority:** Low — engagement layer after community is established
+**What it is:** Karma/flair system (community reputation badges), vetted contributor zone (earned access), live community rooms, premium lounge for major donors/patrons. Supabase Storage bucket for Punkyard image uploads.
+**Requires:** COMMONS-1 + COMMONS-2 complete, active community
+**Repo:** steampunk-rescuebarn
 
 ### HUG Automation Layer — Anniversary Touches, Auto-Follow-Up, Personalized Receipts
 **Priority:** Medium — elevates existing infrastructure from detection to action
