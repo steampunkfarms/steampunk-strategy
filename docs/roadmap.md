@@ -3,7 +3,7 @@
 > Active handoffs and prioritized work items. Reviewed at each planning session.
 > Location: steampunk-strategy/docs/roadmap.md
 > Split: deferred items in [roadmap-deferred.md](roadmap-deferred.md), archive in [roadmap-archive.md](roadmap-archive.md)
-> Last updated: 2026-03-07 (NEWS-3 completed)
+> Last updated: 2026-03-07 (HUG-1 completed)
 >
 > **Agent Instructions:** When a Claude Code job completes, append the completion line with timestamp and summary to `roadmap-archive.md`, then remove the original bullet from this file. Use `scripts/roadmap-updater.js` for automation.
 
@@ -320,9 +320,13 @@ See `docs/handoffs/20260307-news3-seasonal-publication.md`. Quarterly "State of 
 
 See `docs/handoffs/20260307-cogworks-live-social-pull.md`. Daily cron pulls FB/IG posts into Cogworks as drafts via Graph API. Historical backfill also complete via export parser.
 
+### ~~HUG-1: Atelier Lane HUG Digest~~ COMPLETED 2026-03-07
+
+See `docs/handoffs/20260307-hug1-atelier-digest.md`. Monthly personalized donor letters using 5-layer voice engine. Per-donor content matching (animal bonds, species interests), mood selection, anti-CTA enforcement, Postmaster content feed API. 8 files across 2 repos (Studiolo + Postmaster).
+
 ### HUG Automation Layer — Anniversary Touches, Auto-Follow-Up, Personalized Receipts
 **Priority:** Medium — elevates existing infrastructure from detection to action
-**What's built:** Anniversary/milestone detection in `donor-alerts.ts` (giving, barn visit, Opus anniversaries), friction scanner cron (bounces, lapsed replies, unsubscribe signals), attention queue with snooze, Atelier receipt auto-send with IRS-compliant PDFs + fixed thank-you email, letter generation (.docx → OneDrive).
+**What's built:** Anniversary/milestone detection in `donor-alerts.ts` (giving, barn visit, Opus anniversaries), friction scanner cron (bounces, lapsed replies, unsubscribe signals), attention queue with snooze, Atelier receipt auto-send with IRS-compliant PDFs + fixed thank-you email, letter generation (.docx → OneDrive), HUG Digest monthly composition (HUG-1).
 **Gaps (3 layers):**
 1. **Anniversary → Touch conversion:** Alerts detect milestones but never auto-queue a gratitude dispatch (e.g., Epistola on giving anniversary). Add cron or hook that converts anniversary alerts into queued touches with HUG-appropriate templates. Include first-reply celebration and repeat-gift counter ("this is your 10th gift").
 2. **Friction → Auto-follow-up:** Friction alerts (lapsed replies, unanswered outreach) exist but don't auto-create follow-up touches. Add configurable rule: "if no reply in X days, queue a gentle follow-up" with Padrona voice.
