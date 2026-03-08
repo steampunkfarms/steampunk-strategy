@@ -4,6 +4,7 @@
 
 ## Completed
 
+- **2026-03-07:** (20260307-cogworks-mini-storm-pipeline) COG-2 Mini-Storm Pipeline + Engagement Controls — Cogworks -> Postmaster cross-site storm pipeline, admin engagement controls page with threshold config, comment spotlight-to-storm, mini-storm activity log, scheduled post auto-publish cron (5 min). 11 files across 2 repos (Rescue Barn + Postmaster).
 - **2026-03-07:** (20260307-cogworks-new-post-upgrade) COG-1 Cogworks New Post Upgrade — Gen AI content composition (Claude Sonnet Standard/Verbose), Postmaster-grade TipTap editor (24 extensions), multi-species selection, platform targeting, YouTube copy generation, scheduling UI, mini-Storm toggle. PostEditor.tsx rewritten (642->970 lines). PostCard/post-view/review-queue-client updated for multi-species badges. 7 files across 1 repo.
 - **2026-03-07:** (20260307-captains-log) CLOG-1 Captain's Log — Executive action log with AI classification, CRUD APIs, summary gauges, filter bar, new entry with AI preview, detail/edit page, Bridge widget, sidebar nav, board meeting prep view. 10 files across 1 repo.
 - **2026-03-07:** (20260307-bi-analytical-layer2) BI-2 Analytical BI — first cross-site integration. Internal API endpoints on Studiolo + Postmaster, TARDIS cross-site.ts Bearer auth fix, analytical aggregation library (5 functions), 5 chart components, analytical tab page with graceful degradation. 10 files across 3 repos.
