@@ -3,7 +3,7 @@
 > Active handoffs and prioritized work items. Reviewed at each planning session.
 > Location: steampunk-strategy/docs/roadmap.md
 > Split: deferred items in [roadmap-deferred.md](roadmap-deferred.md), archive in [roadmap-archive.md](roadmap-archive.md)
-> Last updated: 2026-03-07 (COG-2 completed)
+> Last updated: 2026-03-07 (NEWS-3 completed)
 >
 > **Agent Instructions:** When a Claude Code job completes, append the completion line with timestamp and summary to `roadmap-archive.md`, then remove the original bullet from this file. Use `scripts/roadmap-updater.js` for automation.
 
@@ -311,6 +311,10 @@ See `docs/handoffs/20260307-caretaker-chronicle.md`. Voice + SMS + omnipresent b
 ### ~~NEWS-2: Weekly Dispatch + Monthly Barn Letter~~ COMPLETED 2026-03-07
 
 See `docs/handoffs/20260307-news2-composition-engine.md`. AI composition engine for weekly dispatch (~400 words, format variety) and monthly barn letter (narrative arc, 800-1200 words). Content selector, animal continuity tracker, engagement echo, subject line engine (3 options), cron schedules, manual compose trigger. 12 files across 1 repo (Postmaster).
+
+### ~~NEWS-3: Seasonal Publication — Quarterly Editorial~~ COMPLETED 2026-03-07
+
+See `docs/handoffs/20260307-news3-seasonal-publication.md`. Quarterly "State of the Barn" editorial letter (2000-3000 words) with census data, impact transparency, campaign arc storytelling, caretaker voices, seasonal framing, and winter year-in-review. TARDIS impact metrics with local fallback, scored journal excerpt selection, quarterly cron. 11 files across 1 repo (Postmaster).
 
 ### ~~Cogworks Social Ingest — Live FB/IG Post Pull~~ COMPLETED 2026-03-07
 
