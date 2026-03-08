@@ -3,7 +3,7 @@
 > Active handoffs and prioritized work items. Reviewed at each planning session.
 > Location: steampunk-strategy/docs/roadmap.md
 > Split: deferred items in [roadmap-deferred.md](roadmap-deferred.md), archive in [roadmap-archive.md](roadmap-archive.md)
-> Last updated: 2026-03-07 (COMMONS-1 completed)
+> Last updated: 2026-03-07 (YT-1 completed)
 >
 > **Agent Instructions:** When a Claude Code job completes, append the completion line with timestamp and summary to `roadmap-archive.md`, then remove the original bullet from this file. Use `scripts/roadmap-updater.js` for automation.
 
@@ -327,6 +327,10 @@ See `docs/handoffs/20260307-hug1-atelier-digest.md`. Monthly personalized donor 
 ### ~~COMMONS-1: Rescue Commons Foundation~~ COMPLETED 2026-03-07
 
 See `docs/handoffs/20260307-commons1-rescue-commons.md`. Authenticated community platform with three zones (Bray, Corral, Punkyard), Claude Haiku AI moderation (toxicity scoring + auto-action), strike system, threaded comments (depth 3), Supabase Realtime, admin moderation queue, blog post discussion integration. 24 new + 2 modified files in 1 repo (Rescue Barn).
+
+### ~~YT-1: YouTube Transcript -> Cogworks Importer~~ COMPLETED 2026-03-07
+
+See `docs/handoffs/20260307-yt1-youtube-cogworks-import.md`. YouTube Data API v3 channel video listing, youtubei.js transcript extraction, Claude Sonnet transcript processing (clean prose, species classification, social caption, donor hook, SEO), TipTap body builder with embedded player. CLI bulk import script + admin UI page. 6 new + 3 modified files in 1 repo (Rescue Barn).
 
 ### COMMONS-2: AI Intelligence Layer
 **Priority:** Medium — builds on COMMONS-1 community foundation
