@@ -280,6 +280,10 @@ A mapping layer that learns which products serve which species. Sits between Cla
 6. ~~Impact metrics aggregation + API~~ COMPLETED 2026-03-07 — see `docs/handoffs/20260307-eip-impact-api-enrichment.md`
 7. Cross-site integration handoffs (one per consuming site)
 
+### ~~RIG-1: Resident Multi-Image Gallery~~ COMPLETED 2026-03-09
+
+See `docs/handoffs/20260309-resident-multi-image.md`. Multi-image gallery for animal residents — ResidentImage Prisma model, CRUD API, Vercel Blob upload, admin gallery UI with drag-drop/tags/season/primary selection, public API extension (?fields=images), Storm image selector with weighted rotation scoring, Dear Humans auto-select integration, migration of 9 existing imageUrl values. 8 new + 3 modified files in 1 repo (Postmaster).
+
 ---
 
 ## 🟡 Priority Three — Important, Revisit Soon
