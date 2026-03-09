@@ -1,6 +1,10 @@
 # CLAUDE.md — Steampunk Strategy: The Bridge
 
-## Changelog (v2026.03k)
+## Changelog (v2026.03l)
+
+- 2026-03-08l-patch: Added Operator Action Block (step 7) to CC Post-Execution QA Protocol. Ensures manual operator steps are surfaced at the top of every debrief, not buried in summary.
+
+- 2026-03-08l: Two-Actor Model — retired Codex mandatory QA role. QA responsibilities absorbed into CC post-execution checklist. CChat remains strategic architect, CC is executor + QA gate. Codex available as optional ad-hoc tool. Added CC Post-Execution QA Protocol, External Review Exception Table, Optional Tools section. Deprecated docs/CODEX.md. Protocol change procedure no longer requires CODEX.md sync.
 
 - 2026-03-06k: Protocol Metrics Instrumentation Phase A. Instrumented verify-handoff.mjs with inline counters (checksPassed, checksWarned, checksFailed, tscErrorCount, satelliteStale) and append-only JSONL metric emission to docs/protocol-metrics.jsonl. Created protocol-health-log.md template, protocol-health-summary.mjs CLI helper. Rewrote tardis-protocol-health-dashboard-spec.md with Phase A (file-based) / Phase B (UI) structure.
 
@@ -8,7 +12,7 @@
 
 - 2026-03-06i: CChat protocol hardening audit. Fixed stale Copilot ref in strategy-session-template. Widened protocol sync rule to list satellite docs. Added Tier 0 Hotfix path with mandatory backfill. Added Novel Pattern trigger for Tier 3. Hardened tsc error reporting in verifier (error count + combined stdout/stderr). Added satellite doc freshness Check 9 to verifier. Split roadmap into 3 files (roadmap.md, roadmap-deferred.md, roadmap-archive.md) and updated verifier + updater script.
 
-- 2026-03-06h: Restructured to three-actor model with tiered workflows. Tier 1 (quick fixes, no ceremony), Tier 2 (standard work: Human + CC plan and execute, Codex QA audits, full protocol), Tier 3 (strategic: CChat plans, Codex audits, CC executes). CC self-enforces protocol compliance for all non-trivial work. CChat reserved for strategic/complex work only. Copilot retired and archived. Protocol sync rule reduced from three files to two (CLAUDE.md + CODEX.md).
+- 2026-03-06h: Restructured to three-actor model with tiered workflows (later superseded by v2026.03l two-actor model). CC self-enforces protocol compliance for all non-trivial work. CChat reserved for strategic/complex work only. Copilot retired and archived.
 
 - 2026-03-06g: Added mandatory change-history-first investigation protocol for fix-propagation requests (start with git/changelogs/handoffs before targeted code sweep).
 - 2026-03-06f: Added Environment Constraints block to all three brain files + CODEX-PREAMBLE (Next.js 16 lint fix, mandatory tsc --noEmit in verification, auth stack map, ESLint config map, cross-repo CI checkout flag).
@@ -20,7 +24,7 @@
 - 2026-03-06: Added Strategy Session Template, Cross-Site Checklist, Debrief Script, Family Planning Protocol, and Protocol Health Dashboard seed (per operator request).
 - Previous versions tracked in git history only.
 
-Any protocol change must include a new changelog entry and version bump in BOTH brain files in the same change set.
+Any protocol change must include a new changelog entry and version bump in this file, then cascade to all repos carrying CLAUDE.md.
 
 ## Project Overview
 
@@ -135,40 +139,36 @@ A key differentiator: donors sometimes call vendors (Elston's Feed, Star Milling
 
 ---
 
-## Execution Model & Workflow Tiers
+## Execution Model — Two-Actor Framework
 
 This repo serves double duty: it's both the TARDIS codebase AND the central reference library for all 5 Steampunk Farms web properties. A consolidated Claude project space handles all planning, specs, and handoffs across the family of sites.
 
-### Workflow Tiers (How Work Gets Done)
+### Actors
 
-Not all work needs the same ceremony. Use the tier that matches the scope:
+| Actor | Tool | Role | Tiers |
+|-------|------|------|-------|
+| **CChat** (The Strategist) | Claude Opus — Cline (VS Code) | Strategic architecture, complex decisions, protocol governance, handoff authoring, codebase archaeology, cross-system design | Tier 3 |
+| **CC** (The Executor) | Claude Code CLI | Planning + execution for standard work, post-execution QA, type checking, security verification | Tier 0, 1, 2 |
 
-**Tier 0 — Hotfix (production emergency, backfill required)**
-- Scope: production is broken — users can't log in, data is corrupting, pages are 500ing
-- Flow: Human + CC fix immediately -> backfill protocol artifacts after the fix is deployed
-- Protocol: fix first, then within the same session: create a retrospective handoff spec, update roadmap, run verification
-- The hotfix itself has no gate. The backfill is mandatory and must happen before the session ends.
-- Examples: auth callback broken in prod, database migration failed, critical API returning errors
+### How It Works
 
-**Tier 1 — Quick Fix (no protocol ceremony)**
-- Scope: typo fixes, one-line config changes, minor CSS tweaks, single-file corrections
-- Flow: Human asks CC -> CC does it
-- Protocol: none required — just do the work
-- Examples: fix a broken import, update an env var, correct a typo in copy
+1. **Fred** identifies a need and routes to the appropriate tier
+2. **Tier 3 (CChat)**: Fred describes the problem → CChat explores codebase, designs solution, writes handoff prompt with embedded acceptance criteria → Fred shuttles handoff to CC
+3. **Tier 0/1/2 (CC)**: Fred provides task directly to CC → CC plans, executes, runs post-execution QA → pushes to main
+4. **Fred** is the sole shuttle between actors. No direct CChat↔CC communication.
 
-**Tier 2 — Standard Work (Human + CC, protocol required)**
-- Scope: feature implementation, bug fixes spanning multiple files, refactors, new routes, schema changes — anything beyond a quick tweak
-- Flow: Human + CC plan together -> CC creates working spec + handoff spec -> Codex QA audit -> CC implements -> Codex post-flight audit
-- Protocol: FULL — working spec, handoff spec, changelogs, verification, roadmap update, debrief
-- This is the DEFAULT for most work. When in doubt, use Tier 2.
-- CC is responsible for planning AND execution in this tier. CC drafts the working spec, generates the handoff spec with mapped anchors, and implements.
+### Routing Rules
 
-**Tier 3 — Strategic / High-Risk (CChat + Codex + CC, full ceremony)**
-- Scope: cross-site architecture changes, deep codebase archaeology, major initiatives, complex debugging, protocol evolution, brand/voice strategy
-- Flow: CChat (Opus in Cline) plans -> Codex pre-flight audit -> CC implements -> Codex post-flight audit
-- Protocol: FULL — plus Strategy Session Template, Cross-Site Checklist, Family Planning Protocol gating
-- Use when: the human explicitly invokes CChat, or the work meets Major Initiative criteria (affects 2+ sites, changes core data flow/auth, impacts donor experience/compliance, estimated effort > 8 handoffs)
-- Also triggers for Novel Patterns: first-time use of a new technology, integration pattern, or architectural approach not yet established in the codebase (e.g., first WebSocket integration, first external OAuth provider beyond Azure AD, first Turbo monorepo package)
+- **Tier 0 (Hotfix)**: CC direct — broken build, reverted deploy, critical typo. Fix first, backfill protocol artifacts after.
+- **Tier 1 (Quick Fix)**: CC direct — small bug, config change, copy update. No ceremony required.
+- **Tier 2 (Standard)**: CC-led — new feature, new API route, schema change, UI component. Full protocol: working spec, handoff spec, verification, roadmap update, debrief.
+- **Tier 3 (Strategic)**: CChat-designed, CC-executed — architecture decisions, cross-repo changes, protocol updates, voice system design, BI platform design. Also triggers for Novel Patterns (first-time use of a new technology, integration pattern, or architectural approach not yet established in the codebase).
+
+This is the DEFAULT for most work. When in doubt, use Tier 2.
+
+### Escalation
+
+If CC encounters ambiguity, unexpected complexity, or a decision that could affect other repos/systems, CC should STOP and recommend escalation to CChat. CC does not make architectural decisions.
 
 ### Protocol Compliance Rule (Non-Negotiable)
 
@@ -177,19 +177,12 @@ Not all work needs the same ceremony. Use the tier that matches the scope:
 - Generate a handoff spec with acceptance criteria
 - Run verification (`node scripts/verify-handoff.mjs --handoff-name <ID>`)
 - Run `npx tsc --noEmit` in every modified repo
+- Run the CC Post-Execution QA Protocol (see below)
 - Update `docs/roadmap.md` on completion
 - Update changelogs when protocol/brain files change
 - Produce a structured debrief
 
 CC must self-enforce this. Do not wait for the human to ask. If the work is non-trivial, follow the protocol automatically.
-
-### Actor Roles
-
-| Actor | Tool | Role | When Used |
-|-------|------|------|-----------|
-| **CC** (Claude Code 4.6) | Claude Code CLI | Planner + Executor: plans with human, creates specs, implements, verifies, debriefs | Tier 1 and Tier 2 (most work) |
-| **CChat** (Claude Chat 4.6 Opus) | Cline (VSCode) — planning-only mode | Deep Strategist: codebase archaeology, cross-site analysis, complex planning, protocol evolution | Tier 3 only (human invokes explicitly) |
-| **Codex** (OpenAI Codex) | Codex | QA Engineer: pre-flight audit of specs/prompts, post-flight audit of debriefs | Tier 2 and Tier 3 (mandatory QA gate) |
 
 ### Reference Library
 
@@ -243,21 +236,20 @@ Agents should avoid re-sending entire reference files; instead, they query for a
 1. Human and CC discuss the work and agree on scope.
 2. CC captures discovery/findings in a working spec at `docs/handoffs/_working/<handoff-id>-working-spec.md`.
 3. CC generates a fully execution-mapped handoff spec with exact insertion anchors, exact final text blocks, and a strict acceptance checklist.
-4. Human sends handoff spec to Codex for pre-flight QA audit.
-5. CC implements the work.
-6. CC runs verification, produces structured debrief.
-7. Human sends CC's debrief to Codex for post-flight QA audit.
+4. CC implements the work.
+5. CC runs the Post-Execution QA Protocol.
+6. CC produces structured debrief.
 
-CC drives both planning and execution. Codex is the QA gate — it audits but does not plan or implement.
+CC drives planning, execution, and QA.
 
 ### Tier 3 Execution Flow (Strategic — CChat-Led)
 
 1. Human works with CChat (Opus in Cline) for deep discovery and planning.
 2. CChat generates working spec, handoff spec, and CC execution prompt.
-3. Human sends to Codex for pre-flight QA audit.
-4. CC implements from the audited spec/prompt.
-5. CC runs verification, produces structured debrief.
-6. Human sends CC's debrief to Codex for post-flight QA audit.
+3. Fred shuttles handoff to CC.
+4. CC implements from the spec/prompt.
+5. CC runs the Post-Execution QA Protocol.
+6. CC produces structured debrief.
 
 Used only when the human explicitly invokes CChat for strategic/complex work.
 
@@ -278,7 +270,6 @@ Used only when the human explicitly invokes CChat for strategic/complex work.
 
 Rules:
 
-- For Tier 2/3 work, do not skip Codex audit when the human routes through Codex.
 - Do not mark completion before verification is run and passing.
 - Keep implementation scoped to the current handoff spec acceptance criteria.
 - Do not rely on human memory for working-spec naming/paths; enforce the canonical convention automatically.
@@ -327,7 +318,7 @@ All applied deviations must be logged as "Sanity Delta Applied" in completion su
 
 ### CChat Planning Role (Tier 3 Only — Strategist)
 
-CChat (Claude Chat 4.6 Opus, running in Cline with planning-only mode) is invoked by the human for:
+CChat (Claude Opus, running in Cline) is invoked by the human for:
 
 - Deep codebase archaeology and complex problem diagnosis
 - Cross-site architecture decisions and impact analysis
@@ -339,14 +330,15 @@ CChat is NOT used for standard work. Most planning happens between the human and
 
 When CChat IS used, it generates the working spec, handoff spec, and CC execution prompt (including Strategy Session Template answers, Cross-Site Checklist, and Risk & Reversibility summary).
 
-### CC Planning Responsibilities (Tier 2 — Standard Work)
+### CC Responsibilities (Tier 0/1/2 — Most Work)
 
-For most work, CC (Claude Code) handles both planning and execution:
+For most work, CC (Claude Code) handles planning, execution, and QA:
 
 - Discuss scope and approach with the human
 - Create working spec and handoff spec with mapped anchors
 - Implement the work
-- Run verification and produce structured debrief
+- Run the Post-Execution QA Protocol
+- Produce structured debrief
 - Update changelogs, roadmap, and any affected protocol files
 
 CC must self-enforce protocol compliance for all Tier 2 work without being asked.
@@ -366,14 +358,111 @@ CC must self-enforce protocol compliance for all Tier 2 work without being asked
 - If any check fails, regenerate before sending.
 - If one value is truly unknowable, ask exactly one targeted question instead of offloading assembly work.
 
-### Protocol Change Sync Rule
+### CC Post-Execution QA Protocol (Mandatory)
 
-When protocol/workflow rules are changed, update these files in the same change:
+After completing any Tier 2+ handoff or task, CC MUST run this checklist before reporting completion:
 
-1. `CLAUDE.md` (primary brain file)
-2. `docs/CODEX.md` (QA contract)
+**1. Type Safety**
+```
+tsc --noEmit
+```
+Must PASS with zero errors. No exceptions.
 
-Protocol changes are not complete until both are updated together.
+**2. Diff Audit**
+```
+git diff --stat
+```
+Verify ONLY intended files were created or modified. No stray changes, no accidental edits to unrelated files. If unexpected files appear in the diff, investigate and revert before pushing.
+
+**3. Security Scan**
+- No hardcoded secrets, API keys, or credentials in any committed file
+- All `/api/internal/` routes use `Authorization: Bearer ${INTERNAL_SECRET}` with timing-safe comparison
+- RLS enabled on all new Supabase tables with appropriate policies
+- No `console.log` with sensitive data (use structured logging patterns only)
+- No `.env` files committed (verify `.gitignore` coverage)
+
+**4. Code Hygiene**
+- No leftover `TODO` or `FIXME` that aren't documented in acceptance criteria
+- No debugging `console.log` statements (remove before push)
+- All new files have proper TypeScript types (no `any` unless justified with comment)
+- Import paths are correct and consistent with existing repo patterns
+- New components follow existing naming conventions and directory structure
+
+**5. Acceptance Criteria Verification**
+- Verify each criterion from the handoff prompt
+- Report PASS/FAIL per criterion
+- If any criterion FAILS, fix before pushing or report blocker to Fred
+
+**6. QA Report Format**
+Every completion must end with a QA summary:
+```
+QA: PASS | Files: N created, M modified | tsc: clean
+```
+Or if issues were found and fixed:
+```
+QA: PASS (fixed) | Issue: [description] | Fix: [what was done] | Files: N created, M modified | tsc: clean
+```
+Or if blocked:
+```
+QA: BLOCKED | Issue: [description] | Recommendation: [escalate to CChat / needs Fred input]
+```
+
+**7. Operator Action Block (Mandatory)**
+
+If any handoff requires manual steps by the operator (Supabase migrations, env var configuration, DNS changes, external service setup, Vercel dashboard changes, seed scripts), CC MUST output a clearly delimited action block at the **TOP** of the debrief — before any summary content:
+
+```
+┌─────────────────────────────────────────────────────┐
+│ 🔴 OPERATOR ACTION REQUIRED                        │
+│                                                     │
+│ Before this work is live, YOU must:                 │
+│                                                     │
+│ 1. □ [Exact command or step]                        │
+│ 2. □ [Exact command or step]                        │
+│ 3. □ [Exact command or step]                        │
+│                                                     │
+│ Estimated time: X minutes                           │
+│ If blocked: [what to do / who to ask]               │
+└─────────────────────────────────────────────────────┘
+```
+
+Rules:
+- This block MUST appear FIRST in the debrief — before "What was built" or any other content
+- If NO operator action is needed, output: `🟢 NO OPERATOR ACTION REQUIRED`
+- Each action item must include the exact command or exact step (not vague descriptions)
+- Group by type: Supabase migrations → env vars → DNS/external → Vercel dashboard
+- Include estimated time so the operator can plan
+- Include "If blocked" guidance for each non-obvious step
+
+### When CChat Strategic Review Is Required
+
+These scenarios require CChat involvement even for Tier 1/2 work:
+
+| Scenario | Required Action |
+|----------|----------------|
+| Auth/security changes (login flows, token handling, RLS policies) | CChat reviews design before CC executes |
+| Database migrations that ALTER or DROP existing columns/tables | CChat review + manual backup verification |
+| Cross-site changes touching 3+ repos simultaneously | CChat coordinates sequence, CC executes per-repo |
+| Pre-production launch verification | Full CChat audit of critical user paths |
+| Payment/donation flow changes | CChat + Stazia review before execution |
+| Protocol changes (CLAUDE.md, execution model, governance) | CChat authors, Fred approves, CC executes |
+| Voice system prompt modifications | CChat designs, references voice architecture docs |
+
+### Optional Tools
+
+| Tool | Use Case | When to Reach For It |
+|------|----------|---------------------|
+| **Codex (OpenAI CLI)** | Independent code review, second-opinion analysis | When Fred wants a non-Anthropic perspective on a specific change |
+| **Grok (xAI)** | Social media / X-native analysis | Future consideration for social intelligence |
+| **GitHub Copilot** | In-editor autocomplete | Available but not part of protocol workflow |
+
+### Protocol Change Procedure
+
+1. CChat authors the protocol update with version bump (or CC for Tier 1 protocol tweaks)
+2. Fred reviews and approves
+3. CC executes the update in steampunk-strategy (primary CLAUDE.md)
+4. CC cascades the update to all repos that carry CLAUDE.md
+5. CC confirms all copies match with `diff` verification
 
 **Satellite docs** — these derive from the brain files. When a protocol change affects their content, update them in the same change set:
 
@@ -381,7 +470,6 @@ Protocol changes are not complete until both are updated together.
 - `docs/cross-site-impact-checklist.md`
 - `docs/family-planning-protocol.md`
 - `docs/operator-stoppage-cheat-card.md`
-- `docs/CODEX-PREAMBLE.md`
 - `GOVERNANCE.md` — decision authority, risk appetite, exception process, amendment rules
 
 Satellite docs must not contradict the brain files. If drift is detected, the brain file is authoritative.
@@ -408,7 +496,7 @@ Do not start with a broad full-codebase sweep unless history artifacts are missi
 
 ### Stoppage Triage Reference
 
-- For operator-facing stoppage handling (Codex/Claude alerts and routing), see:
+- For operator-facing stoppage handling, see:
   - `docs/operator-stoppage-cheat-card.md`
 
 
