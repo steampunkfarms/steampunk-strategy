@@ -284,6 +284,10 @@ A mapping layer that learns which products serve which species. Sits between Cla
 
 See `docs/handoffs/20260309-resident-multi-image.md`. Multi-image gallery for animal residents — ResidentImage Prisma model, CRUD API, Vercel Blob upload, admin gallery UI with drag-drop/tags/season/primary selection, public API extension (?fields=images), Storm image selector with weighted rotation scoring, Dear Humans auto-select integration, migration of 9 existing imageUrl values. 8 new + 3 modified files in 1 repo (Postmaster).
 
+### ~~COG-GROUND: Cogworks AI Grounding — Stop Hallucination~~ COMPLETED 2026-03-09
+
+See `docs/handoffs/_working/20260309-cogworks-grounding-working-spec.md`. Grounded all Cogworks AI generation with resident data from Postmaster API + Universal Voice Guardrails (Layer 1). YouTube transcript processor validates residentSlugs against known residents. Newsletter confidence gate deprioritizes Cogworks posts with unrecognized animal names (0.3x engagement penalty). 1 new + 6 modified files across 2 repos (Rescue Barn + Postmaster).
+
 ---
 
 ## 🟡 Priority Three — Important, Revisit Soon
