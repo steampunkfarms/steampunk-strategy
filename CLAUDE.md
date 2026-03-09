@@ -1,6 +1,8 @@
 # CLAUDE.md — Steampunk Strategy: The Bridge
 
-## Changelog (v2026.03l)
+## Changelog (v2026.03m)
+
+- 2026-03-08m-patch: Added ENV VAR SAFETY rule — .trim() on all secret reads, operator paste warnings.
 
 - 2026-03-08l-patch: Added Operator Action Block (step 7) to CC Post-Execution QA Protocol. Ensures manual operator steps are surfaced at the top of every debrief, not buried in summary.
 
@@ -433,6 +435,20 @@ Rules:
 - Group by type: Supabase migrations → env vars → DNS/external → Vercel dashboard
 - Include estimated time so the operator can plan
 - Include "If blocked" guidance for each non-obvious step
+
+### ENV VAR SAFETY
+
+All secret env vars (`CRON_SECRET`, `INTERNAL_SECRET`, `STRIPE_WEBHOOK_SECRET`, `RESEND_WEBHOOK_SECRET`, etc.) MUST be read with `.trim()` to guard against trailing `\r` or whitespace from copy-paste:
+
+```typescript
+const SECRET = process.env.MY_SECRET?.trim()
+```
+
+When writing Operator Action Blocks that instruct the operator to set Vercel env vars:
+
+- Provide the exact value in a code block (not "copy from .env file")
+- Warn: "⚠️ Trim any trailing whitespace before pasting into Vercel"
+- Never instruct the operator to pipe local .env files into Vercel CLI without sanitization
 
 ### When CChat Strategic Review Is Required
 
