@@ -2,6 +2,8 @@
 
 ## Changelog (v2026.03m)
 
+- 2026-03-08m-patch2: Added Deploy Gate (step 8) — mandatory push to origin after QA pass. No more unpushed commits.
+
 - 2026-03-08m-patch: Added ENV VAR SAFETY rule — .trim() on all secret reads, operator paste warnings.
 
 - 2026-03-08l-patch: Added Operator Action Block (step 7) to CC Post-Execution QA Protocol. Ensures manual operator steps are surfaced at the top of every debrief, not buried in summary.
@@ -435,6 +437,16 @@ Rules:
 - Group by type: Supabase migrations → env vars → DNS/external → Vercel dashboard
 - Include estimated time so the operator can plan
 - Include "If blocked" guidance for each non-obvious step
+
+**8. Deploy Gate (Mandatory)**
+
+After all changes pass QA:
+
+- `git push origin main` for each modified repo (or open PR if branch-based workflow)
+- Confirm Vercel build starts in logs or dashboard
+- If push fails (e.g., diverged branch), resolve and retry — do NOT leave unpushed commits
+- Include push confirmation in the QA Report: `Pushed to origin/main — Vercel build triggered`
+- NEVER mark a task as complete with unpushed commits
 
 ### ENV VAR SAFETY
 
