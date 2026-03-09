@@ -447,6 +447,7 @@ After all changes pass QA:
 - If push fails (e.g., diverged branch), resolve and retry — do NOT leave unpushed commits
 - Include push confirmation in the QA Report: `Pushed to origin/main — Vercel build triggered`
 - NEVER mark a task as complete with unpushed commits
+- In Operator Action Blocks and debriefs, use the word "deploy" (not "commit") when communicating with the operator. The operator does not distinguish between commit and push — "deployed" means "live on the internet." If changes are committed but not pushed, they are NOT deployed.
 
 ### ENV VAR SAFETY
 
