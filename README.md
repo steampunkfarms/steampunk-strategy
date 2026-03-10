@@ -6,7 +6,7 @@ Central financial management, compliance tracking, and cross-site operations das
 
 ## Stack
 
-Next.js 15 (App Router) + React 19 + TypeScript 5.7 + Prisma 6.3 + Neon PostgreSQL + NextAuth 4.24 (Azure AD) + Tailwind 3.4 + shadcn/ui + Claude AI (Anthropic SDK) + Recharts
+Next.js 15.5.12 (App Router) + React 19 + TypeScript 5.7 + Prisma 6.3 + Neon PostgreSQL + NextAuth 4.24 (Azure AD) + Tailwind 3.4 + shadcn/ui + Claude AI (Anthropic SDK) + Recharts
 
 ## Features
 
@@ -33,9 +33,10 @@ npm run dev                   # http://localhost:3000
 | Project | Domain | Role |
 |---------|--------|------|
 | **Rescue Barn** | rescuebarn.steampunkfarms.org | Public sanctuary website |
-| **Studiolo** | steampunkstudiolo.org | Donor CRM & operations |
+| **Studiolo** | studiolo.steampunkstudiolo.org | Donor CRM & stewardship |
 | **Postmaster** | postmaster.steampunkstudiolo.org | AI content & social syndication |
 | **Cleanpunk Shop** | home.cleanpunk.shop | E-commerce storefront (soaps) |
 | **The Bridge** | tardis.steampunkstudiolo.org | Financial management (this repo) |
+| **Orchestrator** | orchestrator.steampunkstudiolo.org | Central cron scheduler |
 
-See `FAMILY_OF_SITES.md` for the full cross-site inventory.
+See `docs/family-of-sites-full.md` for the full cross-site inventory.
