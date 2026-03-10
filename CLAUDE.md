@@ -124,36 +124,42 @@ A key differentiator: donors sometimes call vendors (Elston's Feed, Star Milling
 
 ---
 
-## Execution Model — Two-Actor Framework
+## Execution Model — Single-Actor Framework
 
 This repo serves double duty: it's both the TARDIS codebase AND the central reference library for all 5 Steampunk Farms web properties. A consolidated Claude project space handles all planning, specs, and handoffs across the family of sites.
 
-### Actors
+### Actor
 
 | Actor | Tool | Role | Tiers |
 |-------|------|------|-------|
-| **CChat** (The Strategist) | Claude Opus — Cline (VS Code) | Strategic architecture, complex decisions, protocol governance, handoff authoring, codebase archaeology, cross-system design | Tier 3 |
-| **CC** (The Executor) | Claude Code CLI | Planning + execution for standard work, post-execution QA, type checking, security verification | Tier 0, 1, 2 |
+| **CC** (Claude Code) | Claude Code CLI + VS Code extension | All tiers: strategic architecture, planning, execution, post-execution QA, protocol governance | Tier 0, 1, 2, 3 |
+
+CC operates in two modes, switchable by the operator at any time:
+
+| Mode | Trigger Command | Behavior |
+|------|----------------|----------|
+| **Strategist Mode** | `strategist mode` | Plan, analyze, advise, explore architecture. No code edits, no file writes, no commands. Output is analysis, options, specs, and recommendations. |
+| **Executor Mode** | `executor mode` | Build, implement, ship, verify. Full tool access. Default mode when no mode is specified. |
 
 ### How It Works
 
-1. **Fred** identifies a need and routes to the appropriate tier
-2. **Tier 3 (CChat)**: Fred describes the problem → CChat explores codebase, designs solution, writes handoff prompt with embedded acceptance criteria → Fred shuttles handoff to CC
-3. **Tier 0/1/2 (CC)**: Fred provides task directly to CC → CC plans, executes, runs post-execution QA → pushes to main
-4. **Fred** is the sole shuttle between actors. No direct CChat↔CC communication.
+1. **Fred** identifies a need and routes to the appropriate tier.
+2. **Strategist mode** (when invoked): Fred describes the problem → CC explores codebase, analyzes options, designs solution, writes specs with acceptance criteria → Fred says `executor mode` when ready to build.
+3. **Executor mode** (default): Fred provides task → CC plans, executes, runs post-execution QA → pushes to main.
+4. Mode switches are instant and preserve conversation context. Fred can switch mid-task.
 
 ### Routing Rules
 
-- **Tier 0 (Hotfix)**: CC direct — broken build, reverted deploy, critical typo. Fix first, backfill protocol artifacts after.
-- **Tier 1 (Quick Fix)**: CC direct — small bug, config change, copy update. No ceremony required.
-- **Tier 2 (Standard)**: CC-led — new feature, new API route, schema change, UI component. Full protocol: working spec, handoff spec, verification, roadmap update, debrief.
-- **Tier 3 (Strategic)**: CChat-designed, CC-executed — architecture decisions, cross-repo changes, protocol updates, voice system design, BI platform design. Also triggers for Novel Patterns (first-time use of a new technology, integration pattern, or architectural approach not yet established in the codebase).
+- **Tier 0 (Hotfix)**: Executor mode — broken build, reverted deploy, critical typo. Fix first, backfill protocol artifacts after.
+- **Tier 1 (Quick Fix)**: Executor mode — small bug, config change, copy update. No ceremony required.
+- **Tier 2 (Standard)**: Executor mode — new feature, new API route, schema change, UI component. Full protocol: working spec, handoff spec, verification, roadmap update, debrief.
+- **Tier 3 (Strategic)**: Strategist mode first, then executor mode — architecture decisions, cross-repo changes, protocol updates, voice system design, BI platform design. Also triggers for Novel Patterns (first-time use of a new technology, integration pattern, or architectural approach not yet established in the codebase). CC must produce a written plan or spec and get Fred's approval before switching to executor mode.
 
 This is the DEFAULT for most work. When in doubt, use Tier 2.
 
 ### Escalation
 
-If CC encounters ambiguity, unexpected complexity, or a decision that could affect other repos/systems, CC should STOP and recommend escalation to CChat. CC does not make architectural decisions.
+If CC encounters ambiguity, unexpected complexity, or a decision that could affect other repos/systems during executor mode, CC should STOP and recommend switching to strategist mode. CC does not make architectural decisions unilaterally — strategic choices require Fred's explicit approval.
 
 ### Protocol Compliance Rule (Non-Negotiable)
 
@@ -227,16 +233,17 @@ Agents should avoid re-sending entire reference files; instead, they query for a
 
 CC drives planning, execution, and QA.
 
-### Tier 3 Execution Flow (Strategic — CChat-Led)
+### Tier 3 Execution Flow (Strategic — Strategist Mode First)
 
-1. Human works with CChat (Opus in Cline) for deep discovery and planning.
-2. CChat generates working spec, handoff spec, and CC execution prompt.
-3. Fred shuttles handoff to CC.
-4. CC implements from the spec/prompt.
-5. CC runs the Post-Execution QA Protocol.
-6. CC produces structured debrief.
+1. Fred says `strategist mode` and describes the problem.
+2. CC explores codebase, analyzes architecture, designs solution.
+3. CC produces working spec, handoff spec, and acceptance criteria for Fred's review.
+4. Fred approves (or iterates) and says `executor mode`.
+5. CC implements from the spec.
+6. CC runs the Post-Execution QA Protocol.
+7. CC produces structured debrief.
 
-Used only when the human explicitly invokes CChat for strategic/complex work.
+Tier 3 is distinguished from Tier 2 by ceremony level (mandatory strategist-first pass), not by tool.
 
 ### Handoff Modes (Automatic Selection)
 
@@ -301,9 +308,9 @@ All applied deviations must be logged as "Sanity Delta Applied" in completion su
 - Scope isolation notes are required when a handoff touches files that overlap with other active branches.
 - Verification context notes are required when verification was run on a branch other than main or when the verifier version differs from the canonical version.
 
-### CChat Planning Role (Tier 3 Only — Strategist)
+### Strategist Mode (Tier 3 — Plan Before Build)
 
-CChat (Claude Opus, running in Cline) is invoked by the human for:
+When Fred says `strategist mode`, CC switches to advisory/planning behavior:
 
 - Deep codebase archaeology and complex problem diagnosis
 - Cross-site architecture decisions and impact analysis
@@ -311,13 +318,17 @@ CChat (Claude Opus, running in Cline) is invoked by the human for:
 - Protocol evolution and brain-file updates
 - Major Initiative planning (2+ sites, core data flow changes, etc.)
 
-CChat is NOT used for standard work. Most planning happens between the human and CC directly.
+**Constraints in strategist mode:**
+- No file edits, no file creation, no shell commands (except read-only exploration)
+- Output is analysis, options, specs, recommendations, and structured plans
+- CC generates working spec, handoff spec, and acceptance criteria (including Strategy Session Template answers, Cross-Site Checklist, and Risk & Reversibility summary)
+- Fred must explicitly say `executor mode` to authorize implementation
 
-When CChat IS used, it generates the working spec, handoff spec, and CC execution prompt (including Strategy Session Template answers, Cross-Site Checklist, and Risk & Reversibility summary).
+Strategist mode is not required for standard work (Tier 2 and below). Most planning happens conversationally in executor mode.
 
-### CC Responsibilities (Tier 0/1/2 — Most Work)
+### CC Responsibilities (All Tiers)
 
-For most work, CC (Claude Code) handles planning, execution, and QA:
+CC (Claude Code) handles planning, execution, and QA for all work:
 
 - Discuss scope and approach with the human
 - Create working spec and handoff spec with mapped anchors
@@ -444,19 +455,19 @@ When writing Operator Action Blocks that instruct the operator to set Vercel env
 - Warn: "⚠️ Trim any trailing whitespace before pasting into Vercel"
 - Never instruct the operator to pipe local .env files into Vercel CLI without sanitization
 
-### When CChat Strategic Review Is Required
+### When Strategist Mode Is Required
 
-These scenarios require CChat involvement even for Tier 1/2 work:
+These scenarios require a strategist-mode pass even for Tier 1/2 work. CC should recommend switching if the operator hasn't already:
 
 | Scenario | Required Action |
 |----------|----------------|
-| Auth/security changes (login flows, token handling, RLS policies) | CChat reviews design before CC executes |
-| Database migrations that ALTER or DROP existing columns/tables | CChat review + manual backup verification |
-| Cross-site changes touching 3+ repos simultaneously | CChat coordinates sequence, CC executes per-repo |
-| Pre-production launch verification | Full CChat audit of critical user paths |
-| Payment/donation flow changes | CChat + Stazia review before execution |
-| Protocol changes (CLAUDE.md, execution model, governance) | CChat authors, Fred approves, CC executes |
-| Voice system prompt modifications | CChat designs, references voice architecture docs |
+| Auth/security changes (login flows, token handling, RLS policies) | Strategist mode: design review before execution |
+| Database migrations that ALTER or DROP existing columns/tables | Strategist mode: review + manual backup verification |
+| Cross-site changes touching 3+ repos simultaneously | Strategist mode: coordinate sequence, then execute per-repo |
+| Pre-production launch verification | Strategist mode: full audit of critical user paths |
+| Payment/donation flow changes | Strategist mode + Stazia review before execution |
+| Protocol changes (CLAUDE.md, execution model, governance) | Strategist mode: CC drafts, Fred approves, then executor mode |
+| Voice system prompt modifications | Strategist mode: design with voice architecture docs |
 
 ### Optional Tools
 
@@ -468,7 +479,7 @@ These scenarios require CChat involvement even for Tier 1/2 work:
 
 ### Protocol Change Procedure
 
-1. CChat authors the protocol update (or CC for Tier 1 protocol tweaks)
+1. CC drafts the protocol update (strategist mode recommended for non-trivial changes)
 2. Fred reviews and approves
 3. CC executes the update in steampunk-strategy (primary CLAUDE.md)
 4. CC adds a changelog entry to `docs/protocol-changelog.md`

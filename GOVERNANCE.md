@@ -4,11 +4,11 @@
 > and protocol amendment rules across the Steampunk Farms AI orchestration system.
 >
 > This document centralizes governance principles that are implemented in detail
-> across CLAUDE.md (execution protocol), CODEX.md (QA contract), and satellite
-> protocol docs. If this document conflicts with a brain file, escalate to Fred
-> for reconciliation — do not silently pick one.
+> across CLAUDE.md (execution protocol) and satellite protocol docs.
+> If this document conflicts with CLAUDE.md, escalate to Fred for
+> reconciliation — do not silently pick one.
 >
-> Last updated: 2026-03-06 (v2026.03j)
+> Last updated: 2026-03-10 (v2026.03k)
 
 ---
 
@@ -30,11 +30,11 @@
 | Tier 0 (hotfix) | Fred + CC | Backfill within 24h |
 | Tier 1 (quick fix) | Fred or CC | None |
 | Tier 2 (standard work) | Fred + CC | None |
-| Tier 3 (strategic) | Fred + CChat + Codex QA | None |
-| Protocol/brain file changes | Fred (author) + CC/CChat (draft) | Brain file sync rule |
+| Tier 3 (strategic) | Fred + CC (strategist mode) | None |
+| Protocol/brain file changes | Fred (author) + CC (draft) | Brain file sync rule |
 | Security/auth changes | Fred | Codex post-flight mandatory |
 | Schema/data model changes | Fred | Codex pre-flight mandatory |
-| Brand/voice changes | Fred + Krystal (brand authority) | CChat consultation recommended |
+| Brand/voice changes | Fred + Krystal (brand authority) | CC strategist-mode consultation recommended |
 | Financial/compliance decisions | Fred + Krystal (CFO/Treasurer) | TARDIS audit trail |
 | Kill/defer decisions on roadmap items | Fred | Reasoned justification logged in roadmap |
 | External idea evaluation | Fred (using family-planning-protocol) | Reasoned response to contributor |
@@ -93,8 +93,8 @@
 
 ## Amendment Process
 
-1. **Anyone can propose** a protocol change: Fred, Krystal, Tierra, Stazia, or any AI agent (CC, CChat, Codex).
-2. **Changes are drafted** by CC (Tier 2) or CChat (Tier 3), reviewed by Fred.
+1. **Anyone can propose** a protocol change: Fred, Krystal, Tierra, Stazia, or CC.
+2. **Changes are drafted** by CC (strategist mode for Tier 3, executor mode for Tier 2), reviewed by Fred.
 3. **Brain files** (CLAUDE.md + CODEX.md) are updated in the same change set.
 4. **Satellite docs** are updated if affected (per v2026.03i sync rule).
 5. **Changelog entry + version bump** required in both brain files.
