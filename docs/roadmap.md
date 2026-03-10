@@ -57,6 +57,17 @@ Two active Square subscriptions still billing:
 
 ## 🔴 Priority One — Do Next
 
+### Real-Cost Impact Lines — TARDIS Cost Data → Studiolo Acknowledgments
+**Priority:** High — differentiator, radical transparency, compounds over time
+**What exists:** TARDIS has CostTracker model with actual Elston's hay prices (5 observations, 12-month SeasonalBaseline), `/api/cost-tracker/scan` endpoint for cost-creep detection, and `/api/cost-tracker/record` for recording invoice prices. Studiolo has hardcoded impact lines in `lib/atelier/email-templates/impact-line.ts` with approximate dollar thresholds.
+**Gap:** Studiolo impact lines use static guesses ("$25 covers a bale of hay") instead of actual current costs from TARDIS. Need a cross-repo data bridge: TARDIS exposes current unit costs via API or cached sync, Studiolo's `generateImpactLine()` pulls real numbers. Example: "Your $20 gift covers a bale of hay at current prices — that's $19.50 from Elston's this month." For backfill emails about past gifts: "Your gift arrived in December when hay was running $X per bale. It's $Y now."
+**Implementation sketch (Tier 3 — needs CChat design):**
+1. TARDIS: expose `/api/cost-tracker/current-costs` — returns latest unit costs by item group (hay, grain, supplements, vet)
+2. Studiolo: `lib/atelier/cost-cache.ts` — fetches from TARDIS daily, caches in AppSetting or memory
+3. Rewrite `generateImpactLine()` to use real costs with math: `Math.floor(amount / currentHayBaleCost)` bales, etc.
+4. Seasonal awareness: cost-at-gift-date for backfill vs current cost for real-time sends
+**Repo:** steampunk-studiolo + steampunk-strategy (cross-repo)
+**Blocked by:** Nothing — TARDIS cost data already exists
 
 ### Security Hardening — Remaining Audit Items
 
