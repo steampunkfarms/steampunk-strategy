@@ -6,6 +6,7 @@ import { createMessage } from '@/lib/claude';
 import { prisma } from '@/lib/prisma';
 import { RECEIPT_EXTRACTION_PROMPT, parseExtractionResponse } from '@/lib/receipt-parser';
 import { matchVendorByName } from '@/lib/vendor-match';
+import { runInvoicePipeline } from '@/lib/invoice-pipeline';
 
 const MODEL = 'claude-sonnet-4-20250514';
 
@@ -187,6 +188,19 @@ export async function POST(request: Request) {
       },
     });
 
+    // Extract line items and promote to CostTracker (non-blocking — logs errors but won't fail parse)
+    // see HANDOFF-tardis-invoice-costtracker-pipeline.md#step-5
+    let pipelineResult = null;
+    if (extracted.lineItems?.length || doc.docType === 'invoice' || extracted.documentType === 'invoice') {
+      const invoiceDate = extracted.date ? new Date(extracted.date) : null;
+      pipelineResult = await runInvoicePipeline(
+        documentId,
+        JSON.stringify(extracted),
+        extracted.vendor?.name,
+        invoiceDate,
+      );
+    }
+
     // Audit log
     await prisma.auditLog.create({
       data: {
@@ -199,6 +213,11 @@ export async function POST(request: Request) {
           vendor: extracted.vendor?.name,
           total: extracted.total,
           lineItems: extracted.lineItems?.length ?? 0,
+          pipeline: pipelineResult ? {
+            extracted: pipelineResult.extracted,
+            promoted: pipelineResult.promoted,
+            unmapped: pipelineResult.unmapped,
+          } : null,
         }),
       },
     });

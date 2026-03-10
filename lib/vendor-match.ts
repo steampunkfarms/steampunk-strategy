@@ -15,6 +15,10 @@ const VENDOR_PATTERNS: Record<string, string[]> = {
   'patreon': ['patreon'],
   'meta-platforms': ['meta platforms', 'meta platforms inc', 'facebook payments', 'meta pay'],
   'ironwood-pigs': ['ironwood', 'ironwoodpigs', 'ironwood pig sanctuary'],
+  // Veterinary clinics
+  'herd-health-management': ['herd health', 'herd health management'],
+  'dairy-health-services': ['dairy health', 'dairy health services'],
+  'irvine-valley-vet': ['irvine valley', 'ivvh', 'irvine valley veterinary'],
 };
 
 export function matchVendorByName(vendorName: string): string | null {
