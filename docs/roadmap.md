@@ -354,11 +354,11 @@ See `docs/handoffs/20260307-yt1-youtube-cogworks-import.md`. YouTube Data API v3
 
 ### HUG Automation Layer — Anniversary Touches, Auto-Follow-Up, Personalized Receipts
 **Priority:** Medium — elevates existing infrastructure from detection to action
-**What's built:** Anniversary/milestone detection in `donor-alerts.ts` (giving, barn visit, Opus anniversaries), friction scanner cron (bounces, lapsed replies, unsubscribe signals), attention queue with snooze, Atelier receipt auto-send with IRS-compliant PDFs + fixed thank-you email, letter generation (.docx → OneDrive), HUG Digest monthly composition (HUG-1).
+**What's built:** Anniversary/milestone detection in `donor-alerts.ts` (giving, barn visit, Opus anniversaries), friction scanner cron (bounces, lapsed replies, unsubscribe signals), attention queue with snooze, Atelier receipt auto-send with IRS-compliant PDFs + template-aware acknowledgment system (5 templates, animal blurbs, impact lines, tax receipt blocks, retry queue, significant gift follow-up), letter generation (.docx → OneDrive), HUG Digest monthly composition (HUG-1).
 **Gaps (3 layers):**
 1. **Anniversary → Touch conversion:** Alerts detect milestones but never auto-queue a gratitude dispatch (e.g., Epistola on giving anniversary). Add cron or hook that converts anniversary alerts into queued touches with HUG-appropriate templates. Include first-reply celebration and repeat-gift counter ("this is your 10th gift").
 2. **Friction → Auto-follow-up:** Friction alerts (lapsed replies, unanswered outreach) exist but don't auto-create follow-up touches. Add configurable rule: "if no reply in X days, queue a gentle follow-up" with Padrona voice.
-3. **Receipt personalization:** Atelier thank-you email uses 4 fixed merge fields. Enhance with animal-specific gratitude ("your gift helped feed [named animal]") using donor's `cleanpunkAnimalAffinities` or campaign species group. Repeat-gift acknowledgment variation for loyal donors.
+3. ~~**Receipt personalization:**~~ **COMPLETED 2026-03-10** — WARM-1/2/3/4: Template-aware acknowledgment system with 5 templates (first-time, returning, recurring, significant, backfill), animal-specific blurbs from `cleanpunkAnimalAffinities`, impact lines, IRS-compliant tax receipt blocks, retry queue, significant gift follow-up via AttentionQueueItem, and 90-day backfill route.
 **Repo:** steampunk-studiolo
 
 ### Donor BI Dashboard — Advanced Reporting & Visualizations
