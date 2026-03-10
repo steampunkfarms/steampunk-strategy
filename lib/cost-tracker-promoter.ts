@@ -59,7 +59,48 @@ const COST_MAPPINGS: Record<string, CostMapping> = {
   // Supplies
   'bedding':              { item: 'bedding',              itemGroup: 'supplies',   label: 'Bedding',                           unit: 'bag' },
   'medical-supplies':     { item: 'medical_supplies',     itemGroup: 'supplies',   label: 'Medical supplies',                  unit: 'each' },
+  'equipment':            { item: 'equipment',            itemGroup: 'supplies',   label: 'Equipment',                         unit: 'each' },
+  'cleaning-supplies':    { item: 'cleaning_supplies',    itemGroup: 'supplies',   label: 'Cleaning supplies',                 unit: 'each' },
+  'dog-supplies':         { item: 'dog_supplies',         itemGroup: 'supplies',   label: 'Dog supplies',                      unit: 'each' },
+  'cat-supplies':         { item: 'cat_supplies',         itemGroup: 'supplies',   label: 'Cat supplies',                      unit: 'each' },
+
+  // Pet food — dogs
+  'dog-food':             { item: 'dog_food',             itemGroup: 'pet_food',   label: 'Dog food',                          unit: 'bag' },
+  'dehydrated-dog-food':  { item: 'dehydrated_dog_food',  itemGroup: 'pet_food',   label: 'Dehydrated dog food',               unit: 'bag' },
+  'wet-dog-food':         { item: 'wet_dog_food',         itemGroup: 'pet_food',   label: 'Wet dog food',                      unit: 'each' },
+  'dog-treats':           { item: 'dog_treats',           itemGroup: 'pet_food',   label: 'Dog treats',                        unit: 'each' },
+  'dental-treats':        { item: 'dental_treats',        itemGroup: 'pet_food',   label: 'Dental treats',                     unit: 'each' },
+
+  // Pet food — cats
+  'cat-food':             { item: 'cat_food',             itemGroup: 'pet_food',   label: 'Cat food',                          unit: 'bag' },
+  'cat-food-dry':         { item: 'cat_food',             itemGroup: 'pet_food',   label: 'Cat food (dry)',                    unit: 'bag' },
+  'cat-food-wet':         { item: 'wet_cat_food',         itemGroup: 'pet_food',   label: 'Cat food (wet)',                    unit: 'each' },
+  'wet-cat-food':         { item: 'wet_cat_food',         itemGroup: 'pet_food',   label: 'Wet cat food',                      unit: 'each' },
+  'wet-food':             { item: 'wet_food',             itemGroup: 'pet_food',   label: 'Wet food (generic)',                unit: 'each' },
+  'cat-litter':           { item: 'cat_litter',           itemGroup: 'pet_food',   label: 'Cat litter',                        unit: 'bag' },
+
+  // Pet food — birds
+  'bird-feed':            { item: 'bird_feed',            itemGroup: 'feed',       label: 'Bird feed',                         unit: 'bag' },
+  'bird-food':            { item: 'bird_feed',            itemGroup: 'feed',       label: 'Bird food',                         unit: 'bag' },
+  'bird-seed':            { item: 'bird_feed',            itemGroup: 'feed',       label: 'Bird seed',                         unit: 'bag' },
+  'wild-bird-seed':       { item: 'wild_bird_seed',       itemGroup: 'feed',       label: 'Wild bird seed',                    unit: 'bag' },
+  'wild-bird-feed':       { item: 'wild_bird_seed',       itemGroup: 'feed',       label: 'Wild bird feed',                    unit: 'bag' },
+  'wild-bird-food':       { item: 'wild_bird_seed',       itemGroup: 'feed',       label: 'Wild bird food',                    unit: 'bag' },
+
+  // Treats & enrichment (generic aliases)
+  'animal-treats':        { item: 'animal_treats',        itemGroup: 'pet_food',   label: 'Animal treats',                     unit: 'each' },
+  'pet-treats':           { item: 'animal_treats',        itemGroup: 'pet_food',   label: 'Pet treats',                        unit: 'each' },
+  'treats':               { item: 'animal_treats',        itemGroup: 'pet_food',   label: 'Treats',                            unit: 'each' },
+  'dog-toys':             { item: 'dog_toys',             itemGroup: 'enrichment', label: 'Dog toys',                          unit: 'each' },
+  'dog-toy':              { item: 'dog_toys',             itemGroup: 'enrichment', label: 'Dog toy',                           unit: 'each' },
+  'pet-toys':             { item: 'pet_toys',             itemGroup: 'enrichment', label: 'Pet toys',                          unit: 'each' },
+  'toys':                 { item: 'pet_toys',             itemGroup: 'enrichment', label: 'Toys',                              unit: 'each' },
+  'enrichment-toys':      { item: 'enrichment_toys',      itemGroup: 'enrichment', label: 'Enrichment toys',                   unit: 'each' },
+  'enrichment-toy':       { item: 'enrichment_toys',      itemGroup: 'enrichment', label: 'Enrichment toy',                    unit: 'each' },
+
+  // Operations
   'delivery':             { item: 'delivery_fee',         itemGroup: 'operations', label: 'Delivery / freight charge',         unit: 'each' },
+  'membership-subscription': { item: 'membership_subscription', itemGroup: 'operations', label: 'Membership / subscription',   unit: 'each' },
 };
 
 export { COST_MAPPINGS };
