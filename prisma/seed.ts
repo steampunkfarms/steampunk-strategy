@@ -58,6 +58,8 @@ async function main() {
       { name: 'Propane',               slug: 'utilities-propane',  functionalClass: 'management_general', coaCode: '6230' },
       { name: 'Trash / Waste Removal', slug: 'utilities-waste',    functionalClass: 'management_general', coaCode: '6240' },
       { name: 'Internet / Phone',      slug: 'utilities-telecom',  functionalClass: 'management_general', coaCode: '6250' },
+      { name: 'Domain & DNS',          slug: 'utilities-domain-dns',  functionalClass: 'management_general', coaCode: '6260' },
+      { name: 'Web Hosting',           slug: 'utilities-web-hosting', functionalClass: 'management_general', coaCode: '6270' },
     ]},
     { name: 'Soap Production (COGS)', slug: 'soap-cogs', icon: 'Droplets', color: 'gauge-blue', functionalClass: 'management_general', coaCode: '8000', irs990EzLine: 'Part I, Line 16', children: [
       { name: 'Raw Materials (oils, lye, additives)', slug: 'soap-materials', functionalClass: 'management_general', coaCode: '8100' },
@@ -420,6 +422,16 @@ SEASONAL PRICING: Hay prices follow a predictable annual cycle driven by harvest
       acceptsDonorPayment: false,
       tags: JSON.stringify(['email', 'azure', 'saas', 'dev-infra']),
       notes: 'Microsoft 365 Business Premium — Azure AD / Entra ID for shared auth across all sites. Billing from microsoft-noreply@microsoft.com or msonlineservicesteam@microsoftemail.com.',
+    },
+    {
+      name: 'GoDaddy',
+      slug: 'godaddy',
+      type: 'saas',
+      website: 'https://godaddy.com',
+      email: 'donotreply@godaddy.com',
+      acceptsDonorPayment: false,
+      tags: JSON.stringify(['domain', 'dns', 'registrar', 'hosting', 'dev-infra']),
+      notes: 'Domain registrar — tronboll.us, clairemontwaterstore.com renewals. Also legacy hosting (migrated to Vercel). Receipts from donotreply@godaddy.com. Customer #16072280.',
     },
     {
       name: 'Ironwood Pig Sanctuary',
