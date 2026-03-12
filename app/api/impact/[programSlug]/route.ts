@@ -1,3 +1,4 @@
+// postest
 // GET /api/impact/[programSlug]?period=2026-Q1&scope=public
 // Dual auth: session (TARDIS users) OR Bearer INTERNAL_SECRET (cross-site consumers like Rescue Barn)
 // see docs/handoffs/_working/20260307-eip-impact-api-enrichment-working-spec.md
@@ -67,7 +68,7 @@ async function isAuthorized(request: NextRequest): Promise<boolean> {
   if (session) return true;
 
   // Check Bearer token (cross-site consumers)
-  const secret = process.env.INTERNAL_SECRET;
+  const secret = process.env.INTERNAL_SECRET?.trim();
   if (!secret) return false;
   const authHeader = request.headers.get('authorization');
   const token = authHeader?.replace('Bearer ', '');
@@ -80,6 +81,7 @@ function setCorsHeaders(res: NextResponse, origin: string | null) {
   if (origin && (
     origin.includes('steampunkfarms.org') ||
     origin.includes('steampunkrescuebarn') ||
+    origin.includes('steampunkstudiolo.org') ||
     origin.includes('localhost')
   )) {
     res.headers.set('Access-Control-Allow-Origin', origin);

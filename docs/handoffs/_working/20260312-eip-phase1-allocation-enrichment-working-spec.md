@@ -34,9 +34,11 @@
 - Transaction-level coaCode field (can be inferred from category)
 
 ## Acceptance Criteria
-- [ ] Programs consolidated to 8 canonical (7 from seed + barn-cats)
-- [ ] All ExpenseCategory records have non-null coaCode
-- [ ] Bulk allocation assigns programId to transactions where possible (via category default at minimum)
-- [ ] Document review UI shows species/program selectors for line items
-- [ ] Programs admin page at /programs lists all programs with edit capability
-- [ ] `npx tsc --noEmit` passes clean
+- [x] Programs consolidated to 8 canonical (7 from seed + barn-cats) — DONE 2026-03-12
+- [x] All ExpenseCategory records have non-null coaCode — DONE 2026-03-12
+- [x] Bulk allocation assigns programId to transactions where possible (via category default at minimum) — DONE 2026-03-12 (314 allocated, 213 fc-only, 726 need categorization)
+- [x] Document review UI shows species/program selectors for line items — already built (document-uploader.tsx lines 1013-1072)
+- [x] Programs admin page at /programs lists all programs with edit capability — DONE 2026-03-12 (PATCH /api/programs/[id] + inline edit on ProgramCard)
+- [x] `npx tsc --noEmit` passes clean — verified 2026-03-12
+
+## Status: COMPLETE (2026-03-12)
