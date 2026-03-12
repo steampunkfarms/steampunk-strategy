@@ -2,8 +2,10 @@ import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth';
 import { redirect } from 'next/navigation';
 import { prisma } from '@/lib/prisma';
-import { Server, TrendingUp, CheckCircle2, AlertTriangle } from 'lucide-react';
+import { Server, TrendingUp, CheckCircle2, AlertTriangle, PieChart, Calendar } from 'lucide-react';
 import { SpendChart } from './spend-chart';
+import { AllocationChart } from './allocation-chart';
+import { ProjectionChart } from './projection-chart';
 
 export const dynamic = 'force-dynamic';
 
@@ -27,6 +29,24 @@ const VENDOR_COLORS: Record<string, string> = {
   'github': 'bg-purple-800',
   'anthropic': 'bg-orange-800',
   'microsoft-365': 'bg-blue-800',
+};
+
+const REPO_LABELS: Record<string, string> = {
+  'rescuebarn': 'Rescue Barn',
+  'steampunk-studiolo': 'Studiolo',
+  'steampunk-postmaster': 'Postmaster',
+  'steampunk-strategy': 'TARDIS',
+  'cleanpunk-shop': 'Cleanpunk',
+  'steampunk-orchestrator': 'Orchestrator',
+};
+
+const REPO_COLORS: Record<string, string> = {
+  'rescuebarn': 'bg-green-700',
+  'steampunk-studiolo': 'bg-violet-700',
+  'steampunk-postmaster': 'bg-orange-700',
+  'steampunk-strategy': 'bg-blue-700',
+  'cleanpunk-shop': 'bg-pink-700',
+  'steampunk-orchestrator': 'bg-slate-600',
 };
 
 function formatCurrency(n: number) {
@@ -95,6 +115,53 @@ export default async function DevCostsPage() {
   const monthsWithSpend = monthlyData.filter(m => m.total > 0).length;
   const avgMonthly = monthsWithSpend > 0 ? ytdTotal / monthsWithSpend : 0;
 
+  // ─── SaaS Subscriptions: repo allocation + Q2 projection ───
+  const subscriptions = await prisma.saaSSubscription.findMany({
+    where: { active: true },
+    orderBy: { expectedMonthly: 'desc' },
+  });
+
+  const expectedMonthlyTotal = subscriptions.reduce((s, sub) => s + Number(sub.expectedMonthly), 0);
+
+  // Aggregate allocation by repo across all subscriptions
+  const repoAllocations: Record<string, number> = {};
+  for (const sub of subscriptions) {
+    if (!sub.repoAllocation) continue;
+    try {
+      const alloc = JSON.parse(sub.repoAllocation) as Record<string, number>;
+      for (const [repo, pct] of Object.entries(alloc)) {
+        repoAllocations[repo] = (repoAllocations[repo] ?? 0) + Number(sub.expectedMonthly) * pct;
+      }
+    } catch { /* skip malformed allocation */ }
+  }
+
+  // Sort repos by allocated cost descending
+  const allocationData = Object.entries(repoAllocations)
+    .map(([repo, amount]) => ({ repo, amount: Math.round(amount * 100) / 100 }))
+    .sort((a, b) => b.amount - a.amount);
+
+  // Build projection data: last 3 actual months + 3 projected months (Q2)
+  const projectionData: Array<{ month: string; amount: number; projected: boolean }> = [];
+
+  // Actual months from transaction data
+  for (let i = 2; i >= 0; i--) {
+    const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
+    const label = d.toLocaleDateString('en-US', { month: 'short' });
+    const existing = monthlyData.find(m => m.month === label);
+    // Use actual if we have it, otherwise expected
+    const amount = existing && existing.total > 0 ? existing.total : expectedMonthlyTotal;
+    projectionData.push({ month: label, amount, projected: false });
+  }
+
+  // Projected Q2 months
+  for (let i = 1; i <= 3; i++) {
+    const d = new Date(now.getFullYear(), now.getMonth() + i, 1);
+    const label = d.toLocaleDateString('en-US', { month: 'short' });
+    projectionData.push({ month: label, amount: expectedMonthlyTotal, projected: true });
+  }
+
+  const q2Total = expectedMonthlyTotal * 3;
+
   return (
     <div className="p-6 space-y-6 max-w-5xl mx-auto">
       {/* Header */}
@@ -109,16 +176,21 @@ export default async function DevCostsPage() {
       </div>
 
       {/* Summary cards */}
-      <div className="grid grid-cols-3 gap-4">
+      <div className="grid grid-cols-4 gap-4">
         <div className="console-card p-4">
           <p className="text-xs text-slate-500 uppercase tracking-wider mb-1">YTD Actual</p>
           <p className="text-2xl font-mono text-slate-100">{formatCurrency(ytdTotal)}</p>
           <p className="text-xs text-slate-600 mt-1">{now.getFullYear()} to date</p>
         </div>
         <div className="console-card p-4">
-          <p className="text-xs text-slate-500 uppercase tracking-wider mb-1">Avg Monthly</p>
-          <p className="text-2xl font-mono text-slate-100">{formatCurrency(avgMonthly)}</p>
-          <p className="text-xs text-slate-600 mt-1">based on months with activity</p>
+          <p className="text-xs text-slate-500 uppercase tracking-wider mb-1">Expected Monthly</p>
+          <p className="text-2xl font-mono text-slate-100">{formatCurrency(expectedMonthlyTotal)}</p>
+          <p className="text-xs text-slate-600 mt-1">from {subscriptions.length} subscriptions</p>
+        </div>
+        <div className="console-card p-4">
+          <p className="text-xs text-slate-500 uppercase tracking-wider mb-1">Q2 Projection</p>
+          <p className="text-2xl font-mono text-brass-warm">{formatCurrency(q2Total)}</p>
+          <p className="text-xs text-slate-600 mt-1">Apr–Jun {now.getFullYear()}</p>
         </div>
         <div className="console-card p-4">
           <p className="text-xs text-slate-500 uppercase tracking-wider mb-1">Tracked Vendors</p>
@@ -127,23 +199,51 @@ export default async function DevCostsPage() {
         </div>
       </div>
 
-      {/* Monthly spend line chart */}
+      {/* Projection chart — actual + Q2 forecast */}
       <div className="console-card p-5">
         <h2 className="text-sm font-semibold text-slate-200 mb-4 flex items-center gap-2">
-          <TrendingUp className="w-4 h-4 text-gauge-blue" />
-          Monthly SaaS Spend (last 6 months)
+          <Calendar className="w-4 h-4 text-brass-warm" />
+          Monthly Spend — Actual + Q2 Projection
         </h2>
-        {recentExpenses.length === 0 ? (
-          <p className="text-sm text-slate-500 text-center py-8">
-            No SaaS transactions found. Gmail scanner will populate this as invoices arrive.
-          </p>
-        ) : (
-          <SpendChart data={monthlyData} />
-        )}
+        <ProjectionChart data={projectionData} />
+        <p className="text-[10px] text-slate-600 mt-2">
+          Solid bars = recorded transactions. Dashed bars = projected from expected subscription costs ({formatCurrency(expectedMonthlyTotal)}/mo).
+          Anthropic API costs are variable — heavy dev months may exceed projection.
+        </p>
       </div>
 
-      {/* YTD by vendor + recent invoices side-by-side */}
+      {/* Cost allocation by repo + YTD by vendor side-by-side */}
       <div className="grid grid-cols-2 gap-6">
+        {/* Allocation by repo */}
+        <div className="console-card p-5">
+          <h2 className="text-sm font-semibold text-slate-200 mb-4 flex items-center gap-2">
+            <PieChart className="w-4 h-4 text-gauge-blue" />
+            Cost Allocation by Repo
+          </h2>
+          {allocationData.length === 0 ? (
+            <p className="text-sm text-slate-500 text-center py-6">No allocation data. Run seed-saas-subscriptions.ts.</p>
+          ) : (
+            <div className="space-y-2">
+              {allocationData.map(({ repo, amount }) => (
+                <div key={repo} className="flex items-center gap-3">
+                  <div className={`w-2 h-2 rounded-full flex-shrink-0 ${REPO_COLORS[repo] ?? 'bg-slate-600'}`} />
+                  <span className="text-xs text-slate-400 w-24 truncate">{REPO_LABELS[repo] ?? repo}</span>
+                  <div className="flex-1 h-4 bg-console-light rounded overflow-hidden">
+                    <div
+                      className="h-full bg-tardis/60 rounded"
+                      style={{ width: `${(amount / expectedMonthlyTotal) * 100}%` }}
+                    />
+                  </div>
+                  <span className="text-xs font-mono text-slate-300 w-16 text-right">{formatCurrency(amount)}</span>
+                  <span className="text-[10px] text-slate-600 w-10 text-right">
+                    {((amount / expectedMonthlyTotal) * 100).toFixed(0)}%
+                  </span>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+
         {/* YTD by vendor */}
         <div className="console-card p-5">
           <h2 className="text-sm font-semibold text-slate-200 mb-4">YTD Actual by Vendor</h2>
@@ -170,28 +270,62 @@ export default async function DevCostsPage() {
             </div>
           )}
         </div>
+      </div>
 
-        {/* Vendor list */}
-        <div className="console-card overflow-hidden">
-          <div className="px-5 py-3 border-b border-console-border">
-            <h2 className="text-sm font-semibold text-slate-200">Tracked SaaS Vendors</h2>
-          </div>
-          {saasVendors.length === 0 ? (
-            <div className="p-6 text-center">
-              <p className="text-sm text-slate-500">No SaaS vendors configured. Run the database seed to populate.</p>
-            </div>
-          ) : (
-            <div className="divide-y divide-console-border/50">
-              {saasVendors.map(v => (
-                <div key={v.id} className="px-5 py-3 flex items-center gap-3">
-                  <div className={`w-2 h-2 rounded-full ${VENDOR_COLORS[v.slug] ?? 'bg-slate-600'}`} />
-                  <span className="text-sm text-slate-200">{v.name}</span>
-                  <span className="text-[10px] text-slate-500 ml-auto">{v.slug}</span>
-                </div>
-              ))}
-            </div>
-          )}
+      {/* Subscription breakdown table */}
+      <div className="console-card overflow-hidden">
+        <div className="px-5 py-3 border-b border-console-border flex items-center justify-between">
+          <h2 className="text-sm font-semibold text-slate-200">SaaS Subscriptions</h2>
+          <span className="text-xs text-slate-500">{formatCurrency(expectedMonthlyTotal)}/mo total</span>
         </div>
+        {subscriptions.length === 0 ? (
+          <div className="p-6 text-center">
+            <p className="text-sm text-slate-500">No subscriptions configured. Run: npx tsx scripts/seed-saas-subscriptions.ts</p>
+          </div>
+        ) : (
+          <table className="w-full bridge-table">
+            <thead>
+              <tr>
+                <th>Vendor</th>
+                <th>Plan</th>
+                <th className="text-right">Expected</th>
+                <th>Allocation</th>
+                <th>Billing</th>
+              </tr>
+            </thead>
+            <tbody>
+              {subscriptions.map(sub => {
+                let allocSummary = '';
+                try {
+                  const alloc = JSON.parse(sub.repoAllocation ?? '{}') as Record<string, number>;
+                  const top = Object.entries(alloc)
+                    .sort((a, b) => b[1] - a[1])
+                    .slice(0, 3)
+                    .map(([repo, pct]) => `${REPO_LABELS[repo] ?? repo} ${(pct * 100).toFixed(0)}%`);
+                  allocSummary = top.join(', ');
+                  if (Object.keys(alloc).length > 3) allocSummary += ' …';
+                } catch { /* skip */ }
+
+                return (
+                  <tr key={sub.id}>
+                    <td>
+                      <div className="flex items-center gap-2">
+                        <div className={`w-2 h-2 rounded-full ${VENDOR_COLORS[sub.vendor] ?? 'bg-slate-600'}`} />
+                        <span className="text-sm text-brass-warm">{VENDOR_LABELS[sub.vendor] ?? sub.vendor}</span>
+                      </div>
+                    </td>
+                    <td className="text-xs text-slate-400">{sub.service}</td>
+                    <td className="text-right font-mono text-sm text-slate-200">
+                      {formatCurrency(Number(sub.expectedMonthly))}/mo
+                    </td>
+                    <td className="text-[10px] text-slate-500 max-w-[200px] truncate">{allocSummary}</td>
+                    <td className="text-[10px] text-slate-500">{sub.billingCycle}</td>
+                  </tr>
+                );
+              })}
+            </tbody>
+          </table>
+        )}
       </div>
 
       {/* Recent invoices */}

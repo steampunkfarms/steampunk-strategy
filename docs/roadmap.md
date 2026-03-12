@@ -39,20 +39,6 @@
 
 ---
 
-## 🟡 Action Required — Manual Steps
-
-### Cancel Square Billing (deferred — one month overlap)
-
-**Priority:** Low — intentional one-month overlap decided 2026-03-04. Cancel before next billing cycle.
-**Discovered:** 2026-03-02 via Gmail `Expenses/Other Receipts` scan
-
-Two active Square subscriptions still billing:
-
-1. **Square Services** — 11 payment receipts (Aug 2025–Feb 2026) from `messaging.squareup.com`
-2. **Square Online** — 7 renewal receipts (Aug 2025–Feb 2026) from `messaging.square.online`
-
-**Action:** Log into squareup.com dashboard → Settings → Subscriptions → Cancel both when overlap period ends.
-
 ---
 
 ## 🔴 Priority One — Do Next
@@ -65,13 +51,13 @@ Two active Square subscriptions still billing:
 
 1. ~~TARDIS cost API~~ DONE — `GET /api/costs/all`
 2. ~~Studiolo sync cron~~ DONE — `app/api/cron/sync-cost-of-care/route.ts`
-3. Operator: run backfill `npx tsx scripts/backfill-invoice-line-items.ts`
-4. Operator: set `TARDIS_API_URL` env var in Studiolo Vercel
-5. Studiolo: `lib/atelier/cost-cache.ts` — reads from synced CostOfCareItem
-6. Rewrite `generateImpactLine()` to use real costs
+3. ~~Operator: run backfill~~ DONE — 353 line items across 101 documents
+4. ~~Operator: set `TARDIS_API_URL` env var in Studiolo Vercel~~ DONE
+5. ~~Studiolo: `lib/atelier/cost-cache.ts` — reads from synced CostOfCareItem~~ DONE — `loadCostMap()` in `lib/costs/get-cost-of-care.ts`
+6. ~~Rewrite `generateImpactLine()` to use real costs~~ DONE — accepts optional `costs` param with FALLBACK_COSTS
 7. Seasonal awareness: cost-at-gift-date for backfill vs current cost for real-time sends
 **Repo:** steampunk-studiolo + steampunk-strategy (cross-repo)
-**Blocked by:** Operator must run backfill + set TARDIS_API_URL env var
+**Remaining:** Only step 7 (seasonal awareness) is open
 
 ### Security Hardening — Remaining Audit Items
 
@@ -91,7 +77,7 @@ _(none)_
 - **H1:** Patreon webhook uses MD5 HMAC — Patreon only supports MD5 (platform limitation). Current impl uses `timingSafeEqual` which is correct. No further action possible.
 - **H4:** Studiolo inbound webhook — no auth (routes by x-webhook-source header). Low priority: just a router.
 - **H6:** GoFundMe webhook stub — no auth, just logs. Low priority: no data processing.
-- **Studiolo:** ZAPIER_WEBHOOK_SECRET not set in .env.local (may be set in Vercel env only)
+- ~~**Studiolo:** ZAPIER_WEBHOOK_SECRET~~ RESOLVED 2026-03-12 — confirmed set in Vercel env, no trailing \r
 
 **Still open — Medium (batch later):**
 - M1: Restrict CORS to family domains (Postmaster public API)
@@ -411,22 +397,6 @@ See `docs/handoffs/20260307-yt1-youtube-cogworks-import.md`. YouTube Data API v3
 5. **Follow-up automation** — Calendar reminders for reapplication windows (many programs are annual). Auto-generate "lessons learned" from declined applications.
 **Repo:** steampunk-studiolo (could be a GMS sub-module or standalone `/equipment` page)
 
-### PayPal Gmail Enrichment (#25)
-**Priority:** Medium — emails contain notes, addresses, donor data not in API/CSV
-**Repo:** steampunk-studiolo
-
-### Gmail Label Discovery (#23)
-**Priority:** Medium — improve email categorization accuracy
-**Repo:** steampunk-studiolo
-
-### Zeffy Phase-Out (#100)
-**Priority:** Medium — active migration
-**Decision (2026-03-01):** Zeffy is being phased out. No new campaigns marketed on Zeffy. `rescuebarn.steampunkfarms.org/donate` (Stripe, nonprofit fee structure approved) is the primary donation landing. Rescue Barn campaign pages (`/campaigns/cluck-crew`, `/campaigns/goats-that-stare-at-hay`, etc.) mirror old Zeffy campaigns as landing zones. `give.steampunkfarms.org` will redirect to `rescuebarn.steampunkfarms.org/donate` at Rescue Barn launch.
-**Keep:** Zapier webhook flow for incoming Zeffy donations (monthly donors still active until re-platformed).
-**Remove:** Zeffy CSV import tool from Studiolo `/imports` page (no longer needed).
-**Future:** Once all monthly donors re-platformed to Rescue Barn/Stripe, remove remaining Zeffy webhook handling + Zapier integration.
-**Repos:** steampunk-studiolo + steampunk-rescuebarn
-
 ### Dev Infrastructure Cost Dashboard (TARDIS) — MVP SHIPPED
 **Priority:** Medium-High — visibility into monthly SaaS burn rate
 **What exists:** CostTracker + SeasonalBaseline models, expense categories with `tech-saas`/`tech-hosting`/`tech-hardware`, Gmail scanner cron (daily, matches vendors from VENDOR_MAP), `/expenses` transaction ledger, cost-creep scan API. Foundation is solid.
@@ -435,10 +405,11 @@ See `docs/handoffs/20260307-yt1-youtube-cogworks-import.md`. YouTube Data API v3
 2. ~~**Gmail queries missing SaaS**~~ — Already covered in FINANCIAL_QUERIES with billing sender addresses.
 3. ~~**No `/dev-costs` page**~~ — Shipped: LineChart monthly spend, YTD total, avg monthly, vendor breakdown, recent invoices table. Driven from Transaction records filtered by SaaS vendor slugs (no SaaSSubscription dependency).
 **Remaining gaps:**
-4. **No cost allocation across repos** — Vercel/Neon/GitHub shared across 6 projects. Need allocation rules to split costs proportionally.
-5. **No Q2 projection** — Extrapolate from current monthly trend + known rate changes.
-6. **Budget variance tracking** — SaaSSubscription model exists in schema but is not wired to the dashboard yet. Could be used for expected vs. actual comparison.
+4. ~~**No cost allocation across repos**~~ — DONE: Seeded 6 SaaSSubscription records with repoAllocation JSON splits, built AllocationChart component showing per-repo cost breakdown.
+5. ~~**No Q2 projection**~~ — DONE: ProjectionChart component with 3 actual + 3 projected months from SaaSSubscription expected monthly totals ($132.42/mo, Q2 $397.26).
+6. **Budget variance tracking** — SaaSSubscription model now seeded and powering allocation/projection, but expected vs. actual comparison not yet wired.
 - 🤖 **2026-03-06:** Shipped /dev-costs MVP — rewrote page to use Transaction records filtered by SaaS vendor slugs, added Recharts LineChart, removed SaaSSubscription dependency. 2 files changed. (task completed)
+- 🤖 **2026-03-12:** Added repo cost allocation + Q2 projection. Seeded 6 SaaSSubscription records ($132.42/mo), built AllocationChart + ProjectionChart Recharts components, expanded page with 4 summary cards + subscription table. 4 files created/modified. (task completed)
 **Repo:** steampunk-strategy
 
 ### 990 Preparation Rollup (TARDIS Phase D, #96)
