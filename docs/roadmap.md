@@ -273,13 +273,14 @@ A mapping layer that learns which products serve which species. Sits between Cla
 
 #### Implementation Sequence
 
-1. Upload Tractor Supply batch (30 orders) → verify Claude extraction quality for line items, quantities, weights
-2. **Line-item enrichment UI** — species/program tagging per line item in review panel (current task)
+1. ~~Upload Tractor Supply batch (30 orders)~~ DONE — documents uploaded with line item comments
+2. ~~**Line-item enrichment UI**~~ DONE — species/program tagging per line item in document review panel (document-uploader.tsx: species toggles, program dropdown, auto-suggest from ProductSpeciesMap)
 3. ~~Product-to-species mapping table + auto-suggest on repeat products~~ COMPLETED 2026-03-07 — see `docs/handoffs/20260307-product-species-map-learning.md`
-4. Design COA hierarchy + Program model (Prisma schema changes)
+4. ~~Design COA hierarchy + Program model (Prisma schema changes)~~ DONE — Program model (8 canonical programs), ExpenseCategory hierarchy (13 parents, 58 children, COA codes 5100-8400), Transaction.programId + functionalClass fields
 5. ~~Build auto-allocation rules engine (consuming species/program tags from step 2-3)~~ COMPLETED 2026-03-07 — see `docs/handoffs/20260307-eip-auto-allocation.md`
 6. ~~Impact metrics aggregation + API~~ COMPLETED 2026-03-07 — see `docs/handoffs/20260307-eip-impact-api-enrichment.md`
 7. Cross-site integration handoffs (one per consuming site)
+- 🤖 **2026-03-12:** EIP Phase 1 complete. Deduped programs (13→8), fixed 6 null coaCodes, bulk-allocated 314/1253 transactions (726 need categorization first). Built Programs admin page at `/programs`. Steps 1-6 all verified done — only step 7 (cross-site integration) remains.
 
 ### ~~RIG-1: Resident Multi-Image Gallery~~ COMPLETED 2026-03-09
 

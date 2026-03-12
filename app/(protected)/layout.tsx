@@ -27,6 +27,7 @@ import {
   TrendingUp,
   Sparkles,
   ScrollText,
+  FolderHeart,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import ChronicleButton from '@/components/ChronicleButton';
@@ -57,6 +58,7 @@ const navigation = [
       { name: 'Documents', href: '/documents', icon: FileText },
       { name: 'Vendors', href: '/vendors', icon: Building2 },
       { name: 'Product Map', href: '/product-map', icon: Tags },
+      { name: 'Programs', href: '/programs', icon: FolderHeart },
     ],
   },
   {
