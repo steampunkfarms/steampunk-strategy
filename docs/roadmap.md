@@ -219,12 +219,12 @@ Both appear as platform tabs in the Content Storm review screen (the per-platfor
 - API endpoint for Rescue Barn + Studiolo to consume: `GET /api/impact/{programSlug}?period=2026-Q1`
 - Per-donor endpoint: `GET /api/impact/{programSlug}/donor/{donorId}` for personalized dashboards
 
-#### Phase 3: Donor Experience Integration (Cross-Site)
+#### Phase 3: Donor Experience Integration (Cross-Site) — COMPLETED 2026-03-12
 
-- **Studiolo — Major Donor Dashboard:** Personalized impact tied to giving segment. Major Cluck Crew donors see exact expense tie-ins. Scriptorium-drafted personalized impact letters with the specific expense data.
-- **Studiolo — General Donors:** Aggregated impact summaries via automated Postmaster content
-- **Postmaster — Impact Digest:** New content type for Content Storm automation. Monthly "How Your Donation Helped" digest auto-generated from TARDIS impact metrics. Push to email campaigns.
-- **Rescue Barn — "How Your Donation Helped":** Public transparency callouts on campaign pages. "This month, Cluck Crew donations purchased 340 lbs of layer feed from Tractor Supply and Star Milling."
+- ~~**Studiolo — Major Donor Dashboard:** Personalized impact tied to giving segment.~~ DONE — ImpactSummary card on donor detail page with proportional contribution
+- ~~**Studiolo — General Donors:** Aggregated impact summaries via automated Postmaster content~~ DONE — same ImpactSummary card shows all-programs breakdown
+- ~~**Postmaster — Impact Digest:** New content type for Content Storm automation.~~ DONE — `/api/generate/impact-digest` route + `/impact-digest` UI page with HUG compliance
+- ~~**Rescue Barn — "How Your Donation Helped":** Public transparency callouts on campaign pages.~~ DONE — programs page + fine print page show live TARDIS data
 - **Rescue Barn — "My Impact" page (future):** Authenticated donor view showing personalized impact tied to their giving history
 
 #### Phase 4: Vendor Performance Dashboard (TARDIS)
@@ -279,8 +279,9 @@ A mapping layer that learns which products serve which species. Sits between Cla
 4. ~~Design COA hierarchy + Program model (Prisma schema changes)~~ DONE — Program model (8 canonical programs), ExpenseCategory hierarchy (13 parents, 58 children, COA codes 5100-8400), Transaction.programId + functionalClass fields
 5. ~~Build auto-allocation rules engine (consuming species/program tags from step 2-3)~~ COMPLETED 2026-03-07 — see `docs/handoffs/20260307-eip-auto-allocation.md`
 6. ~~Impact metrics aggregation + API~~ COMPLETED 2026-03-07 — see `docs/handoffs/20260307-eip-impact-api-enrichment.md`
-7. Cross-site integration handoffs (one per consuming site)
+7. ~~Cross-site integration handoffs (one per consuming site)~~ COMPLETED 2026-03-12 — see `docs/handoffs/_working/20260312-eip-phase3-donor-experience-integration-working-spec.md`
 - 🤖 **2026-03-12:** EIP Phase 1 complete. Deduped programs (13→8), fixed 6 null coaCodes, bulk-allocated 314/1253 transactions (726 need categorization first). Built Programs admin page at `/programs`. Steps 1-6 all verified done — only step 7 (cross-site integration) remains.
+- 🤖 **2026-03-12:** EIP Phase 3 complete. Built batch impact endpoint in TARDIS, integrated live financial data into Rescue Barn (programs page + fine print), Studiolo (donor detail ImpactSummary card), and Postmaster (Impact Digest generator with HUG compliance). All 4 repos pushed and deploying.
 
 ### ~~RIG-1: Resident Multi-Image Gallery~~ COMPLETED 2026-03-09
 

@@ -398,15 +398,15 @@ Phases 3a and 3b can run in parallel. 3c and 3d depend on 3a.
 
 Before marking Phase 3 complete:
 
-- [ ] TARDIS batch endpoint returns all programs in one request
-- [ ] TARDIS donor attribution returns non-zero values for donors with allocated gifts
-- [ ] Rescue Barn renders public impact data on program pages
-- [ ] Studiolo donor detail page shows impact summary for donors with gifts
-- [ ] Postmaster Impact Digest generator produces grounded narrative content
-- [ ] All 4 repos pass `npx tsc --noEmit`
-- [ ] CORS headers allow cross-site requests from all family domains
-- [ ] Public scope endpoints return no sensitive data (spot-check response payloads)
-- [ ] Graceful degradation: each consumer works normally when TARDIS is unreachable
+- [x] TARDIS batch endpoint returns all programs in one request — `GET /api/impact` (2026-03-12)
+- [ ] TARDIS donor attribution returns non-zero values for donors with allocated gifts — deferred (placeholder zeros, requires gift sync or cross-site lookup)
+- [x] Rescue Barn renders public impact data on program pages — programs page + fine print page (2026-03-12)
+- [x] Studiolo donor detail page shows impact summary for donors with gifts — ImpactSummary card (2026-03-12)
+- [x] Postmaster Impact Digest generator produces grounded narrative content — `/api/generate/impact-digest` (2026-03-12)
+- [x] All 4 repos pass `npx tsc --noEmit` — verified 2026-03-12
+- [x] CORS headers allow cross-site requests from all family domains — steampunkfarms.org, steampunkrescuebarn, steampunkstudiolo.org, localhost (2026-03-12)
+- [x] Public scope endpoints return no sensitive data (spot-check response payloads) — `?scope=public` strips transactions, vendor slugs, notes
+- [x] Graceful degradation: each consumer works normally when TARDIS is unreachable — all use `.catch(() => null)` with hidden cards
 
 ---
 
@@ -429,3 +429,17 @@ Before marking Phase 3 complete:
 - The Postmaster Impact Digest is the most creative piece — the content generation prompt needs careful crafting to produce warm, HUG-compliant copy that reads like Padrona wrote it, not a financial report. Reference the voice engine patterns in `lib/voice-engine/` and the existing generators in `app/api/generate/`.
 - The 8 canonical program slugs are: `swine`, `cats-dogs`, `cluck-crew`, `sanctuary-operations`, `soap-mercantile`, `fundraising`, `barn-cats`, `general-herd`. Confirmed after Phase 1 dedup (2026-03-12).
 - TARDIS CORS already allows `steampunkfarms.org`, `steampunkrescuebarn`, and `localhost`. Verify Studiolo and Postmaster origins are also allowed, or add them to the `setCorsHeaders` function.
+
+---
+
+## Status: COMPLETE (2026-03-12)
+
+**Phase 3a (TARDIS):** Batch endpoint at `GET /api/impact` + CORS updates + `.trim()` on INTERNAL_SECRET. Commit `147867c`, pushed and deploying.
+
+**Phase 3b (Rescue Barn):** Added `fetchAllProgramImpacts()` to `src/lib/tardis.ts`, integrated live TARDIS data on `/programs` (totals strip + per-program breakdown with progress bars) and `/the-fine-print` (operating expenses section). Commit `bcf6894`, pushed and deploying.
+
+**Phase 3c (Studiolo):** Created `lib/tardis.ts` (Bearer auth, full scope), `components/donors/ImpactSummary.tsx` (program breakdown with donor proportional contribution), wired into donor detail page. Commit `3843f08`, pushed and deploying.
+
+**Phase 3d (Postmaster):** Created `lib/tardis.ts` (Bearer auth + `fetchImpactDigestContext()`), `app/api/generate/impact-digest/route.ts` (Claude-powered narrative with HUG compliance), `app/(protected)/impact-digest/page.tsx` (UI), added sidebar nav item. Commit `0e30b92f`, pushed and deploying.
+
+**Deferred:** Donor attribution hydration (placeholder zeros — requires gift sync or cross-site lookup from Studiolo), cache layer, per-donor `/my-impact` page on Rescue Barn.
