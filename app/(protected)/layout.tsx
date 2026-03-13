@@ -28,6 +28,7 @@ import {
   Sparkles,
   ScrollText,
   FolderHeart,
+  KeyRound,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import ChronicleButton from '@/components/ChronicleButton';
@@ -39,6 +40,7 @@ const navigation = [
       { name: 'The Bridge', href: '/bridge', icon: LayoutDashboard },
       { name: "Captain's Log", href: '/captains-log', icon: ScrollText },
       { name: 'Monitoring', href: '/monitoring', icon: Activity },
+      { name: 'Credentials', href: '/credentials', icon: KeyRound },
     ],
   },
   {

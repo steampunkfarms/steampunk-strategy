@@ -58,6 +58,7 @@ interface HealthCheckResponse {
   crossSite: CrossSiteResult[];
   dataFreshness: DataFreshnessResult;
   cronFreshness: CronFreshnessResult;
+  credentialHealth: CredentialHealthResult;
   alerts: string[];
 }
 
@@ -251,6 +252,83 @@ async function checkCronFreshness(): Promise<CronFreshnessResult> {
 }
 
 // ---------------------------------------------------------------------------
+// Check: Credential health — verify API keys that support active verification
+// see docs/handoffs/_working/20260312-credential-registry-dashboard-cron-working-spec.md
+// ---------------------------------------------------------------------------
+
+interface CredentialHealthResult {
+  verified: number;
+  failed: number;
+  skipped: number;
+  details: Array<{ slug: string; ok: boolean; error: string | null }>;
+}
+
+async function checkCredentialHealth(): Promise<CredentialHealthResult> {
+  const verifiableCredentials = await prisma.credentialRegistry.findMany({
+    where: { verifyEndpoint: { not: null } },
+    select: { id: true, slug: true, verifyEndpoint: true },
+  });
+
+  let verified = 0, failed = 0, skipped = 0;
+  const details: CredentialHealthResult['details'] = [];
+
+  for (const cred of verifiableCredentials) {
+    let ok = false;
+    let error: string | null = null;
+
+    try {
+      if (cred.verifyEndpoint === 'anthropic-api') {
+        const key = process.env.ANTHROPIC_API_KEY?.trim();
+        if (!key) { skipped++; details.push({ slug: cred.slug, ok: false, error: 'ANTHROPIC_API_KEY not set' }); continue; }
+
+        // Lightweight ping — send a minimal message request with max_tokens: 1
+        const res = await fetch('https://api.anthropic.com/v1/messages', {
+          method: 'POST',
+          headers: {
+            'x-api-key': key,
+            'anthropic-version': '2023-06-01',
+            'content-type': 'application/json',
+          },
+          body: JSON.stringify({ model: 'claude-haiku-4-5-20251001', max_tokens: 1, messages: [{ role: 'user', content: 'ping' }] }),
+          signal: AbortSignal.timeout(5000),
+        });
+        ok = res.ok;
+        if (!ok) error = `HTTP ${res.status}`;
+      } else if (cred.verifyEndpoint === 'stripe-api') {
+        const key = process.env.STRIPE_SECRET_KEY?.trim();
+        if (!key) { skipped++; details.push({ slug: cred.slug, ok: false, error: 'STRIPE_SECRET_KEY not set' }); continue; }
+
+        const res = await fetch('https://api.stripe.com/v1/balance', {
+          headers: { Authorization: `Bearer ${key}` },
+          signal: AbortSignal.timeout(5000),
+        });
+        ok = res.ok;
+        if (!ok) error = `HTTP ${res.status}`;
+      } else {
+        skipped++;
+        details.push({ slug: cred.slug, ok: false, error: `Unknown verify endpoint: ${cred.verifyEndpoint}` });
+        continue;
+      }
+    } catch (e) {
+      error = e instanceof Error ? e.message : String(e);
+    }
+
+    if (ok) verified++; else failed++;
+    details.push({ slug: cred.slug, ok, error });
+
+    // Update the credential record with verification results
+    try {
+      await prisma.credentialRegistry.update({
+        where: { id: cred.id },
+        data: { lastVerifiedAt: new Date(), lastVerifyOk: ok },
+      });
+    } catch { /* non-fatal — log via audit below */ }
+  }
+
+  return { verified, failed, skipped, details };
+}
+
+// ---------------------------------------------------------------------------
 // Main handler
 // ---------------------------------------------------------------------------
 
@@ -263,13 +341,14 @@ export async function GET(request: Request) {
   const alerts: string[] = [];
 
   // Run all checks in parallel
-  const [fleet, reachability, database, crossSite, dataFreshness, cronFreshness] = await Promise.all([
+  const [fleet, reachability, database, crossSite, dataFreshness, cronFreshness, credentialHealth] = await Promise.all([
     getFleetStatus().catch(() => null),
     checkReachability(),
     checkDatabase(),
     checkCrossSite(),
     checkDataFreshness(),
     checkCronFreshness(),
+    checkCredentialHealth().catch(() => ({ verified: 0, failed: 0, skipped: 0, details: [] } as CredentialHealthResult)),
   ]);
 
   // --- Build fleet summary + issues ---
@@ -312,6 +391,12 @@ export async function GET(request: Request) {
     alerts.push(`No recent cron_run in last ${STALE_CRON_HOURS}h for: ${cronFreshness.missingCrons.join(', ')}`);
   }
 
+  // --- Credential health ---
+  if (credentialHealth.failed > 0) {
+    const failedSlugs = credentialHealth.details.filter(d => !d.ok && d.error).map(d => d.slug);
+    alerts.push(`Credential verify failed for: ${failedSlugs.join(', ')}`);
+  }
+
   // --- Log to AuditLog ---
   const overallStatus = alerts.length === 0 ? 'healthy' : 'degraded';
   try {
@@ -334,6 +419,11 @@ export async function GET(request: Request) {
           cronFreshness: {
             recentRuns: cronFreshness.recentCronRuns.length,
             missing: cronFreshness.missingCrons,
+          },
+          credentialHealth: {
+            verified: credentialHealth.verified,
+            failed: credentialHealth.failed,
+            skipped: credentialHealth.skipped,
           },
         }),
         userName: 'health-check-cron',
@@ -358,6 +448,7 @@ export async function GET(request: Request) {
     crossSite,
     dataFreshness,
     cronFreshness,
+    credentialHealth,
     alerts,
   };
 

@@ -16,13 +16,14 @@ import {
   Heart,
   BookOpen,
   Plus,
+  KeyRound,
 } from 'lucide-react';
 import { getBridgeStats, getComplianceTimeline, getTransparencySummary } from '@/lib/queries';
 import { prisma } from '@/lib/prisma';
 import { formatCurrency, formatDate } from '@/lib/utils';
 
 export default async function BridgeDashboard() {
-  const [stats, compliance, transparency, urgentLogEntries] = await Promise.all([
+  const [stats, compliance, transparency, urgentLogEntries, credentialAlerts] = await Promise.all([
     getBridgeStats(),
     getComplianceTimeline(),
     getTransparencySummary(),
@@ -35,6 +36,23 @@ export default async function BridgeDashboard() {
       ],
       take: 5,
     }),
+    // Credential health — only fetch counts for the alert widget
+    (async () => {
+      const now = new Date();
+      const creds = await prisma.credentialRegistry.findMany({
+        select: { expiresAt: true, reminderDays: true, lastVerifyOk: true, status: true, riskLevel: true },
+      });
+      let expired = 0, expiringSoon = 0, verifyFailed = 0;
+      for (const c of creds) {
+        if (c.lastVerifyOk === false) verifyFailed++;
+        if (c.expiresAt) {
+          const daysLeft = Math.ceil((new Date(c.expiresAt).getTime() - now.getTime()) / (1000 * 60 * 60 * 24));
+          if (daysLeft <= 0) expired++;
+          else if (daysLeft <= c.reminderDays) expiringSoon++;
+        }
+      }
+      return { total: creds.length, expired, expiringSoon, verifyFailed, hasIssues: expired + expiringSoon + verifyFailed > 0 };
+    })(),
   ]);
 
   const pendingStatus = stats.pendingExpenses === 0 ? 'green' : stats.pendingExpenses > 10 ? 'red' : 'amber';
@@ -87,6 +105,34 @@ export default async function BridgeDashboard() {
           </Link>
         ))}
       </div>
+
+      {/* Credential Health Alert — only shown when issues exist */}
+      {credentialAlerts.hasIssues && (
+        <Link href="/credentials" className="console-card p-5 panel-hover group flex items-center gap-4 border-l-4 border-l-gauge-amber">
+          <div className="w-10 h-10 rounded-lg bg-gauge-amber/10 flex items-center justify-center flex-shrink-0">
+            <KeyRound className="w-5 h-5 text-gauge-amber" />
+          </div>
+          <div className="flex-1 min-w-0">
+            <p className="text-sm font-semibold text-slate-200 flex items-center gap-2">
+              Credential Alert
+              <ChevronRight className="w-3 h-3 text-slate-600 opacity-0 group-hover:opacity-100 transition-opacity" />
+            </p>
+            <p className="text-xs text-slate-400 mt-0.5">
+              {[
+                credentialAlerts.expired > 0 && `${credentialAlerts.expired} expired`,
+                credentialAlerts.expiringSoon > 0 && `${credentialAlerts.expiringSoon} expiring soon`,
+                credentialAlerts.verifyFailed > 0 && `${credentialAlerts.verifyFailed} verify failed`,
+              ].filter(Boolean).join(' · ')}
+              {' '}— {credentialAlerts.total} credentials tracked
+            </p>
+          </div>
+          <div className="flex items-center gap-2">
+            {credentialAlerts.expired > 0 && <span className="badge badge-red">{credentialAlerts.expired} expired</span>}
+            {credentialAlerts.expiringSoon > 0 && <span className="badge badge-amber">{credentialAlerts.expiringSoon} expiring</span>}
+            {credentialAlerts.verifyFailed > 0 && <span className="badge badge-red">{credentialAlerts.verifyFailed} failed</span>}
+          </div>
+        </Link>
+      )}
 
       {/* Two column layout */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
