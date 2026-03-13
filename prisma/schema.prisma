@@ -1294,3 +1294,58 @@ model SaaSSubscription {
   @@index([active])
   @@index([nextBillingDate])
 }
+
+
+// =============================================================================
+// CREDENTIAL REGISTRY — API keys, OAuth tokens, webhook secrets across all sites
+// Tracks expiration, rotation guides, verification status, and env var mappings.
+// Feeds the health-check cron for proactive expiration alerts.
+// see docs/handoffs/_working/20260312-credential-registry-working-spec.md
+// =============================================================================
+
+model CredentialRegistry {
+  id              String    @id @default(uuid())
+
+  // Identity
+  name            String    // "Anthropic API Key" | "Facebook Page Access Token" | "Azure AD Client Secret"
+  slug            String    @unique // "anthropic-api-key" | "facebook-access-token" | "azure-ad-client-secret"
+  provider        String    // "anthropic" | "meta" | "microsoft" | "google" | "stripe" | "resend" | "vercel" | "supabase" | "neon" | "internal"
+  category        String    // "api_key" | "oauth_token" | "webhook_secret" | "generated_secret" | "service_account"
+
+  // Where it lives (JSON array of { repo, envVar } objects)
+  // e.g. [{"repo":"steampunk-strategy","envVar":"ANTHROPIC_API_KEY"},{"repo":"steampunk-studiolo","envVar":"ANTHROPIC_API_KEY"}]
+  envMappings     String    @map("env_mappings")
+
+  // Lifecycle
+  issuedAt        DateTime? @map("issued_at")       // When the current credential was created/rotated
+  expiresAt       DateTime? @map("expires_at")       // Known expiration (null = never expires)
+  reminderDays    Int       @default(30) @map("reminder_days") // Days before expiry to start alerting
+
+  // Verification
+  lastVerifiedAt  DateTime? @map("last_verified_at") // Last time the health cron confirmed it works
+  lastVerifyOk    Boolean?  @map("last_verify_ok")   // true = passed, false = failed, null = never checked
+  verifyEndpoint  String?   @map("verify_endpoint")  // Optional test URL or method hint for the cron
+
+  // Rotation guide
+  rotationGuide   String?   @map("rotation_guide")   // Human-readable: "Go to console.anthropic.com → API Keys → Create new key"
+  rotationUrl     String?   @map("rotation_url")      // Direct link to the provider's key management page
+  autoRotatable   Boolean   @default(false) @map("auto_rotatable") // Phase 3: can the system rotate this automatically?
+
+  // Risk level
+  riskLevel       String    @default("medium") @map("risk_level") // "critical" | "high" | "medium" | "low"
+  failureImpact   String?   @map("failure_impact")   // "Admin auth fails on Studiolo/Postmaster/TARDIS" | "Content storms stop publishing"
+
+  // Status
+  status          String    @default("active") // "active" | "expiring_soon" | "expired" | "revoked" | "unverified"
+  notes           String?
+
+  createdAt       DateTime  @default(now()) @map("created_at")
+  updatedAt       DateTime  @updatedAt @map("updated_at")
+
+  @@map("credential_registry")
+  @@index([provider])
+  @@index([category])
+  @@index([status])
+  @@index([expiresAt])
+  @@index([riskLevel])
+}
