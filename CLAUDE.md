@@ -524,6 +524,7 @@ Do not start with a broad full-codebase sweep unless history artifacts are missi
 - ESLint configs: strategy (`eslint.config.mjs`), postmaster (`eslint.config.mjs`), rescuebarn (`eslint.config.mjs`), studiolo (`.eslintrc.json`), orchestrator (none), cleanpunk (none — Turbo monorepo).
 - Auth stacks: Postmaster + Studiolo use NextAuth (`lib/auth.ts`). Rescue Barn uses Supabase auth (`src/proxy.ts` + `src/app/auth/callback/route.ts`). Cleanpunk uses Medusa built-in auth. Flag stack mismatches in Sanity Pass for auth-related prompts.
 - Before marking any implementation complete, Claude MUST run `npx tsc --noEmit` in every modified repo and include the output in the Claim->Evidence table.
+- **Modernization rule (CONFIG-2026):** When any handoff touches `package.json` or `next.config.*` in Studiolo, Postmaster, Orchestrator, TARDIS, or Cleanpunk, batch-convert that repo's `next.config.js` from `module.exports` to ESM `export default` in the same commit. See `docs/roadmap.md` CONFIG-2026.
 
 ### Stoppage Triage Reference
 

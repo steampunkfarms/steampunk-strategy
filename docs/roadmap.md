@@ -343,6 +343,18 @@ See `docs/handoffs/20260307-commons1-rescue-commons.md`. Authenticated community
 
 See `docs/handoffs/20260307-yt1-youtube-cogworks-import.md`. YouTube Data API v3 channel video listing, youtubei.js transcript extraction, Claude Sonnet transcript processing (clean prose, species classification, social caption, donor hook, SEO), TipTap body builder with embedded player. CLI bulk import script + admin UI page. 6 new + 3 modified files in 1 repo (Rescue Barn).
 
+### SGP-1: Spirit Guardian Protocol Unification
+**Priority:** Medium — voice consistency across sites
+**What it is:** Reconcile contradictory guardrail #13 implementations between Studiolo (past tense) and Postmaster (present-tense spiritual presence). Establish single canonical definition, update all prompt layers, verify Claude output alignment.
+**Requires:** Voice doc audit across both repos
+**Repo:** steampunk-postmaster + steampunk-studiolo
+
+### RIG-2: Rescue Barn Multi-Image Gallery — Public Consumption
+**Priority:** Medium — completes RIG-1 (admin upload shipped 2026-03-08)
+**What it is:** Public-facing gallery components on Rescue Barn animal profile pages consuming the multi-image data stored via RIG-1 admin UI. Lightbox viewer, thumbnail grid, lazy loading.
+**Requires:** RIG-1 complete (done)
+**Repo:** steampunk-rescuebarn
+
 ### COMMONS-2: AI Intelligence Layer
 **Priority:** Medium — builds on COMMONS-1 community foundation
 **What it is:** AI-powered thread summaries, knowledge harvest from community discussions, Barn Sage RAG chatbot (answers questions from community-generated knowledge), social media amplification of top community content.
@@ -424,6 +436,18 @@ See `docs/handoffs/20260307-yt1-youtube-cogworks-import.md`. YouTube Data API v3
 **Scope:** New expense categories, /api/sync/stripe-mercantile, SalesTaxSummary model, CDTFA compliance task seed
 **Repo:** steampunk-strategy
 
+
+---
+
+## 🟡 Technical Debt — Batch with Next Per-Repo Touch
+
+- [ ] (CONFIG-2026) Modernize next.config.js to ESM `export default` pattern in 5 repos (Studiolo, Postmaster, Orchestrator, TARDIS, Cleanpunk Shop). Rescue Barn already compliant.
+  → Non-breaking, cosmetic only.
+  → Trigger: any future handoff that touches package.json or config in those repos.
+  → Acceptance: `npm run build` succeeds, no module.exports left.
+- [ ] (ISR-2026) Unified cross-site ISR revalidation tags. Current state: each repo uses different strategy (path-based, fetch-time, tag-based, or none). No cross-site invalidation mechanism. All cross-site reads use 1-hour TTL.
+  → Define shared tag taxonomy, implement `revalidateTag()` across sites, add cross-site invalidation API.
+  → Trigger: when any site's caching strategy is next revisited or stale-data bugs emerge.
 
 ---
 
