@@ -2,6 +2,21 @@
 
 > CRM, donor management, stewardship, and grants platform for Steampunk Farms Rescue Barn.
 > Deployed at studiolo.steampunkstudiolo.org | Vercel | Neon PostgreSQL
+> Updated: 2026-03-13
+
+---
+
+## Table of Contents
+
+- [Stack Versions](#1-stack-versions)
+- [Schema Summary](#2-schema-summary-84-models-31-enums)
+- [Route Structure](#3-route-structure-63-pages)
+- [API Routes](#4-api-routes-218-endpoints)
+- [Cron Jobs](#5-cron-jobs-15-scheduled-tasks)
+- [Site-Specific Patterns](#6-site-specific-patterns)
+- [Environment Variables](#7-environment-variables-35)
+- [Cross-Site Dependencies](#8-cross-site-dependencies)
+- [TARDIS Integration](#9-tardis-integration)
 
 ---
 
@@ -177,15 +192,28 @@ All crons export `GET` (Vercel requirement). Auth via `CRON_SECRET` or `INTERNAL
 
 ---
 
-## 9. TARDIS (The Bridge)
+## 9. TARDIS Integration
 
-No dedicated TARDIS financial management system exists in Studiolo. Financial data is handled per-channel:
-- **Gift model** serves as the unified financial record (amount, date, channel, source, campaign, tax year)
-- **Per-channel importers** in `app/api/import/` normalize transactions from 8+ platforms
-- **Zeffy reconciliation** crons handle monthly payment matching
-- **Commerce metrics** aggregate across Stripe, PayPal, Patreon, GoDaddy (Square historical data only)
-- **Budget tracking** via BudgetItem/BudgetSnapshot models at `app/api/budget/`
-- **Fee analysis** at `/api/commerce/fee-report`
-- **Dedup system** prevents double-counting across channels
+TARDIS (The Bridge) is now a separate deployed application at `tardis.steampunkstudiolo.org` (repo: `steampunk-strategy`). It handles financial management, compliance, and cross-site operations.
 
-If TARDIS is planned as a separate financial orchestration layer, it does not yet exist in this codebase.
+**Studiolo → TARDIS:**
+
+- Gift staging: TARDIS stages inbound gifts/donations and pushes them to Studiolo donor records via `/api/gift-staging/push`
+- Donor search: TARDIS queries Studiolo for donor matching via `/api/gift-staging/donor-search`
+- Vet staging: TARDIS stages veterinary bills sourced from Postmaster medical records
+
+**TARDIS → Studiolo:**
+
+- Cost-of-care data feeds the expense-to-impact pipeline, connecting donor gifts to specific animal care costs
+- Transparency items published by TARDIS appear on Rescue Barn's "The Fine Print" page
+
+**Studiolo retains its own financial data:**
+
+- **Gift model** — unified financial record (amount, date, channel, source, campaign, tax year)
+- **Per-channel importers** in `app/api/import/` — normalize transactions from 8+ platforms
+- **Commerce metrics** — aggregate across Stripe, PayPal, Patreon
+- **Budget tracking** — BudgetItem/BudgetSnapshot at `app/api/budget/`
+- **Dedup system** — prevents double-counting across channels
+
+TARDIS complements Studiolo's donor-facing financial data with operational financial management (vendor bills, compliance, cost tracking, tax preparation).
+// postest

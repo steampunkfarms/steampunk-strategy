@@ -2,7 +2,20 @@
 
 > E-commerce storefront for Steampunk Farms Rescue Barn 501(c)(3)
 > Repo: `steampunkfarms/cleanpunk-shop` | Monorepo: pnpm 10.11.1 + Turborepo
-> Last scanned: 2026-02-28
+> Updated: 2026-03-13
+
+---
+
+## Table of Contents
+
+- [Stack Versions](#1-stack-versions)
+- [Schema Summary](#2-schema-summary)
+- [Page Routes](#3-page-routes)
+- [API Routes](#4-api-routes)
+- [Cron Jobs](#5-cron-jobs-vercel)
+- [Site-Specific Patterns](#6-site-specific-patterns)
+- [Environment Variables](#7-environment-variables)
+- [Cross-Site Dependencies](#8-cross-site-dependencies)
 
 ---
 
@@ -154,4 +167,8 @@ CRUD · `/generate` · `/queue` · `/renditions/*` (CRUD, bulk, quick-edit)
 | Shared | Supabase project | Same instance, different tables per site |
 | Shared | Auth (planned SSO) | Supabase Auth (Google/Facebook/Apple OAuth) |
 | Cleanpunk → Square | Historical sales data only | Retired — replaced by Medusa as primary commerce backend |
+| Cleanpunk → TARDIS | Product-species mapping, COGS | TARDIS tracks which products benefit which species via ProductSpeciesMap. `TARDIS_API_SECRET` auth. |
+| Orchestrator → Cleanpunk | 5 managed crons | inventory-alert, abandoned-cart, track-deliveries, promo-notify, refresh-customer-metrics |
 | Hosting | Vercel Pro | Team `team_lZqpvvTB4AXWLrFU8QxFi6if` |
+
+<!-- // postest -->

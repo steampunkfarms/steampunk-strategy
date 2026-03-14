@@ -13,7 +13,7 @@
 
 ## Project Overview
 
-**The Bridge** is the 5th Vercel project in the Steampunk Farms family of sites. It serves as the central financial management, compliance tracking, and cross-site operations dashboard for Steampunk Farms Rescue Barn Inc., a 501(c)(3) nonprofit animal sanctuary.
+**The Bridge** is one of 6 Vercel projects in the Steampunk Farms family of sites. It serves as the central financial management, compliance tracking, and cross-site operations dashboard for Steampunk Farms Rescue Barn Inc., a 501(c)(3) nonprofit animal sanctuary.
 
 - **URL:** https://tardis.steampunkstudiolo.org
 - **Vercel Team:** steampunk-studiolo (team_lZqpvvTB4AXWLrFU8QxFi6if)
@@ -41,26 +41,33 @@ All routes are protected behind Azure AD except `/login` and `/api/auth/*`.
 
 ```
 app/
-├── (public)/
-│   └── login/              # Azure AD sign-in
+├── (public)/login/                  # Azure AD sign-in
 ├── (protected)/
-│   ├── bridge/             # Main dashboard ("The Bridge")
-│   ├── expenses/           # Transaction ledger, bank imports
-│   ├── documents/          # Receipt/invoice upload & AI parsing
-│   ├── vendors/            # Supplier directory, donor-paid bills
-│   ├── compliance/         # Filing deadlines, regulatory tasks
-│   ├── monitoring/         # Cross-site health dashboard
-│   └── transparency/       # Public financial data management
-└── api/
-    ├── auth/[...nextauth]/ # NextAuth handler
-    ├── cron/               # Scheduled jobs
-    ├── parse/              # Document AI parsing
-    ├── sync/               # Cross-site data sync
-    └── webhooks/           # External service webhooks
+│   ├── bridge/                      # Main dashboard ("The Bridge")
+│   ├── expenses/                    # Transaction ledger, bank imports
+│   ├── documents/                   # Receipt/invoice upload & AI parsing
+│   ├── vendors/                     # Supplier directory (CRUD + analytics)
+│   ├── compliance/                  # Filing deadlines, regulatory tasks
+│   ├── monitoring/                  # Cross-site health dashboard
+│   ├── transparency/                # Public financial data management
+│   ├── board-minutes/               # Board meeting records + PDF + attestation
+│   ├── captains-log/                # Executive decision journal
+│   ├── tax-hub/                     # Tax preparation per fiscal year
+│   ├── intelligence/                # BI/analytics (analytical + strategic)
+│   ├── cost-centers/                # Cost allocation units
+│   ├── credentials/                 # License/credential registry
+│   ├── gift-staging/                # Inbound gift staging → Studiolo
+│   ├── vet-staging/                 # Vet bill staging
+│   ├── scan-import/                 # Bulk document scan import
+│   ├── programs/                    # Sanctuary programs
+│   ├── product-map/                 # Cleanpunk product-species mapping
+│   ├── retail-charity/              # RaiseRight earnings
+│   └── dev-costs/                   # SaaS subscription tracking
+└── api/ (89 routes)                 # See docs/tardis-reference.md
 ```
 
-### Data Model (Prisma)
-Core entities: Transaction, Document, Vendor, ExpenseCategory, DonorPaidBill, BankImport, BankRecord, ComplianceTask, ComplianceCompletion, JournalNote, CostTracker, TransparencyItem, AuditLog
+### Data Model (Prisma — 41 models)
+See `docs/tardis-reference.md` for full schema. Core domains: Financial (Transaction, Expense, CostCenter, CostTracker), Documents (Document, ScanImport), Vendors (Vendor, VendorDonorArrangement, DonorPaidBill), Compliance (ComplianceTask, BoardMeeting, TaxPrep), Fundraising (RaiserightImport, GiftStaging), Operations (CaptainsLog, CredentialRegistry, ReconciliationSession), Programs (Program, ProductSpeciesMap, TransparencyItem).
 
 ### Key Patterns (inherited from Studiolo)
 - `lib/prisma.ts` — singleton PrismaClient
@@ -74,21 +81,21 @@ Core entities: Transaction, Document, Vendor, ExpenseCategory, DonorPaidBill, Ba
 
 | Site | Connection | Data Flow |
 |------|-----------|-----------|
-| Studiolo | Shared Azure AD, donor data sync | Donor-paid bills <-> donor records |
-| Postmaster | Shared Azure AD, animal data | `/api/public/residents` for transparency |
-| Rescue Barn | Transparency API consumer | Published financial data -> The Fine Print |
-| Cleanpunk Shop | COGS tracking, sales data | Medusa inventory/orders -> cost analysis |
+| Studiolo | Shared Azure AD, gift staging, donor search | Gift staging push → donor records, donor search for arrangement matching |
+| Postmaster | Shared Azure AD, chronicle proxy, BI metrics | TARDIS proxies chronicle/voice API, consumes BI metrics + medical records |
+| Rescue Barn | Transparency API, impact data | Published transparency items, per-program impact data via `/api/impact/[slug]` |
+| Cleanpunk Shop | Product-species map, COGS tracking | ProductSpeciesMap links products to benefiting species, cost data to expense-to-impact pipeline |
+| Orchestrator | 2 managed crons | gmail-receipt-scan, raiseright-reminders triggered on schedule |
 
-## Cron Jobs (6 planned)
+## Cron Jobs (3 deployed, 2 Orchestrator-managed)
 
-| Job | Schedule | Purpose |
-|-----|----------|---------|
-| gmail-receipt-scan | Daily 2 PM UTC | Scan Gmail for Amazon, Chewy receipts |
-| compliance-reminders | Daily 3 PM UTC | Check for upcoming/overdue filings |
-| expense-review-alerts | Weekly (Mon) | Flag unverified transactions |
-| candid-monitor | Monthly (1st) | Check GuideStar/Candid for profile changes |
-| cost-creep-scan | Monthly (1st) | Detect cost increases in soap materials |
-| sales-tax-calc | Monthly (1st) | Calculate sales tax from Cleanpunk Shop |
+| Job | Route | Schedule | Purpose |
+|-----|-------|----------|---------|
+| gmail-receipt-scan | `/api/cron/gmail-receipt-scan` | Daily 2 PM UTC | Scan Gmail for Amazon, Chewy receipts |
+| raiseright-reminders | `/api/cron/raiseright-reminders` | Weekly Mon 4 PM UTC | RaiseRight deadline reminders |
+| health-check | `/api/cron/health-check` | On demand | Self health check |
+
+> **ORCH-101:** gmail-receipt-scan and raiseright-reminders are managed by the Orchestrator. Route handlers remain local.
 
 ## Development
 
@@ -180,10 +187,12 @@ CC must self-enforce this. Do not wait for the human to ask. If the work is non-
 ```
 docs/
 ├── family-of-sites-full.md        # Cross-site architecture, domains, data flows, shared resources
+├── tardis-reference.md            # Stack, 41 models, 89 routes, intelligence, cost tracking
+├── orchestrator-reference.md      # Stack, 6 models, 26 managed crons, dynamic proxy
 ├── cleanpunk-shop-reference.md    # Stack, schema, routes, APIs, patterns
-├── studiolo-reference.md          # Stack, schema, routes, APIs, patterns
-├── postmaster-reference.md        # Stack, schema, routes, APIs, patterns
-├── rescuebarn-reference.md        # Stack, schema, routes, APIs, patterns
+├── studiolo-reference.md          # Stack, 84 models, 218 routes, stewardship, grants
+├── postmaster-reference.md        # Stack, 42 models, 140 routes, voice engine, newsletter
+├── rescuebarn-reference.md        # Stack, schema, routes, APIs, Cogworks, newsletter delivery
 ├── voice-postmaster.md            # Prompt layers, series voices, HUG compliance
 ├── voice-studiolo.md              # 5-layer stack, dispatch types, closing system
 ├── roadmap.md                     # Deferred work items — CHECK BEFORE STARTING NEW WORK
@@ -552,6 +561,6 @@ When a handoff spec exists in `docs/handoffs/`, it was written by CChat during a
 | steampunk-postmaster | Postmaster (content engine) | Yes |
 | cleanpunk-shop | Cleanpunk Shop (e-commerce) | Yes |
 | steampunk-strategy | TARDIS (this repo) + docs library | Yes |
-| steampunk-orchestrator | Orchestrator (planned) | Yes |
+| steampunk-orchestrator | Orchestrator (central cron scheduler) | Yes |
 
 All repos are under `github.com/steampunkfarms/`. All Next.js 16.1.6 + React 19.2.4.
