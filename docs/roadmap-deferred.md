@@ -572,3 +572,11 @@ Habit-formation onboarding redesign (#118), Impact page needs Krystal's 60-secon
 - [ ] (BI-FUTURE) Embeddable chart widgets for Rescue Barn transparency pages
 - [ ] (BI-FUTURE) Scheduled PDF report generation + email delivery
 - [ ] (BI-FUTURE) Custom dashboard builder (user-configurable widget layout)
+
+---
+
+## 🟡 Deferred — Developer Tooling / MCP Integrations
+
+- [ ] (MCP-TWILIO) Add Twilio MCP to Claude Code — `@twilio/mcp` with Postmaster's `TWILIO_ACCOUNT_SID` + `TWILIO_AUTH_TOKEN`. Enables reading/querying SMS Chronicle logs and sending test messages directly from Claude Code without leaving VSCode. Depends on confirming Twilio credentials are in steampunk-postmaster `.env.local`.
+- [ ] (MCP-RESEND) Add Resend MCP to Claude Code — `resend-mcp`. Requires creating a **read-only** API key in Resend dashboard (one key spanning all sending domains) to prevent domain mixing. Read-only key can view delivery logs, audiences, contacts across all SF domains without send permissions.
+- [ ] (MCP-LINEAR) Add Linear MCP once workspace is created — `mcp-linear`. Account exists (`steampunkfarms`) but no workspace provisioned yet. Create workspace first, then add `LINEAR_API_KEY` to MCP config.

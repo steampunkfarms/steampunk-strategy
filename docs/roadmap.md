@@ -445,6 +445,10 @@ See `docs/handoffs/20260307-yt1-youtube-cogworks-import.md`. YouTube Data API v3
   → Non-breaking, cosmetic only.
   → Trigger: any future handoff that touches package.json or config in those repos.
   → Acceptance: `npm run build` succeeds, no module.exports left.
+- [ ] (TWILIO-MCP) Add Twilio MCP to Claude Code for SMS/voice tool access in automated workflows.
+  → Currently on hold — add credentials to `~/.claude.json` `mcpServers` when ready.
+  → Use `@twilio-labs/mcp` or equivalent stdio MCP with TWILIO_ACCOUNT_SID + TWILIO_AUTH_TOKEN.
+  → Trigger: when SMS notification or voice transcription workflows need to be automated from CC.
 - [ ] (ISR-2026) Unified cross-site ISR revalidation tags. Current state: each repo uses different strategy (path-based, fetch-time, tag-based, or none). No cross-site invalidation mechanism. All cross-site reads use 1-hour TTL.
   → Define shared tag taxonomy, implement `revalidateTag()` across sites, add cross-site invalidation API.
   → Trigger: when any site's caching strategy is next revisited or stale-data bugs emerge.
