@@ -54,6 +54,65 @@ export async function getBridgeStats() {
 }
 
 // =============================================================================
+// OPERATIONS QUEUE — Cross-domain action items not in gauge cards
+// =============================================================================
+
+export interface OperationsQueueItem {
+  id: string;
+  label: string;
+  count: number;
+  href: string;
+  severity: 'red' | 'amber' | 'green';
+  icon: string;
+}
+
+export async function getOperationsQueue() {
+  const [
+    pendingGifts,
+    pendingVetBills,
+    unreviewedScans,
+    openBoardActions,
+    draftMeetings,
+    costCreepAlerts,
+    openReconciliation,
+  ] = await Promise.all([
+    prisma.giftStaging.count({ where: { status: 'pending' } }),
+    prisma.document.count({ where: { uploadedBy: 'vet-file-ingest', parseStatus: 'complete' } }),
+    prisma.scanImport.count({ where: { status: 'pending' } }),
+    prisma.actionItem.count({ where: { status: 'open' } }),
+    prisma.boardMeeting.count({ where: { status: 'draft' } }),
+    prisma.costTracker.count({ where: { seasonalFlag: 'cost_creep' } }),
+    prisma.reconciliationSession.count({ where: { status: { in: ['open', 'in_review'] } } }),
+  ]);
+
+  const items: OperationsQueueItem[] = [];
+
+  if (costCreepAlerts > 0) {
+    items.push({ id: 'cost-creep', label: 'Cost Creep Alerts', count: costCreepAlerts, href: '/cost-centers', severity: 'red', icon: 'TrendingUp' });
+  }
+  if (openReconciliation > 0) {
+    items.push({ id: 'reconciliation', label: 'Open Reconciliation', count: openReconciliation, href: '/expenses', severity: 'red', icon: 'Scale' });
+  }
+  if (pendingGifts > 0) {
+    items.push({ id: 'gifts', label: 'Pending Gifts', count: pendingGifts, href: '/gift-staging', severity: 'amber', icon: 'Gift' });
+  }
+  if (pendingVetBills > 0) {
+    items.push({ id: 'vet-bills', label: 'Vet Bills to Review', count: pendingVetBills, href: '/vet-staging', severity: 'amber', icon: 'Stethoscope' });
+  }
+  if (openBoardActions > 0) {
+    items.push({ id: 'board-actions', label: 'Open Board Actions', count: openBoardActions, href: '/board-minutes', severity: 'amber', icon: 'Gavel' });
+  }
+  if (unreviewedScans > 0) {
+    items.push({ id: 'scans', label: 'Unreviewed Scans', count: unreviewedScans, href: '/scan-import', severity: 'green', icon: 'ScanLine' });
+  }
+  if (draftMeetings > 0) {
+    items.push({ id: 'draft-meetings', label: 'Draft Meetings', count: draftMeetings, href: '/board-minutes', severity: 'green', icon: 'FileEdit' });
+  }
+
+  return { items, totalCount: items.reduce((s, i) => s + i.count, 0) };
+}
+
+// =============================================================================
 // COMPLIANCE — Tasks with computed next due dates
 // =============================================================================
 

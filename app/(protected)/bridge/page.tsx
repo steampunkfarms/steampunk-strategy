@@ -17,13 +17,20 @@ import {
   BookOpen,
   Plus,
   KeyRound,
+  Wrench,
+  Gift,
+  Stethoscope,
+  Gavel,
+  ScanLine,
+  FileEdit,
+  Scale,
 } from 'lucide-react';
-import { getBridgeStats, getComplianceTimeline, getTransparencySummary } from '@/lib/queries';
+import { getBridgeStats, getComplianceTimeline, getTransparencySummary, getOperationsQueue } from '@/lib/queries';
 import { prisma } from '@/lib/prisma';
 import { formatCurrency, formatDate } from '@/lib/utils';
 
 export default async function BridgeDashboard() {
-  const [stats, compliance, transparency, urgentLogEntries, credentialAlerts] = await Promise.all([
+  const [stats, compliance, transparency, urgentLogEntries, credentialAlerts, opsQueue] = await Promise.all([
     getBridgeStats(),
     getComplianceTimeline(),
     getTransparencySummary(),
@@ -53,6 +60,7 @@ export default async function BridgeDashboard() {
       }
       return { total: creds.length, expired, expiringSoon, verifyFailed, hasIssues: expired + expiringSoon + verifyFailed > 0 };
     })(),
+    getOperationsQueue(),
   ]);
 
   const pendingStatus = stats.pendingExpenses === 0 ? 'green' : stats.pendingExpenses > 10 ? 'red' : 'amber';
@@ -132,6 +140,41 @@ export default async function BridgeDashboard() {
             {credentialAlerts.verifyFailed > 0 && <span className="badge badge-red">{credentialAlerts.verifyFailed} failed</span>}
           </div>
         </Link>
+      )}
+
+      {/* Operations Queue — cross-domain items not in gauge cards */}
+      {opsQueue.items.length > 0 && (
+        <div className="console-card p-5 border-l-4 border-l-tardis-glow">
+          <div className="flex items-center justify-between mb-4">
+            <div className="flex items-center gap-2">
+              <Wrench className="w-4 h-4 text-tardis-glow" />
+              <h2 className="text-sm font-semibold text-slate-200">Operations Queue</h2>
+              <span className="badge badge-blue">{opsQueue.totalCount}</span>
+            </div>
+          </div>
+          <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3">
+            {opsQueue.items.map((item) => {
+              const IconMap: Record<string, React.ComponentType<{ className?: string }>> = {
+                TrendingUp, Scale, Gift, Stethoscope, Gavel, ScanLine, FileEdit,
+              };
+              const Icon = IconMap[item.icon] || Wrench;
+              return (
+                <Link
+                  key={item.id}
+                  href={item.href}
+                  className="flex items-center gap-3 p-3 rounded-lg hover:bg-console-hover border border-console-border transition-colors group"
+                >
+                  <div className={`gauge-dot gauge-dot-${item.severity} flex-shrink-0`} />
+                  <div className="flex-1 min-w-0">
+                    <p className="text-lg font-mono font-bold text-slate-100">{item.count}</p>
+                    <p className="text-xs text-slate-400 truncate">{item.label}</p>
+                  </div>
+                  <ChevronRight className="w-3 h-3 text-slate-600 opacity-0 group-hover:opacity-100 transition-opacity flex-shrink-0" />
+                </Link>
+              );
+            })}
+          </div>
+        </div>
       )}
 
       {/* Two column layout */}
