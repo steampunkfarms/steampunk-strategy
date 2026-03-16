@@ -129,6 +129,26 @@ _(none)_
 
 ---
 
+## 🔴 Priority One — Immediate Revenue Protection
+
+- [ ] (STRIPE-WEBHOOK) Stripe `invoice.payment_failed` webhook listener for Studiolo
+  → Currently zero `payment-past-due` FrictionAlerts exist because nothing creates them.
+  → Stripe retries failed payments silently for weeks (Maria Rios: 4 retries, Feb–Mar 2026).
+  → Build: listen for `invoice.payment_failed`, create FrictionAlert, surface on dashboard "At Risk" card.
+  → Also listen for `invoice.paid` to auto-resolve alerts and populate "Recovered QTD".
+  → Bonus: surface failed webhook delivery alerts on Studiolo dashboard.
+
+- [ ] (STRIPE-EXPAND) Expand Stripe webhook to accept all event types
+  → Current webhook only handles charges. Risk: Stripe disables webhooks after consistent delivery failures.
+  → Accept all events, log unhandled types, process: `invoice.payment_failed`, `invoice.paid`,
+    `customer.subscription.deleted`, `customer.subscription.updated`, `charge.refunded`.
+
+- [ ] (MARIA-CLEANUP) Cancel Maria Rios's stale Give Lively/Stripe subscription
+  → Customer `cus_OHdSPrDZ8YeZZH`, card •••• 9141 (Wells Fargo, closed account).
+  → She re-subscribed via Zeffy Cluck Crew on 2026-03-11 at $30/month.
+  → Old subscription is accumulating failed retries. Cancel in Stripe dashboard.
+  → Operator action — not automatable.
+
 ## 🟡 Priority Two — High Value, Needs Handoff Spec
 
 ### Content Storm → The Bray + Cogworks: Cross-Site Blog & Newsletter Publishing
