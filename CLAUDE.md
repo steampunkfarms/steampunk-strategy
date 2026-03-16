@@ -526,6 +526,17 @@ Do not start with a broad full-codebase sweep unless history artifacts are missi
 - Before marking any implementation complete, Claude MUST run `npx tsc --noEmit` in every modified repo and include the output in the Claim->Evidence table.
 - **Modernization rule (CONFIG-2026):** When any handoff touches `package.json` or `next.config.*` in Studiolo, Postmaster, Orchestrator, TARDIS, or Cleanpunk, batch-convert that repo's `next.config.js` from `module.exports` to ESM `export default` in the same commit. See `docs/roadmap.md` CONFIG-2026.
 
+### Build Failure Prevention Rules (2026-03-16, audit of 53 preventable failures across 600 commits)
+
+These rules codify the most common Vercel build failures found across all 6 repos. CC must enforce them during Sanity Pass and QA.
+
+- **Server Component boundaries:** Never use `onClick`, `onChange`, `useState`, `useEffect`, `useSearchParams`, or other client hooks in Server Components. If a component needs interactivity, add `'use client'` at the top. Wrap `useSearchParams()` in a `<Suspense>` boundary.
+- **Build-time API guard:** Route handlers or pages that call external APIs or read runtime secrets MUST use `export const dynamic = 'force-dynamic'` or lazy-initialize SDK clients. Vercel's build step has no access to runtime env vars.
+- **vercel.json validation:** Never add JSON comments (`//` or `_comment` fields) to `vercel.json` — it causes silent deploy failures. Validate syntax before committing.
+- **Middleware naming:** Use exactly one of `middleware.ts` OR `proxy.ts` per repo, never both. Edge functions must explicitly declare `export const runtime = 'edge'`. No `runtime` config objects in edge files (Next.js 16 restriction).
+- **Prisma directUrl:** Use Neon's auto-generated integration naming for `directUrl` in `schema.prisma`. When connecting Prisma to Neon on Vercel, the env var is `DIRECT_URL` (not `DATABASE_URL_UNPOOLED`). Flag naming drift in Sanity Pass.
+- **`useSearchParams()` Suspense rule:** Every `useSearchParams()` call MUST be inside a component wrapped by `<Suspense fallback={...}>`. This is the single most common build failure pattern in the family.
+
 ### Stoppage Triage Reference
 
 - For operator-facing stoppage handling, see:
