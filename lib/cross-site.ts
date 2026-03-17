@@ -156,7 +156,7 @@ async function internalFetch<T>(url: string, options?: CrossSiteFetchOptions): P
 
 const studioloUrl = () => getSiteUrl(process.env.STUDIOLO_INTERNAL_URL, process.env.STUDIOLO_API_URL);
 const postmasterUrl = () => getSiteUrl(process.env.POSTMASTER_INTERNAL_URL, process.env.POSTMASTER_API_URL);
-const cleanpunkUrl = () => getSiteUrl(process.env.CLEANPUNK_INTERNAL_URL, process.env.MEDUSA_BACKEND_URL);
+const cleanpunkUrl = () => getSiteUrl(process.env.CLEANPUNK_INTERNAL_URL, process.env.CLEANPUNK_BACKEND_URL);
 
 export async function fetchStudioloKPIs(options?: CrossSiteFetchOptions): Promise<StudioloKPIs> {
   return internalFetch<StudioloKPIs>(`${studioloUrl()}/api/internal/kpis`, options);

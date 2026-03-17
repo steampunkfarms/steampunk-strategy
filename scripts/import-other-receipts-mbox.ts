@@ -155,6 +155,7 @@ function classifyEmail(headers: Record<string, string>): EmailKind {
   if (from.includes('temu') && (subject.includes('order confirmation') || subject.includes('orders confirmation'))) {
     return 'temu-order';
   }
+  // Medusa Cloud retired March 2026 — no new receipts expected; branch retained for historical imports
   if (from.includes('medusajs.com')) {
     return subject.includes('payment receipt') ? 'medusa-payment' : 'skip';
   }

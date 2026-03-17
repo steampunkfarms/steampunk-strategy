@@ -715,7 +715,7 @@ SEASONAL PRICING: Hay prices follow a predictable annual cycle driven by harvest
     { vendor: 'X (Twitter)', service: 'X/Twitter API', category: 'Social', allocatedTo: 'Shared' },
     { vendor: 'Ayrshare', service: 'Social Media API', category: 'Social', allocatedTo: 'Postmaster' },
     // Commerce
-    { vendor: 'Medusa', service: 'E-commerce Backend', category: 'Commerce', allocatedTo: 'Cleanpunk Shop' },
+    { vendor: 'Medusa', service: 'E-commerce Backend (retired — Medusa Cloud deleted March 2026)', category: 'Commerce', allocatedTo: null },
     // API
     { vendor: 'Google', service: 'Gmail API', category: 'API', allocatedTo: 'Shared' },
     { vendor: 'Google', service: 'YouTube Data API', category: 'API', allocatedTo: 'Postmaster' },
@@ -733,7 +733,7 @@ SEASONAL PRICING: Hay prices follow a predictable annual cycle driven by harvest
     { vendor: 'Runway AI', service: 'Video Generation', category: 'AI/ML', allocatedTo: 'Postmaster' },
     { vendor: 'Suno', service: 'AI Music Generation', category: 'AI/ML', allocatedTo: 'Postmaster' },
     // Commerce (platform fees)
-    { vendor: 'Medusa', service: 'Medusa Cloud', category: 'Commerce', allocatedTo: 'Cleanpunk Shop' },
+    { vendor: 'Medusa', service: 'Medusa Cloud (retired — billing canceled March 2026)', category: 'Commerce', allocatedTo: null },
     { vendor: 'Square', service: 'Square Online (retired — CANCEL)', category: 'Commerce', allocatedTo: null },
     // Subscriptions
     { vendor: 'X (Twitter)', service: 'X Premium Subscription', category: 'Social', allocatedTo: 'Shared' },
