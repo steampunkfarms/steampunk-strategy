@@ -40,3 +40,4 @@ prisma/migrations/
 # IDE
 .vscode/
 .idea/
+scripts/facebook-import/normalized-output/

@@ -1349,3 +1349,26 @@ model CredentialRegistry {
   @@index([expiresAt])
   @@index([riskLevel])
 }
+
+// ── Facebook Archive Import ─────────────────────────────────────────────────
+// Staging table for Tier 2 (fuzzy/ambiguous) donor matches during
+// Facebook archive import. Reviewed in TARDIS UI, resolved manually.
+
+model FacebookImportReview {
+  id              String    @id @default(cuid())
+  phase           String    // "1a" | "1b" | "1c" | "1d"
+  engagerName     String    @map("engager_name")
+  candidateDonors Json      @default("[]") @map("candidate_donors") // [{donorId, name, confidence}]
+  confidence      Float     @default(0)
+  context         String?   @db.Text // engagement excerpt or thread summary
+  status          String    @default("pending") // pending | resolved | dismissed
+  resolvedDonorId String?   @map("resolved_donor_id")
+  resolvedAt      DateTime? @map("resolved_at")
+  resolvedBy      String?   @map("resolved_by")
+  createdAt       DateTime  @default(now()) @map("created_at")
+
+  @@index([status])
+  @@index([phase])
+  @@index([engagerName])
+  @@map("facebook_import_reviews")
+}
