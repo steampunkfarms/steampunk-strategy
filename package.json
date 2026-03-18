@@ -44,9 +44,11 @@
     "react": "^19.0.0",
     "react-dom": "^19.0.0",
     "recharts": "^2.15.0",
+    "resend": "^6.9.4",
     "stripe": "^20.4.0",
     "tailwind-merge": "^3.5.0",
-    "tailwindcss-animate": "^1.0.7"
+    "tailwindcss-animate": "^1.0.7",
+    "twilio": "^5.13.0"
   },
   "devDependencies": {
     "@types/node": "^22.19.13",

@@ -14,6 +14,8 @@ import {
   Zap,
 } from 'lucide-react';
 import { getFleetStatus, type ProjectStatus } from '@/lib/monitoring';
+import { prisma } from '@/lib/prisma';
+import AlertFeed from '@/components/monitoring/alert-feed';
 
 function deployStateToGauge(state: string): 'green' | 'amber' | 'red' | 'blue' {
   switch (state) {
@@ -225,7 +227,14 @@ function SiteCard({ status }: { status: ProjectStatus }) {
 }
 
 export default async function MonitoringPage() {
-  const { projects, summary } = await getFleetStatus();
+  const [{ projects, summary }, activeAlerts] = await Promise.all([
+    getFleetStatus(),
+    prisma.alert.findMany({
+      where: { state: { in: ['open', 'acknowledged'] } },
+      orderBy: [{ severity: 'desc' }, { createdAt: 'desc' }],
+      take: 20,
+    }),
+  ]);
 
   // Collect recent deploys across all projects for the activity table
   const allDeploys = projects
@@ -304,6 +313,31 @@ export default async function MonitoringPage() {
           </p>
           <p className="text-xs text-slate-500 mt-1">Error</p>
         </div>
+      </div>
+
+      {/* Active Alerts */}
+      <div>
+        <h2 className="text-sm font-semibold text-slate-300 uppercase tracking-wider mb-3 flex items-center gap-2">
+          <Zap className="w-3.5 h-3.5 text-gauge-amber" />
+          Active Alerts
+          {activeAlerts.length > 0 && (
+            <span className="px-1.5 py-0.5 text-[10px] font-mono font-bold bg-gauge-red/20 text-gauge-red rounded">
+              {activeAlerts.length}
+            </span>
+          )}
+        </h2>
+        <AlertFeed initialAlerts={activeAlerts.map(a => ({
+          ...a,
+          details: a.details as Record<string, unknown> | null,
+          severity: a.severity as 'critical' | 'warning' | 'info',
+          state: a.state as 'open' | 'acknowledged' | 'resolved',
+          smsNotifiedAt: a.smsNotifiedAt?.toISOString() ?? null,
+          emailNotifiedAt: a.emailNotifiedAt?.toISOString() ?? null,
+          acknowledgedAt: a.acknowledgedAt?.toISOString() ?? null,
+          resolvedAt: a.resolvedAt?.toISOString() ?? null,
+          createdAt: a.createdAt.toISOString(),
+          updatedAt: a.updatedAt.toISOString(),
+        }))} />
       </div>
 
       {/* Project cards */}

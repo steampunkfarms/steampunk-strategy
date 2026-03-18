@@ -6,6 +6,7 @@ import { NextResponse } from 'next/server';
 import { safeCompare } from '@/lib/safe-compare';
 import { prisma } from '@/lib/prisma';
 import { getFleetStatus, MONITORED_PROJECTS } from '@/lib/monitoring';
+import { dispatchHealthAlerts } from '@/lib/alerting';
 
 // see docs/handoffs/_working/20260310-health-check-cron-working-spec.md
 
@@ -435,6 +436,17 @@ export async function GET(request: Request) {
 
   console.log(`[Health Check] Status: ${overallStatus} | Alerts: ${alerts.length}`);
   if (alerts.length > 0) console.log('[Health Check] Alerts:', alerts);
+
+  // Dispatch alerts to TARDIS alerting pipeline (SMS/email with dedup + cooldown)
+  try {
+    const allDedupKeys = alerts.map(a => {
+      const slug = a.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '').slice(0, 80);
+      return `health:${slug}`;
+    });
+    await dispatchHealthAlerts(alerts, allDedupKeys);
+  } catch (e) {
+    console.error('[Health Check] Alert dispatch failed:', e);
+  }
 
   const response: HealthCheckResponse = {
     success: true,

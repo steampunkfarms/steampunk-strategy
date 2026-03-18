@@ -1372,3 +1372,38 @@ model FacebookImportReview {
   @@index([engagerName])
   @@map("facebook_import_reviews")
 }
+
+// ── Alerting ─────────────────────────────────────────────────────────
+
+enum AlertSeverity {
+  critical
+  warning
+  info
+}
+
+enum AlertState {
+  open
+  acknowledged
+  resolved
+}
+
+model Alert {
+  id              String        @id @default(uuid())
+  dedupKey        String        @map("dedup_key")
+  severity        AlertSeverity
+  state           AlertState    @default(open)
+  source          String        // "orchestrator" | "health-check" | "manual"
+  title           String
+  details         Json?
+  smsNotifiedAt   DateTime?     @map("sms_notified_at")
+  emailNotifiedAt DateTime?     @map("email_notified_at")
+  acknowledgedAt  DateTime?     @map("acknowledged_at")
+  resolvedAt      DateTime?     @map("resolved_at")
+  createdAt       DateTime      @default(now()) @map("created_at")
+  updatedAt       DateTime      @updatedAt @map("updated_at")
+
+  @@unique([dedupKey, state])
+  @@index([state, severity])
+  @@index([createdAt])
+  @@map("alerts")
+}
