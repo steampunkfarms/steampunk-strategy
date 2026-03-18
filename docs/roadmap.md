@@ -475,5 +475,24 @@ See `docs/handoffs/20260307-yt1-youtube-cogworks-import.md`. YouTube Data API v3
 
 ---
 
+## 🟡 Keyboard Shortcuts — Deferred Items (New UI Required)
+
+> Parent: `docs/handoffs/_working/20260318-cross-site-keyboard-shortcuts-working-spec.md`
+> These shortcuts were scoped out of the Phase 2 "existing features only" pass because they require new pages, components, or providers that don't exist yet. Wire them when the underlying feature ships.
+
+- [ ] (KB-D1) Rescue Barn: gas-lamp mode toggle (`Cmd+Shift+L`) — needs ThemeProvider + dark palette
+- [ ] (KB-D2) Studiolo: friction-scan dashboard shortcut — needs `/friction` page (API exists, no UI)
+- [ ] (KB-D4) Postmaster: storm preview shortcut (`Cmd+Shift+S`) — needs preview component
+- [ ] (KB-D6) TARDIS: Gmail receipt manual scan (`Cmd+Shift+R`) — needs manual trigger endpoint
+- [ ] (KB-D8) Orchestrator: fuzzy job search (`Cmd+Shift+J`) — needs search UI
+- [ ] (KB-D9) Orchestrator: deploy timeline view (`Cmd+Shift+D`) — needs timeline page
+- [ ] (KB-D10) Orchestrator: execution log page (`G then L`) — logs on dashboard, no standalone
+- [ ] (KB-D11) Studiolo: donor search overlay as modal — current nav goes to `/donors`; overlay is new
+- ~~(KB-D3) Studiolo: campaign list (`G then C`)~~ WIRED — `/campaigns` page exists
+- ~~(KB-D5) Cleanpunk: batch enhance (`Cmd+Shift+B`)~~ WIRED — `/admin/products/enhance/batch` exists
+- ~~(KB-D7) TARDIS: compliance hub (`G then C`)~~ WIRED — `/compliance` page exists
+
+---
+
 > Deferred items: see [roadmap-deferred.md](roadmap-deferred.md)
 > Completed/killed items: see [roadmap-archive.md](roadmap-archive.md)

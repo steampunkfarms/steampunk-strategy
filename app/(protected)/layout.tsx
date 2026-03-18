@@ -32,6 +32,7 @@ import {
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import ChronicleButton from '@/components/ChronicleButton';
+import { KeyboardShortcutsProvider } from '@/components/keyboard-shortcuts-provider';
 
 const navigation = [
   {
@@ -93,6 +94,7 @@ export default function ProtectedLayout({ children }: { children: React.ReactNod
   const { data: session } = useSession();
 
   return (
+    <KeyboardShortcutsProvider>
     <div className="flex min-h-screen">
       {/* Sidebar */}
       <aside className="w-64 bg-tardis-dark border-r border-console-border flex flex-col fixed inset-y-0 left-0 z-30">
@@ -174,5 +176,6 @@ export default function ProtectedLayout({ children }: { children: React.ReactNod
         </div>
       </main>
     </div>
+    </KeyboardShortcutsProvider>
   );
 }
