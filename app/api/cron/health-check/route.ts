@@ -134,7 +134,7 @@ async function checkDatabase(): Promise<{ connected: boolean; error: string | nu
 
 async function checkCrossSite(): Promise<CrossSiteResult[]> {
   const endpoints: Array<{ name: string; urlEnv: string; path: string }> = [
-    { name: 'Studiolo', urlEnv: 'STUDIOLO_INTERNAL_URL', path: '/api/internal/donor-bi-metrics' },
+    { name: 'Studiolo', urlEnv: 'STUDIOLO_INTERNAL_URL', path: '/api/internal/bi-metrics' },
     { name: 'Postmaster', urlEnv: 'POSTMASTER_INTERNAL_URL', path: '/api/internal/bi-metrics' },
     { name: 'Cleanpunk', urlEnv: 'CLEANPUNK_INTERNAL_URL', path: '/api/internal/bi-metrics' },
   ];
@@ -228,7 +228,9 @@ async function checkDataFreshness(): Promise<DataFreshnessResult> {
 
 async function checkCronFreshness(): Promise<CronFreshnessResult> {
   const now = new Date();
-  const expectedCrons = ['RaiserightReminder', 'GmailReceiptScan'];
+  // RaiserightReminder + GmailReceiptScan are now tracked by the Orchestrator,
+  // not TARDIS AuditLog. Only check for HealthCheck (self-logged).
+  const expectedCrons: string[] = [];
 
   let recentCronRuns: CronFreshnessResult['recentCronRuns'] = [];
   try {
