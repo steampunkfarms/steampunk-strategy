@@ -145,12 +145,17 @@ When using Schedule (Facebook/Instagram scheduled posts), the first comment cann
 
 **Recommendation:** Start with Option A, evolve to Option B when Phase 2 cron is built.
 
-## Phase 2: Delayed Comments (Scheduled)
+## Phase 2: Scheduled Comments (Delayed + Absolute)
 
 ### Concept
-Plant a comment on an existing post N days after it was posted. Use cases:
+Schedule comments on existing posts with two modes:
+- **Relative (delay):** N days after the anchor posts (repeatable templates, e.g., "Day 3 engagement prompt")
+- **Absolute (date/time):** Operator picks a specific date and time (one-off scheduling, e.g., "Mar 26 at 9am")
+
+Use cases:
 - Day 3: "Which sign resonated with you this week?" (engagement prompt)
 - Day 5: "New horoscopes dropping Monday: https://steampunkfarms.org/cogworks" (cross-promotion)
+- Specific date: Timed to coincide with an event or announcement
 
 ### Data Model
 
