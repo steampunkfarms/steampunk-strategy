@@ -24,9 +24,6 @@ const jetbrains = JetBrains_Mono({
 export const metadata: Metadata = {
   title: 'The Bridge — Steampunk Strategy',
   description: 'Financial management, compliance, and cross-site operations for Steampunk Farms Rescue Barn',
-  icons: {
-    icon: [{ url: '/favicon.ico', sizes: 'any' }],
-  },
 };
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
