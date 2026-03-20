@@ -472,6 +472,15 @@ See `docs/handoffs/20260307-yt1-youtube-cogworks-import.md`. YouTube Data API v3
 - [ ] (ISR-2026) Unified cross-site ISR revalidation tags. Current state: each repo uses different strategy (path-based, fetch-time, tag-based, or none). No cross-site invalidation mechanism. All cross-site reads use 1-hour TTL.
   → Define shared tag taxonomy, implement `revalidateTag()` across sites, add cross-site invalidation API.
   → Trigger: when any site's caching strategy is next revisited or stale-data bugs emerge.
+- [ ] (PRISMA-7) Upgrade Prisma ORM from 6.x to 7.x across 4 repos (TARDIS, Studiolo, Postmaster, Orchestrator).
+  → Tier 3 — strategist mode first. Rust engine removed; pure TS runtime. ~3x faster queries, ~90% smaller bundles.
+  → Breaking: ESM only, generated client moves out of node_modules (new `output` path + rewrite all `@prisma/client` imports), new `prisma.config.ts` required per repo, `.env` auto-loading removed, `prisma generate` no longer auto-runs after `db push`.
+  → Neon compatible via `engine: "classic"` (simple path) or `@prisma/adapter-neon` (adapter path).
+  → Current versions: TARDIS ^6.3.0, Studiolo ^6.19.2/^6.3.0, Postmaster ^6.3.0, Orchestrator ^6.3.0.
+  → Biggest mechanical lift: rewriting `import { ... } from '@prisma/client'` to new generated path across all 4 repos (Studiolo has ~100+ import sites).
+  → Revisit `.env -> .env.local` symlink workaround — Prisma 7 requires explicit dotenv loading in `prisma.config.ts`.
+  → Trigger: next slow week or sharpen-the-saw session. No urgency — no security issue, 6.x still patched.
+  → Acceptance: all 4 repos on prisma ^7.x, `npx tsc --noEmit` clean, `npx prisma generate` works, Vercel builds pass, query performance baseline before/after.
 
 ---
 

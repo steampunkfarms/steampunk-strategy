@@ -41,3 +41,9 @@ prisma/migrations/
 .vscode/
 .idea/
 scripts/facebook-import/normalized-output/
+
+# Handoff artifacts
+CC_HANDOFF_*.md
+
+# Claude Code local
+.claude/
