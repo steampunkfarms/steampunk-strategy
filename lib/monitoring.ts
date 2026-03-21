@@ -121,7 +121,7 @@ export const MONITORED_PROJECTS: MonitoredProject[] = [
     slug: 'steampunk-postmaster',
     name: 'Postmaster',
     productionUrl: 'https://postmaster.steampunkstudiolo.org',
-    healthEndpoint: null,
+    healthEndpoint: 'https://postmaster.steampunkstudiolo.org/api/health',
   },
   {
     id: 'prj_Cl8sHi87H0o5590OIR37DHKcCXYS',
