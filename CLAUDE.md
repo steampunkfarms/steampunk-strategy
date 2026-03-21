@@ -87,6 +87,44 @@ See `docs/tardis-reference.md` for full schema. Core domains: Financial (Transac
 | Cleanpunk Shop | Product-species map, COGS tracking | ProductSpeciesMap links products to benefiting species, cost data to expense-to-impact pipeline |
 | Orchestrator | 2 managed crons | gmail-receipt-scan, raiseright-reminders triggered on schedule |
 
+## Cron Governance — MANDATORY
+
+**Never add `crons` entries to any SFOS site's local `vercel.json`.**
+
+All cron scheduling is centralized in the orchestrator. To add or modify a cron job:
+
+1. Add/edit the schedule in `orchestrator/vercel.json`
+2. Add/edit the job mapping in `orchestrator/job-registry.ts`
+3. Update the orchestrator reference card
+4. Deploy orchestrator
+5. Verify the job fires via orchestrator dashboard logs
+
+If you find a local `vercel.json` with cron entries, this is a governance violation. Remove the local entries and register the jobs in the orchestrator.
+
+### For Claude / AI Sessions
+
+When creating new cron-triggered functionality:
+- NEVER add cron entries to this repo's vercel.json
+- Create the route handler in this repo
+- Register the cron schedule in the orchestrator repo
+- If you don't have access to the orchestrator repo in this session, leave a TODO in the checkpoint file: "Register cron: [path] [schedule] in orchestrator"
+
+---
+
+## Shared Enterprise Resources
+
+The steampunk-orchestrator is an **enterprise-level shared resource** serving all families
+(SFOS, TFOS, BFOS). It is no longer governed by this file. When SFOS work touches
+orchestrator, read its own CLAUDE.md first:
+
+- **Governance:** `/Users/ericktronboll/Projects/steampunk-orchestrator/CLAUDE.md`
+- **Reference:** `/Users/ericktronboll/Projects/steampunk-orchestrator/docs/orchestrator-reference.md`
+- **Integration protocol:** See the orchestrator CLAUDE.md for cron registration,
+  conflict avoidance, and documentation requirements.
+
+The copy of `orchestrator-reference.md` in this repo's `docs/` folder is now a pointer
+to the canonical copy in the orchestrator repo. Do not maintain it here.
+
 ## Cron Jobs (3 deployed, 2 Orchestrator-managed)
 
 | Job | Route | Schedule | Purpose |
@@ -188,7 +226,7 @@ CC must self-enforce this. Do not wait for the human to ask. If the work is non-
 docs/
 ├── family-of-sites-full.md        # Cross-site architecture, domains, data flows, shared resources
 ├── tardis-reference.md            # Stack, 41 models, 89 routes, intelligence, cost tracking
-├── orchestrator-reference.md      # Stack, 6 models, 26 managed crons, dynamic proxy
+├── orchestrator-reference.md      # POINTER — canonical copy now at steampunk-orchestrator/docs/
 ├── cleanpunk-shop-reference.md    # Stack, schema, routes, APIs, patterns
 ├── studiolo-reference.md          # Stack, 84 models, 218 routes, stewardship, grants
 ├── postmaster-reference.md        # Stack, 42 models, 140 routes, voice engine, newsletter
@@ -505,6 +543,18 @@ These scenarios require a strategist-mode pass even for Tier 1/2 work. CC should
 
 Satellite docs must not contradict the brain files. If drift is detected, the brain file is authoritative.
 
+### Protocol Change Broadcast Checklist
+
+If this change affects shared resources or other families, also update:
+
+- [ ] Orchestrator CLAUDE.md (`/Users/ericktronboll/Projects/steampunk-orchestrator/CLAUDE.md`) — if the change involves crons, health checks, or integration patterns
+- [ ] Orchestrator reference card (`steampunk-orchestrator/docs/orchestrator-reference.md`) — if technical details changed
+- [ ] Global router (`~/.claude/CLAUDE.md`) — if routing, cascade order, or enterprise schema changed
+- [ ] Other family CLAUDE.md files — if the change establishes a pattern they should know about
+
+If the change is SFOS-internal only (no shared resource impact), the broadcast is not required —
+but note "SFOS-internal only, no broadcast needed" in the changelog entry for auditability.
+
 ### Fix-Propagation Investigation Order (Mandatory)
 
 When asked to reference a fix/change in one place and determine whether it should be applied elsewhere, use this order:
@@ -573,6 +623,6 @@ When a handoff spec exists in `docs/handoffs/`, it was written by CChat during a
 | steampunk-postmaster | Postmaster (content engine) | Yes |
 | cleanpunk-shop | Cleanpunk Shop (e-commerce) | Yes |
 | steampunk-strategy | TARDIS (this repo) + docs library | Yes |
-| steampunk-orchestrator | Orchestrator (central cron scheduler) | Yes |
+| steampunk-orchestrator | Orchestrator — ENTERPRISE shared resource (see its own CLAUDE.md) | Yes — follow orchestrator integration protocol |
 
 All repos are under `github.com/steampunkfarms/`. All Next.js 16.1.6 + React 19.2.4.
