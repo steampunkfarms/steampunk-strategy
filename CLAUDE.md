@@ -87,27 +87,52 @@ See `docs/tardis-reference.md` for full schema. Core domains: Financial (Transac
 | Cleanpunk Shop | Product-species map, COGS tracking | ProductSpeciesMap links products to benefiting species, cost data to expense-to-impact pipeline |
 | Orchestrator | 2 managed crons | gmail-receipt-scan, raiseright-reminders triggered on schedule |
 
-## Cron Governance — MANDATORY
+## Orchestrator Governance — MANDATORY
+
+All SFOS sites are governed by the central orchestrator. These rules are non-negotiable.
+
+### Cron Scheduling
 
 **Never add `crons` entries to any SFOS site's local `vercel.json`.**
+All cron scheduling is centralized in the orchestrator. To add a new cron job:
 
-All cron scheduling is centralized in the orchestrator. To add or modify a cron job:
+1. Create the route handler in the site repo
+2. Register the schedule in orchestrator vercel.json
+3. Register the job in orchestrator job-registry.ts
+4. Update the orchestrator reference card
+5. Deploy orchestrator, verify in dashboard
 
-1. Add/edit the schedule in `orchestrator/vercel.json`
-2. Add/edit the job mapping in `orchestrator/job-registry.ts`
-3. Update the orchestrator reference card
-4. Deploy orchestrator
-5. Verify the job fires via orchestrator dashboard logs
+### Email & Social Dispatch
 
-If you find a local `vercel.json` with cron entries, this is a governance violation. Remove the local entries and register the jobs in the orchestrator.
+**All email and social dispatch routes must be triggered by the orchestrator.**
+- Dispatch routes accept INTERNAL_SECRET only (not CRON_SECRET)
+- Never create a local cron that triggers email sending or social posting
+- If you build a new dispatch route, register its cron in the orchestrator
+
+### Health Monitoring
+
+**Every site must have a `/api/health` endpoint.**
+- Returns `{ status, site, checks, response_time_ms, timestamp }`
+- Checks all critical dependencies (DB, payment processor, email provider)
+- Returns 503 if any dependency is down
+- The CI pipeline will fail if this endpoint is missing
+
+### Revenue Tracking (Payment Sites Only)
+
+**Sites that process payments must expose `/api/revenue/summary`.**
+- Authenticated via INTERNAL_SECRET header
+- Returns quarterly revenue data from all payment processors
+- Orchestrator polls this daily for billing calculations
+- The CI pipeline will fail if a payment site is missing this endpoint
 
 ### For Claude / AI Sessions
 
-When creating new cron-triggered functionality:
+When building new functionality:
 - NEVER add cron entries to this repo's vercel.json
-- Create the route handler in this repo
-- Register the cron schedule in the orchestrator repo
-- If you don't have access to the orchestrator repo in this session, leave a TODO in the checkpoint file: "Register cron: [path] [schedule] in orchestrator"
+- NEVER create a dispatch route that accepts CRON_SECRET
+- ALWAYS ensure /api/health exists and checks new dependencies you add
+- If you add a payment processor, update /api/revenue/summary to include it
+- If you can't access orchestrator in this session, leave TODOs in the checkpoint for the orchestrator session to pick up
 
 ---
 

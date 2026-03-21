@@ -1,0 +1,86 @@
+name: Governance Checks
+on: [push, pull_request]
+
+jobs:
+  governance:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Block local cron entries
+        run: |
+          check_file() {
+            local VJ="$1"
+            if [ -f "$VJ" ]; then
+              CRON_COUNT=$(jq '.crons // [] | length' "$VJ" 2>/dev/null)
+              if [ "$CRON_COUNT" -gt 0 ] 2>/dev/null; then
+                echo "::error::${VJ} contains ${CRON_COUNT} cron entries. All crons must be in the orchestrator."
+                return 1
+              fi
+            fi
+            return 0
+          }
+          FAILED=0
+          check_file "vercel.json" || FAILED=1
+          for VJ in apps/*/vercel.json; do
+            [ -f "$VJ" ] && { check_file "$VJ" || FAILED=1; }
+          done
+          if [ "$FAILED" -eq 1 ]; then
+            echo "All cron scheduling must go through the orchestrator."
+            exit 1
+          fi
+          echo "✅ No local cron entries found."
+
+      - name: Require health endpoint
+        run: |
+          HEALTH_EXISTS=false
+          for path in \
+            "app/api/health/route.ts" \
+            "app/api/health/route.js" \
+            "src/app/api/health/route.ts" \
+            "src/app/api/health/route.js" \
+            "apps/storefront/src/app/api/health/route.ts"; do
+            if [ -f "$path" ]; then
+              HEALTH_EXISTS=true
+              break
+            fi
+          done
+          if [ "$HEALTH_EXISTS" = false ]; then
+            echo "::error::Missing /api/health endpoint. Every site must expose a health check."
+            exit 1
+          fi
+          echo "✅ Health endpoint found."
+
+      - name: Require revenue endpoint (payment sites)
+        run: |
+          HAS_PAYMENTS=false
+          if grep -q '"stripe"' package.json 2>/dev/null || \
+             grep -q '"square"' package.json 2>/dev/null; then
+            HAS_PAYMENTS=true
+          fi
+          # Also check monorepo
+          for pj in apps/*/package.json; do
+            if [ -f "$pj" ] && (grep -q '"stripe"' "$pj" 2>/dev/null || \
+               grep -q '"square"' "$pj" 2>/dev/null); then
+              HAS_PAYMENTS=true
+            fi
+          done
+          if [ "$HAS_PAYMENTS" = true ]; then
+            REVENUE_EXISTS=false
+            for path in \
+              "app/api/revenue/summary/route.ts" \
+              "src/app/api/revenue/summary/route.ts" \
+              "apps/storefront/src/app/api/revenue/summary/route.ts"; do
+              if [ -f "$path" ]; then
+                REVENUE_EXISTS=true
+                break
+              fi
+            done
+            if [ "$REVENUE_EXISTS" = false ]; then
+              echo "::error::This site processes payments but has no /api/revenue/summary endpoint."
+              exit 1
+            fi
+            echo "✅ Revenue endpoint found."
+          else
+            echo "ℹ️ No payment processor detected — revenue endpoint not required."
+          fi
