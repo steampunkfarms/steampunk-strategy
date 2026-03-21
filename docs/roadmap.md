@@ -55,9 +55,9 @@
 4. ~~Operator: set `TARDIS_API_URL` env var in Studiolo Vercel~~ DONE
 5. ~~Studiolo: `lib/atelier/cost-cache.ts` — reads from synced CostOfCareItem~~ DONE — `loadCostMap()` in `lib/costs/get-cost-of-care.ts`
 6. ~~Rewrite `generateImpactLine()` to use real costs~~ DONE — accepts optional `costs` param with FALLBACK_COSTS
-7. Seasonal awareness: cost-at-gift-date for backfill vs current cost for real-time sends
+7. ~~Seasonal awareness: cost-at-gift-date for backfill vs current cost for real-time sends~~ DONE — SeasonalCostBaseline model synced from TARDIS, `loadCostMapForMonth()` overrides current costs with seasonal typicalPrice, backfill route uses per-gift seasonal costs
 **Repo:** steampunk-studiolo + steampunk-strategy (cross-repo)
-**Remaining:** Only step 7 (seasonal awareness) is open
+**Status:** COMPLETE — all 7 steps shipped
 
 ### Security Hardening — Remaining Audit Items
 
