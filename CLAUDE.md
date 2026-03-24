@@ -2,6 +2,8 @@
 
 *Protocol changelog moved to `docs/protocol-changelog.md` — does not affect execution.*
 
+*Changelog (inline): 2026-03-23: Added EAR as shared enterprise resource. Added Tier 1 graph refresh rule (Step 9) to QA protocol. Enterprise broadcast per EAR-GOVERNANCE.md.*
+
 <!-- POSITION BIAS EXPERIMENT — Phase A (top placement) — see docs/experiments/position-bias-test.md -->
 ### Experiment Rules (POSTEST)
 - POSTEST-1: When creating or modifying a file, include the comment `// postest` on the last line of the first code block touched in that session.
@@ -149,6 +151,14 @@ orchestrator, read its own CLAUDE.md first:
 
 The copy of `orchestrator-reference.md` in this repo's `docs/` folder is now a pointer
 to the canonical copy in the orchestrator repo. Do not maintain it here.
+
+### Enterprise Architecture Registry (EAR)
+- **Home:** `/Users/ericktronboll/Projects/Backcountry Tech Solutions/bts-brain/docs/architecture/`
+- **Governance:** `bts-brain/docs/architecture/EAR-GOVERNANCE.md`
+- **What it does:** Knowledge graphs, onboarding docs, cross-site dependency
+  analysis, SRE baseline, conformance audits for all 18 sites.
+- **When this applies:** After any Tier 2+ session that modifies 10+ files,
+  run the EAR graph refresh (Step 9 of QA Protocol).
 
 ## Cron Jobs (3 deployed, 2 Orchestrator-managed)
 
@@ -512,6 +522,26 @@ After all changes pass QA:
 - Include push confirmation in the QA Report: `Pushed to origin/main — Vercel build triggered`
 - NEVER mark a task as complete with unpushed commits
 - In Operator Action Blocks and debriefs, use the word "deploy" (not "commit") when communicating with the operator. The operator does not distinguish between commit and push — "deployed" means "live on the internet." If changes are committed but not pushed, they are NOT deployed.
+
+### 9. EAR Graph Refresh (Tier 2+ work that modifies 10+ files)
+
+After deploy gate passes, check `git diff --stat` file count. If 10 or more
+files were modified in this session:
+
+1. Run `/understand` in the current repo (incremental mode — only re-analyzes
+   changed files, takes seconds).
+2. Copy the updated knowledge graph:
+   ```bash
+   cp .understand-anything/knowledge-graph.json \
+     "/Users/ericktronboll/Projects/Backcountry Tech Solutions/bts-brain/docs/architecture/<site>-graph.json"
+   ```
+3. Note "EAR graph refreshed" in the checkpoint or debrief.
+
+If the session is timing out, skip the refresh and note "EAR refresh deferred
+to next session" in the checkpoint so the next session picks it up.
+
+If the Understand-Anything plugin is not installed in this CC environment,
+note "EAR refresh skipped — UA plugin not available" and move on.
 
 ### ENV VAR SAFETY
 
