@@ -453,6 +453,17 @@ See `docs/handoffs/20260307-yt1-youtube-cogworks-import.md`. YouTube Data API v3
 
 ---
 
+## 🟡 Enterprise Infrastructure
+
+- [ ] (OPS-PANEL-2) Live Env Var Control Panel on bts-brain — read/write tunable env vars via Vercel API.
+  → Layer 2 of the Ops Env Var Panel. Layer 1 (read-only reference page) ships first.
+  → Requires: Vercel API token stored on bts-brain, auth hardening review, input validation, audit logging.
+  → Tier 3 — strategist mode first. Security review required before any write access to production env vars.
+  → Trigger: when Layer 1 reference page is deployed and the manual Vercel dashboard workflow becomes a bottleneck.
+  → Acceptance: authenticated admin can view current env var values and update tunable vars (kill switches, thresholds, dates) from bts-brain `/docs/ops/env-vars`. Changes logged. Secrets/credentials excluded from UI.
+
+---
+
 ## 🟡 Technical Debt — Batch with Next Per-Repo Touch
 
 - [ ] (CONFIG-2026) Modernize next.config.js to ESM `export default` pattern in 5 repos (Studiolo, Postmaster, Orchestrator, TARDIS, Cleanpunk Shop). Rescue Barn already compliant.
@@ -491,6 +502,7 @@ See `docs/handoffs/20260307-yt1-youtube-cogworks-import.md`. YouTube Data API v3
 - [ ] (KB-D9) Orchestrator: deploy timeline view (`Cmd+Shift+D`) — needs timeline page
 - [ ] (KB-D10) Orchestrator: execution log page (`G then L`) — logs on dashboard, no standalone
 - [ ] (KB-D11) Studiolo: donor search overlay as modal — current nav goes to `/donors`; overlay is new
+- [ ] (KB-D12) Cleanpunk: expand `Cmd+K` palette to full site search — query products API, merge with nav shortcuts, show product results with stock status + direct "Add to Cart". Currently nav-only (search input removed 2026-03-23 to avoid implying product search capability).
 - ~~(KB-D3) Studiolo: campaign list (`G then C`)~~ WIRED — `/campaigns` page exists
 - ~~(KB-D5) Cleanpunk: batch enhance (`Cmd+Shift+B`)~~ WIRED — `/admin/products/enhance/batch` exists
 - ~~(KB-D7) TARDIS: compliance hub (`G then C`)~~ WIRED — `/compliance` page exists
