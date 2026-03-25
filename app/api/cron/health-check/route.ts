@@ -13,7 +13,7 @@ import { dispatchHealthAlerts } from '@/lib/alerting';
 const REACHABILITY_TIMEOUT_MS = 8_000;
 const STALE_TRANSACTION_DAYS = 14;
 const STALE_CRON_HOURS = 48;
-const STALE_RAISERIGHT_DAYS = 14;
+const STALE_RAISERIGHT_DAYS = parseInt(process.env.STALE_RAISERIGHT_DAYS?.trim() || '45', 10);
 
 // ---------------------------------------------------------------------------
 // Types
