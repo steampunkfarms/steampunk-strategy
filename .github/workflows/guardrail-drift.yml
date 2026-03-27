@@ -2,9 +2,13 @@ name: Guardrail Drift Check
 
 on:
   push:
-    branches: ["**"]
+    branches: [main]
   pull_request:
-    branches: ["**"]
+    branches: [main]
+
+concurrency:
+  group: guardrail-drift-${{ github.ref }}
+  cancel-in-progress: true
 
 jobs:
   guardrail-drift:

@@ -1,5 +1,14 @@
 name: Governance Checks
-on: [push, pull_request]
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+concurrency:
+  group: governance-${{ github.ref }}
+  cancel-in-progress: true
 
 jobs:
   governance:
