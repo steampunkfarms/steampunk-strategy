@@ -40,6 +40,13 @@ interface CronFreshnessResult {
   missingCrons: string[];
 }
 
+interface OrchestratorStalenessResult {
+  staleJobs: Array<{ jobName: string; lastSuccess: string | null; hoursAgo: number | null }>;
+  staleCount: number;
+  recentErrors: Array<{ jobName: string; at: string; error: string | null }>;
+  errorCount: number;
+}
+
 interface CrossSiteResult {
   name: string;
   reachable: boolean;
@@ -332,6 +339,31 @@ async function checkCredentialHealth(): Promise<CredentialHealthResult> {
 }
 
 // ---------------------------------------------------------------------------
+// Check: Orchestrator cron staleness — query ExecutionLog for stale jobs
+// ---------------------------------------------------------------------------
+
+async function checkOrchestratorStaleness(): Promise<OrchestratorStalenessResult> {
+  const orchUrl = process.env.ORCHESTRATOR_URL?.trim() ?? 'https://orchestrator.steampunkstudiolo.org';
+  const secret = process.env.INTERNAL_SECRET?.trim();
+  if (!secret) {
+    return { staleJobs: [], staleCount: 0, recentErrors: [], errorCount: 0 };
+  }
+
+  try {
+    const res = await fetch(`${orchUrl}/api/internal/cron-staleness?hours=25`, {
+      headers: { Authorization: `Bearer ${secret}` },
+      signal: AbortSignal.timeout(8000),
+    });
+    if (!res.ok) {
+      return { staleJobs: [{ jobName: 'orchestrator-api', lastSuccess: null, hoursAgo: null }], staleCount: 1, recentErrors: [], errorCount: 0 };
+    }
+    return await res.json();
+  } catch {
+    return { staleJobs: [], staleCount: 0, recentErrors: [], errorCount: 0 };
+  }
+}
+
+// ---------------------------------------------------------------------------
 // Main handler
 // ---------------------------------------------------------------------------
 
@@ -344,7 +376,7 @@ export async function GET(request: Request) {
   const alerts: string[] = [];
 
   // Run all checks in parallel
-  const [fleet, reachability, database, crossSite, dataFreshness, cronFreshness, credentialHealth] = await Promise.all([
+  const [fleet, reachability, database, crossSite, dataFreshness, cronFreshness, credentialHealth, orchestratorStaleness] = await Promise.all([
     getFleetStatus().catch(() => null),
     checkReachability(),
     checkDatabase(),
@@ -352,6 +384,7 @@ export async function GET(request: Request) {
     checkDataFreshness(),
     checkCronFreshness(),
     checkCredentialHealth().catch(() => ({ verified: 0, failed: 0, skipped: 0, details: [] } as CredentialHealthResult)),
+    checkOrchestratorStaleness(),
   ]);
 
   // --- Build fleet summary + issues ---
@@ -398,6 +431,16 @@ export async function GET(request: Request) {
   if (credentialHealth.failed > 0) {
     const failedSlugs = credentialHealth.details.filter(d => !d.ok && d.error).map(d => d.slug);
     alerts.push(`Credential verify failed for: ${failedSlugs.join(', ')}`);
+  }
+
+  // --- Orchestrator cron staleness ---
+  if (orchestratorStaleness.staleCount > 0) {
+    const staleNames = orchestratorStaleness.staleJobs.map(j => j.jobName);
+    alerts.push(`Cron jobs with no success in 25h: ${staleNames.join(', ')}`);
+  }
+  if (orchestratorStaleness.errorCount > 0) {
+    const errorNames = [...new Set(orchestratorStaleness.recentErrors.map(e => e.jobName))];
+    alerts.push(`Cron jobs with recent errors: ${errorNames.join(', ')}`);
   }
 
   // --- Log to AuditLog ---
