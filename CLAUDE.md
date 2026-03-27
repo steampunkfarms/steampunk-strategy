@@ -89,6 +89,18 @@ See `docs/tardis-reference.md` for full schema. Core domains: Financial (Transac
 | Cleanpunk Shop | Product-species map, COGS tracking | ProductSpeciesMap links products to benefiting species, cost data to expense-to-impact pipeline |
 | Orchestrator | 2 managed crons | gmail-receipt-scan, raiseright-reminders triggered on schedule |
 
+## Infrastructure Pre-Flight — MANDATORY
+
+Before adding any cron job, serverless function, email template, or database table:
+
+1. Read `bts-brain/docs/architecture/platform-limits.md`
+2. Check current usage against the relevant platform limit
+3. Update `platform-limits.md` and `cron-map.md` after making changes
+
+Path: `/Users/ericktronboll/Projects/Backcountry Tech Solutions/bts-brain/docs/architecture/platform-limits.md`
+
+---
+
 ## Orchestrator Governance — MANDATORY
 
 All SFOS sites are governed by the central orchestrator. These rules are non-negotiable.
