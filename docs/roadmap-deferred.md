@@ -38,6 +38,23 @@
 - Letter generated on Steampunk Farms letterhead as PDF, ready to email or print
 **Repo:** steampunk-studiolo (GMS module) + steampunk-strategy (calendar integration via Google Calendar API)
 
+### (ACAD-IG) Academy Instagram Image Composition Engine
+**Priority:** Medium — enables IG posting for Academy auto-posting pipeline
+**What exists:** Academy auto-posting pipeline dispatches to FB + X. IG is stubbed in `lib/academy/dispatch.ts` pending this work.
+**Scope:**
+
+1. Build an image composition service (Sharp or Canvas API) that:
+   - Takes a random sanctuary animal photo from Postmaster's `ResidentImage` catalog
+   - Applies a tasteful blur
+   - Overlays a short quotable line (1-2 sentences) from the extracted passage
+   - Returns a publicly accessible image URL (Vercel Blob)
+2. Wire into `dispatchToAll()` in `lib/academy/dispatch.ts`
+3. Use passage text as caption, composed image as the IG post image
+4. Respect IG caption compliance gates (existing `checkIgCaptionCompliance()`)
+**Cross-use potential:** Once built, this image composer can serve other SFOS social content (Moostik Monday, Dear Humans, etc.) — design the API to be series-agnostic.
+**Repo:** steampunk-postmaster
+**Depends on:** Academy auto-posting pipeline (20260321-academy-auto-posting)
+
 ### Narrative Arc Tracking (#3) + AI Learning from Edits (#4)
 **Priority:** Medium — nice-to-have, not blocking operations
 
@@ -572,6 +589,22 @@ Habit-formation onboarding redesign (#118), Impact page needs Krystal's 60-secon
 - [ ] (BI-FUTURE) Embeddable chart widgets for Rescue Barn transparency pages
 - [ ] (BI-FUTURE) Scheduled PDF report generation + email delivery
 - [ ] (BI-FUTURE) Custom dashboard builder (user-configurable widget layout)
+
+---
+
+## 🟡 Deferred — Experimentation & Product Analytics Platform (June 2026 Review)
+
+> Added 2026-03-20. Per Stazia's assessment. Revisit at June solstice roadmap review.
+> Primary target: Rescue Barn (donate flows, animal carousel, premium teaser, CTA variants).
+> Secondary: Cleanpunk (product page variants, donation slider, ambassador animal photos).
+> NOT for CWS — margins too thin to justify instrumentation overhead.
+
+- [ ] (EXP-001) Evaluate PostHog Cloud free tier (1M events/mo) vs self-hosted for SFOS scale. Decision: hosted vs self-hosted.
+- [ ] (EXP-002) Pilot PostHog SDK integration on Rescue Barn donate page — instrument one A/B test (donation ask amount or animal carousel order).
+- [ ] (EXP-003) If pilot succeeds, instrument Cleanpunk high-value flows (product page, checkout, bundling).
+- [ ] (EXP-004) Designate PostHog as enterprise shared resource — create CLAUDE.md, add to orchestrator governance, add "Shared Enterprise Resources" sections to family CLAUDE.md files.
+- [ ] (EXP-005) Future: feed experiment-winning headlines/images back into Postmaster Claude generation prompts as priors.
+- [ ] (EXP-006) Future: surface experiment results in TARDIS intelligence layer for cross-site impact views.
 
 ---
 
