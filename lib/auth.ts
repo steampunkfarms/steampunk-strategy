@@ -1,6 +1,10 @@
 import type { NextAuthOptions } from 'next-auth';
 import AzureADProvider from 'next-auth/providers/azure-ad';
 
+// EGES-A-F8 — sign-in domain allowlist (matches Studiolo/Postmaster pattern)
+const ALLOWED_DOMAINS = ['steampunkfarms.org', 'steampunkstudiolo.org'];
+const ALLOWED_LEGACY_EMAIL = 'steampunkfarms@gmail.com';
+
 export const authOptions: NextAuthOptions = {
   providers: [
     AzureADProvider({
@@ -18,9 +22,20 @@ export const authOptions: NextAuthOptions = {
     }),
   ],
   callbacks: {
-    async signIn() {
-      // Azure AD tenant already restricts who can authenticate
-      return true;
+    async signIn({ user }) {
+      const email = user.email?.toLowerCase();
+      if (!email) return false;
+
+      // Allow the Azure AD tenant domains
+      if (ALLOWED_DOMAINS.some(d => email.endsWith(`@${d}`))) return true;
+
+      // Allow the legacy shared Gmail account (exact match)
+      if (email === ALLOWED_LEGACY_EMAIL) return true;
+
+      // In non-production environments, allow localhost dev accounts
+      if (process.env.NODE_ENV !== 'production') return true;
+
+      return false;
     },
     async jwt({ token, account, user }) {
       if (account) {
