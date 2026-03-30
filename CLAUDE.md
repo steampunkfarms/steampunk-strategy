@@ -103,25 +103,29 @@ Path: `/Users/ericktronboll/Projects/Backcountry Tech Solutions/bts-brain/docs/a
 
 ## Orchestrator Governance — MANDATORY
 
-All SFOS sites are governed by the central orchestrator. These rules are non-negotiable.
+SFOS sites use a **distributed cron model**: each repo has its own `vercel.json` cron
+entries. The orchestrator remains as a secondary trigger, monitoring layer, and schedule
+registry. Vercel enforces a per-project ceiling on registered crons — check
+`platform-limits.md` before adding new entries.
 
-### Cron Scheduling
+### Cron Scheduling (Distributed Model — 2026-03-30)
 
-**Never add `crons` entries to any SFOS site's local `vercel.json`.**
-All cron scheduling is centralized in the orchestrator. To add a new cron job:
+**Each SFOS site's `vercel.json` contains its own cron entries.** The orchestrator
+job registry (`job-registry.ts`) remains the canonical source of truth for schedules.
+To add a new cron job:
 
 1. Create the route handler in the site repo
-2. Register the schedule in orchestrator vercel.json
-3. Register the job in orchestrator job-registry.ts
-4. Update the orchestrator reference card
-5. Deploy orchestrator, verify in dashboard
+2. Add the cron entry to the site's own `vercel.json` with the schedule
+3. Register the job in orchestrator `job-registry.ts` (for monitoring/backup)
+4. Update `platform-limits.md` and `cron-map.md` with the new allocation
+5. Ensure the route uses `verifyCronAuth()` (accepts both CRON_SECRET and INTERNAL_SECRET)
 
 ### Email & Social Dispatch
 
-**All email and social dispatch routes must be triggered by the orchestrator.**
-- Dispatch routes accept INTERNAL_SECRET only (not CRON_SECRET)
-- Never create a local cron that triggers email sending or social posting
-- If you build a new dispatch route, register its cron in the orchestrator
+**All cron routes — including email and social dispatch — must use `verifyCronAuth()`**
+from `lib/cron-auth.ts`, which accepts both CRON_SECRET (Vercel local cron) and
+INTERNAL_SECRET (orchestrator) with timing-safe comparison. Never use inline auth
+checks or unsafe string equality.
 
 ### Health Monitoring
 
@@ -142,11 +146,11 @@ All cron scheduling is centralized in the orchestrator. To add a new cron job:
 ### For Claude / AI Sessions
 
 When building new functionality:
-- NEVER add cron entries to this repo's vercel.json
-- NEVER create a dispatch route that accepts CRON_SECRET
+- Add new cron entries to BOTH the site's `vercel.json` AND the orchestrator job registry
+- All cron routes MUST use `verifyCronAuth()` — never inline auth checks
+- Check `platform-limits.md` before adding crons — per-project ceiling applies
 - ALWAYS ensure /api/health exists and checks new dependencies you add
 - If you add a payment processor, update /api/revenue/summary to include it
-- If you can't access orchestrator in this session, leave TODOs in the checkpoint for the orchestrator session to pick up
 
 ---
 
