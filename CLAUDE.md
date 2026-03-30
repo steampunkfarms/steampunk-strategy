@@ -559,6 +559,30 @@ to next session" in the checkpoint so the next session picks it up.
 If the Understand-Anything plugin is not installed in this CC environment,
 note "EAR refresh skipped — UA plugin not available" and move on.
 
+### Compaction Protocol
+
+Before running /compact or allowing auto-compaction:
+
+1. Write a checkpoint to docs/checkpoints/ with current session state
+2. Run /compact with: "Preserve: CLAUDE.md cascade rules, current file
+   paths, acceptance criteria, and QA protocol steps. Drop: file contents
+   already written to disk, exploration output, failed approaches."
+3. After compaction, re-read the project CLAUDE.md to restore governance
+
+## Compact Instructions
+
+When /compact runs, ALWAYS preserve:
+
+- All rules from this CLAUDE.md (cascading protocol, QA steps, orchestrator governance)
+- Current acceptance criteria and checkpoint state
+- File paths being actively modified
+- The orchestrator integration rules (cron, health, revenue endpoints)
+- Handoff spec and working spec paths
+
+DROP: file contents already written to disk, exploration output, search results
+
+---
+
 ### ENV VAR SAFETY
 
 All secret env vars (`CRON_SECRET`, `INTERNAL_SECRET`, `STRIPE_WEBHOOK_SECRET`, `RESEND_WEBHOOK_SECRET`, etc.) MUST be read with `.trim()` to guard against trailing `\r` or whitespace from copy-paste:
