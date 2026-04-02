@@ -2,7 +2,14 @@
 
 *Protocol changelog moved to `docs/protocol-changelog.md` — does not affect execution.*
 
-*Changelog (inline): 2026-03-31: Enhanced Pre-Edit Sanity Check with mandatory data state validation. Enterprise broadcast — all CLAUDE.md files updated. | 2026-03-23: Added EAR as shared enterprise resource. Added Tier 1 graph refresh rule (Step 9) to QA protocol. Enterprise broadcast per EAR-GOVERNANCE.md.*
+*Changelog (inline): 2026-04-01: Added Social Posting Decentralized Dispatch policy (enterprise broadcast). | 2026-03-31: Enhanced Pre-Edit Sanity Check with mandatory data state validation. Enterprise broadcast — all CLAUDE.md files updated. | 2026-03-23: Added EAR as shared enterprise resource. Added Tier 1 graph refresh rule (Step 9) to QA protocol. Enterprise broadcast per EAR-GOVERNANCE.md.*
+
+### Social Posting: Decentralized Dispatch
+Repos that own their content post directly to social platforms. Postmaster is used only for
+cross-cutting campaigns (Storm, Cogworks, newsletters). SFOS repos (stoic-preparedness already
+posts directly) follow this same pattern. When adding social posting to an SFOS repo, ensure:
+platform credentials in the repo's own env vars, first-comment link pattern for Facebook,
+kill switch per engine, cron logging, and voice guardrails for AI content.
 
 <!-- POSITION BIAS EXPERIMENT — Phase A (top placement) — see docs/experiments/position-bias-test.md -->
 ### Experiment Rules (POSTEST)
