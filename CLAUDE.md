@@ -663,6 +663,11 @@ If this change affects shared resources or other families, also update:
 If the change is SFOS-internal only (no shared resource impact), the broadcast is not required —
 but note "SFOS-internal only, no broadcast needed" in the changelog entry for auditability.
 
+### Governance Sync Reminder
+If this session modified `~/.claude/CLAUDE.md` or any `~/.claude/projects/` memory file,
+sync to `bts-governance` per the Global Governance Sync Protocol before ending the session.
+(SFOS CLAUDE.md itself is committed to this repo — no governance copy needed.)
+
 ### Fix-Propagation Investigation Order (Mandatory)
 
 When asked to reference a fix/change in one place and determine whether it should be applied elsewhere, use this order:
