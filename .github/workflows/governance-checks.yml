@@ -16,29 +16,18 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - name: Block local cron entries
+      - name: Log local cron entries (distributed model)
         run: |
-          check_file() {
-            local VJ="$1"
+          # SFOS uses distributed crons since 2026-03-30 — each repo owns its
+          # own vercel.json cron entries. The orchestrator weekly-cron-scan
+          # monitors cross-repo cron governance. This step is informational only.
+          for VJ in vercel.json apps/*/vercel.json; do
             if [ -f "$VJ" ]; then
-              CRON_COUNT=$(jq '.crons // [] | length' "$VJ" 2>/dev/null)
-              if [ "$CRON_COUNT" -gt 0 ] 2>/dev/null; then
-                echo "::error::${VJ} contains ${CRON_COUNT} cron entries. All crons must be in the orchestrator."
-                return 1
-              fi
+              COUNT=$(jq '.crons // [] | length' "$VJ" 2>/dev/null)
+              [ "$COUNT" -gt 0 ] && echo "ℹ️ ${VJ}: ${COUNT} cron entries (distributed model)"
             fi
-            return 0
-          }
-          FAILED=0
-          check_file "vercel.json" || FAILED=1
-          for VJ in apps/*/vercel.json; do
-            [ -f "$VJ" ] && { check_file "$VJ" || FAILED=1; }
           done
-          if [ "$FAILED" -eq 1 ]; then
-            echo "All cron scheduling must go through the orchestrator."
-            exit 1
-          fi
-          echo "✅ No local cron entries found."
+          echo "✅ Cron inventory logged."
 
       - name: Require health endpoint
         run: |

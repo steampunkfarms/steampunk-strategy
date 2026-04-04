@@ -26,12 +26,14 @@ jobs:
         uses: actions/checkout@v4
         with:
           repository: steampunkfarms/steampunk-postmaster
+          token: ${{ secrets.CROSS_REPO_PAT }}
           path: steampunk-postmaster
 
       - name: Checkout steampunk-studiolo
         uses: actions/checkout@v4
         with:
           repository: steampunkfarms/steampunk-studiolo
+          token: ${{ secrets.CROSS_REPO_PAT }}
           path: steampunk-studiolo
 
       - name: Setup Node.js
