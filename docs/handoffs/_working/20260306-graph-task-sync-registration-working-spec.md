@@ -10,7 +10,7 @@ Register the Studiolo `graph-task-sync` cron job in the Orchestrator's static jo
 
 ## Discovery
 
-- **Target route:** `/Users/ericktronboll/Projects/steampunk-studiolo/app/api/graph/task-sync/cron/route.ts`
+- **Target route:** `/Users/ericktronboll/Projects/steampunk-farms/steampunk-studiolo/app/api/graph/task-sync/cron/route.ts`
 - **Route behavior:** Pushes stewardship action items to Outlook To Do via Microsoft Graph
 - **Schedule:** Daily at 8 AM UTC (`0 8 * * *`)
 - **HTTP method:** GET

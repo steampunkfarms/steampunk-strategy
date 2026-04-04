@@ -218,13 +218,13 @@ CRMLS_API_KEY=
 
 ## Key References
 
-- Master Plan: `/Users/ericktronboll/Projects/steampunk-strategy/docs/sempervets/MASTER-PLAN.md`
-- Schema Design: `/Users/ericktronboll/Projects/steampunk-strategy/docs/sempervets/SCHEMA-DESIGN.md`
+- Master Plan: `/Users/ericktronboll/Projects/steampunk-farms/steampunk-strategy/docs/sempervets/MASTER-PLAN.md`
+- Schema Design: `/Users/ericktronboll/Projects/steampunk-farms/steampunk-strategy/docs/sempervets/SCHEMA-DESIGN.md`
 - Client Requirements (raw): `/Users/ericktronboll/Projects/SemperVets Enterprise Site - RD MP.md`
 - Client Requirements (reference): `/Users/ericktronboll/Projects/SemperVets Enterprise Site - RD Ref.md`
 - Starlene's reference docs: `/Users/ericktronboll/Projects/semper-vets-ref-docs-from-starlene/`
 - LeBlanc branding assets: `/Users/ericktronboll/Projects/LeBlanc/`
-- Family of Sites: `/Users/ericktronboll/Projects/steampunk-strategy/docs/FAMILY_OF_SITES_UPDATED.md`
+- Family of Sites: `/Users/ericktronboll/Projects/steampunk-farms/steampunk-strategy/docs/FAMILY_OF_SITES_UPDATED.md`
 
 ## Trusted Lender Directory (Starlene's Referrals)
 

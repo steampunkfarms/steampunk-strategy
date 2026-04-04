@@ -64,7 +64,7 @@
 ## Planning Docs Location
 
 ```
-/Users/ericktronboll/Projects/steampunk-strategy/docs/sempervets/
+/Users/ericktronboll/Projects/steampunk-farms/steampunk-strategy/docs/sempervets/
 ├── MASTER-PLAN.md
 ├── SCHEMA-DESIGN.md
 ├── CLAUDE-MD-DRAFT.md

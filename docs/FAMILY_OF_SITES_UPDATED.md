@@ -1,7 +1,7 @@
 # Steampunk Farms: Family of Sites
 
 > Address book + wiring diagram for all web properties. Always loaded in context.
-> Per-site technical details: `view` the reference cards at `/Users/ericktronboll/Projects/steampunk-strategy/docs/`
+> Per-site technical details: `view` the reference cards at `/Users/ericktronboll/Projects/steampunk-farms/steampunk-strategy/docs/`
 > Full exhaustive version: `docs/family-of-sites-full.md`
 > Last updated: 2026-03-01
 
@@ -43,7 +43,7 @@ All repos under `github.com/steampunkfarms/`. Sites 1–4: Next.js 16.1.6 + Reac
 ## Filesystem Reference (Tier 2 — read on demand)
 
 ```
-/Users/ericktronboll/Projects/steampunk-strategy/docs/
+/Users/ericktronboll/Projects/steampunk-farms/steampunk-strategy/docs/
 ├── family-of-sites-full.md        # Exhaustive version of this doc
 ├── cleanpunk-shop-reference.md    # Stack, schema, routes, APIs, patterns
 ├── studiolo-reference.md          # Stack, schema, routes, APIs, patterns
@@ -55,7 +55,7 @@ All repos under `github.com/steampunkfarms/`. Sites 1–4: Next.js 16.1.6 + Reac
 ├── handoffs/                      # Claude Code handoff specs
 └── (future: orchestrator-spec.md, tardis-spec.md, etc.)
 
-/Users/ericktronboll/Projects/steampunk-strategy/     # TARDIS codebase
+/Users/ericktronboll/Projects/steampunk-farms/steampunk-strategy/     # TARDIS codebase
 /Users/ericktronboll/Projects/steampunk-orchestrator/  # Orchestrator codebase
 ```
 

@@ -12,7 +12,7 @@ I'm building The Cogworks — a first-party content and campaign platform for St
 
 Read that file first. It contains the complete architecture, database schema, phased rollout, campaign details, and file structure.
 
-The Rescue Barn repo is at `/Users/ericktronboll/Projects/steampunk-rescuebarn/`
+The Rescue Barn repo is at `/Users/ericktronboll/Projects/steampunk-farms/steampunk-rescuebarn/`
 The project reference is in the project files attached to this Claude Project.
 
 ### What's already shipped:

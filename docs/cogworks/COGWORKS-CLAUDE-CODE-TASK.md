@@ -4,7 +4,7 @@
 The Cogworks is a new sanctuary content feed and campaign platform being added to the Rescue Barn site. Opus has already written and placed all 13 source files. Your job is to wire them in, install dependencies, fix any build errors, and ship it.
 
 ## Project
-- Repo: `/Users/ericktronboll/Projects/steampunk-rescuebarn/`
+- Repo: `/Users/ericktronboll/Projects/steampunk-farms/steampunk-rescuebarn/`
 - Branch: create `feat/cogworks-sprint-1` from main
 - Framework: Next.js 15 + React 19 + TypeScript 5.7
 

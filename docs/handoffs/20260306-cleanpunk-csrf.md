@@ -66,7 +66,7 @@ Origin/Referer validation -- the standard CSRF mitigation for same-origin reques
 cd /Users/ericktronboll/Projects/cleanpunk-shop && rg -n "validateCsrf" apps/storefront/src/
 
 # TypeScript check (pre-existing errors expected; no new ones)
-cd /Users/ericktronboll/Projects/cleanpunk-shop/apps/storefront && npx tsc --noEmit
+cd /Users/ericktronboll/Projects/steampunk-farms/cleanpunk-shop/apps/storefront && npx tsc --noEmit
 ```
 
 ## Deferred Items

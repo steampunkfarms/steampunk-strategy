@@ -734,7 +734,10 @@ When a handoff spec exists in `docs/handoffs/`, it was written by CChat during a
 2. If new patterns were established, note them for the reference card update
 3. If deferred items were encountered, add them to `docs/roadmap.md`
 
-### Sibling Repos (all under /Users/ericktronboll/Projects/)
+### Sibling Repos
+
+SFOS repos are under `/Users/ericktronboll/Projects/steampunk-farms/`.
+Orchestrator is at `/Users/ericktronboll/Projects/steampunk-orchestrator/`.
 
 | Repo Folder | App | Can Be Modified By Handoff |
 |-------------|-----|---------------------------|
