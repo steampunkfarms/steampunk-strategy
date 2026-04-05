@@ -94,7 +94,11 @@ export async function dispatchNotifications(alert: Alert): Promise<void> {
     }
   }
 
-  if (alert.severity === 'critical' || alert.severity === 'warning') {
+  // Only email on critical — warnings are visible on the TARDIS dashboard
+  // but should not create inbox noise. Revenue-critical runtime errors,
+  // site-down alerts, and secret mismatches are critical. Cron staleness,
+  // cross-site 500s, and import age warnings stay on the dashboard only.
+  if (alert.severity === 'critical') {
     const lastEmail = alert.emailNotifiedAt?.getTime() ?? 0;
     if (now.getTime() - lastEmail > EMAIL_COOLDOWN_MS) {
       await sendAlertEmail(alert);
