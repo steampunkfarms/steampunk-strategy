@@ -314,6 +314,93 @@ async function checkCredentialHealth(): Promise<CredentialHealthResult> {
         });
         ok = res.ok;
         if (!ok) error = `HTTP ${res.status}`;
+      } else if (cred.verifyEndpoint === 'azure-ad-secret-expiry') {
+        // Check Azure AD app registration client secret expiry via Microsoft Graph API
+        const tenantId = process.env.AZURE_AD_TENANT_ID?.trim();
+        const clientId = process.env.AZURE_AD_CLIENT_ID?.trim();
+        const clientSecret = process.env.AZURE_AD_CLIENT_SECRET?.trim();
+        if (!tenantId || !clientId || !clientSecret) {
+          skipped++;
+          details.push({ slug: cred.slug, ok: false, error: 'Azure AD env vars not set' });
+          continue;
+        }
+
+        try {
+          // Get an access token using client credentials flow
+          const tokenRes = await fetch(
+            `https://login.microsoftonline.com/${tenantId}/oauth2/v2.0/token`,
+            {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+              body: new URLSearchParams({
+                client_id: clientId,
+                client_secret: clientSecret,
+                scope: 'https://graph.microsoft.com/.default',
+                grant_type: 'client_credentials',
+              }),
+              signal: AbortSignal.timeout(8000),
+            },
+          );
+          if (!tokenRes.ok) {
+            ok = false;
+            error = `Token request failed: HTTP ${tokenRes.status}`;
+          } else {
+            const tokenData = await tokenRes.json();
+            const accessToken = tokenData.access_token;
+
+            // Query the app registration's password credentials (client secrets)
+            const appRes = await fetch(
+              `https://graph.microsoft.com/v1.0/applications?$filter=appId eq '${clientId}'&$select=id,displayName,passwordCredentials`,
+              {
+                headers: { Authorization: `Bearer ${accessToken}` },
+                signal: AbortSignal.timeout(8000),
+              },
+            );
+            if (!appRes.ok) {
+              ok = false;
+              error = `Graph API failed: HTTP ${appRes.status}`;
+            } else {
+              const appData = await appRes.json();
+              const app = appData.value?.[0];
+              if (!app) {
+                ok = false;
+                error = 'App registration not found in Graph API';
+              } else {
+                const creds = app.passwordCredentials || [];
+                const now = new Date();
+                const thirtyDays = 30 * 24 * 60 * 60 * 1000;
+                const sevenDays = 7 * 24 * 60 * 60 * 1000;
+
+                // Check each secret for expiry
+                const expiring = creds.filter((c: { endDateTime: string }) => {
+                  const expiry = new Date(c.endDateTime);
+                  return expiry.getTime() - now.getTime() < thirtyDays;
+                });
+
+                const critical = creds.filter((c: { endDateTime: string }) => {
+                  const expiry = new Date(c.endDateTime);
+                  return expiry.getTime() - now.getTime() < sevenDays;
+                });
+
+                if (critical.length > 0) {
+                  ok = false;
+                  const expDate = new Date(critical[0].endDateTime).toISOString().split('T')[0];
+                  error = `CRITICAL: Azure AD secret expires ${expDate} — rotate immediately`;
+                } else if (expiring.length > 0) {
+                  ok = false;
+                  const expDate = new Date(expiring[0].endDateTime).toISOString().split('T')[0];
+                  error = `WARNING: Azure AD secret expires ${expDate} — rotate within 30 days`;
+                } else {
+                  ok = true;
+                  // All secrets have >30 days remaining
+                }
+              }
+            }
+          }
+        } catch (e) {
+          ok = false;
+          error = e instanceof Error ? e.message : String(e);
+        }
       } else {
         skipped++;
         details.push({ slug: cred.slug, ok: false, error: `Unknown verify endpoint: ${cred.verifyEndpoint}` });
