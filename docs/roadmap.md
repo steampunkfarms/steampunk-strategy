@@ -509,5 +509,11 @@ See `docs/handoffs/20260307-yt1-youtube-cogworks-import.md`. YouTube Data API v3
 
 ---
 
+## 🔵 Investigation Items
+
+- [ ] (COG-BUG-1) Mini-Storm barn-feed links use `post.id` instead of `post.slug` — `/barn-feed/[param]` resolves via `getPostBySlug()` which queries by slug, not UUID. Mini-Storm links at `mini-storm/route.ts:102,105` may 404 if slugs differ from IDs. Discovered 2026-04-06 during Copy-and-Go sanity pass. Scope: investigate whether any live mini-Storm posts have broken links, fix if confirmed.
+
+---
+
 > Deferred items: see [roadmap-deferred.md](roadmap-deferred.md)
 > Completed/killed items: see [roadmap-archive.md](roadmap-archive.md)
