@@ -37,6 +37,7 @@ export interface CreateTransactionOverrides {
   amount?: number;
   notes?: string;
   donorPaid?: { donorName: string; amount: number | string; donorEmail?: string; donorId?: string };
+  founderAdvance?: { amount: number | string; personalAccount: string; memo?: string; reference?: string };
   lineItemTags?: Record<string, string[]>;
   lineItemNotes?: Record<string, string>;
   lineItemPrograms?: Record<string, string>;
@@ -53,6 +54,8 @@ export interface CreateTransactionResult {
   costTrackerEntries: Array<{ id: string; item: string; unitCost: number; seasonalFlag: string | null }>;
   donorPaidBillId: string | null;
   donorPortion: number | null;
+  founderAdvanceId: string | null;
+  founderPortion: number | null;
   farmPortion: number | null;
   journalNoteId: string | null;
   allocation: Record<string, unknown> | null;
@@ -543,6 +546,109 @@ export async function createTransactionFromDocument(
     }
   }
 
+  // --- Founder advance ---
+  let founderAdvanceId: string | null = null;
+  let founderPortion: number | null = null;
+
+  if (overrides?.founderAdvance && !isIncome) {
+    const fa = overrides.founderAdvance;
+    const faAmount = typeof fa.amount === 'number' ? fa.amount : parseFloat(fa.amount);
+
+    if (faAmount > 0 && fa.personalAccount) {
+      // Check for an existing FounderAdvance that matches (same fiscal year, amount, vendor)
+      const existingAdvance = await prisma.founderAdvance.findFirst({
+        where: {
+          fiscalYear,
+          amount: faAmount,
+          ...(vendorSlug ? { vendorName: { contains: vendorSlug.replace(/-/g, ' '), mode: 'insensitive' as const } } : {}),
+          transactionId: null, // Not yet linked
+        },
+      });
+
+      if (existingAdvance) {
+        // Link existing advance to this transaction
+        await prisma.founderAdvance.update({
+          where: { id: existingAdvance.id },
+          data: { transactionId: transaction.id },
+        });
+        founderAdvanceId = existingAdvance.id;
+      } else {
+        // Create new founder advance
+        const advance = await prisma.founderAdvance.create({
+          data: {
+            date: txDate,
+            amount: faAmount,
+            description: `${description} (founder advanced personal funds)`,
+            personalAccount: fa.personalAccount,
+            reference: fa.reference ?? null,
+            memo: fa.memo ?? `Founder advanced personal funds for ${vendorName ?? 'vendor'} invoice.`,
+            transactionId: transaction.id,
+            vendorName: vendorName ?? null,
+            fiscalYear,
+          },
+        });
+        founderAdvanceId = advance.id;
+      }
+
+      founderPortion = faAmount;
+
+      // Recalculate farm portion accounting for both donor-paid and founder advance
+      farmPortion = txAmount - (donorPortion ?? 0) - faAmount;
+
+      await prisma.auditLog.create({
+        data: {
+          action: 'create',
+          entity: 'founder_advance',
+          entityId: founderAdvanceId,
+          details: JSON.stringify({
+            founderPortion: faAmount,
+            personalAccount: fa.personalAccount,
+            transactionId: transaction.id,
+            vendorSlug,
+            linked: !!existingAdvance,
+          }),
+        },
+      });
+    }
+  }
+
+  // --- Split-payment breakdown journal note ---
+  if (!isIncome && ((donorPortion && donorPortion > 0) || (founderPortion && founderPortion > 0))) {
+    const hasSplit = (donorPortion && donorPortion > 0) && (founderPortion && founderPortion > 0);
+    const effectiveFarmPortion = txAmount - (donorPortion ?? 0) - (founderPortion ?? 0);
+
+    if (hasSplit || (founderPortion && founderPortion > 0)) {
+      const lines: string[] = [`Payment breakdown for ${vendorName} invoice${refNum}:`];
+      lines.push(`  Invoice Total: $${txAmount.toFixed(2)}`);
+      if (donorPortion && donorPortion > 0) {
+        const dp = overrides?.donorPaid;
+        lines.push(`  Donor Paid (${dp?.donorName ?? 'donor'}): -$${donorPortion.toFixed(2)}`);
+      }
+      if (founderPortion && founderPortion > 0) {
+        const fa = overrides?.founderAdvance;
+        lines.push(`  Founder Advance (${fa?.personalAccount ?? 'personal'}): -$${founderPortion.toFixed(2)}`);
+      }
+      lines.push(`  Farm Portion: $${effectiveFarmPortion.toFixed(2)}`);
+
+      await prisma.journalNote.create({
+        data: {
+          content: lines.join('\n'),
+          type: 'note',
+          transactionId: transaction.id,
+          vendorSlug: vendorSlug ?? undefined,
+        },
+      });
+    }
+  }
+
+  // Update paymentMethod to "split" when multiple payment sources
+  if (!isIncome && (donorPortion ?? 0) > 0 && (founderPortion ?? 0) > 0) {
+    await prisma.transaction.update({
+      where: { id: transaction.id },
+      data: { paymentMethod: 'split' },
+    });
+  }
+
   // --- Review notes ---
   let journalNoteId: string | null = null;
 
@@ -597,6 +703,8 @@ export async function createTransactionFromDocument(
     costTrackerEntries,
     donorPaidBillId,
     donorPortion,
+    founderAdvanceId,
+    founderPortion,
     farmPortion,
     journalNoteId,
     allocation: allocationDetails,

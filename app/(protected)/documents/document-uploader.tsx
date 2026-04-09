@@ -13,6 +13,7 @@ import {
   ChevronUp,
   Heart,
   Info,
+  Scale,
 } from 'lucide-react';
 import type { ExtractedReceipt } from '@/lib/receipt-parser';
 import { validateReceipt, type ValidationResult } from '@/lib/receipt-validator-client';
@@ -47,6 +48,8 @@ interface CreateResult {
   costTrackerEntries: Array<{ id: string; item: string; unitCost: number; seasonalFlag: string | null }>;
   donorPaidBillId: string | null;
   donorPortion: number | null;
+  founderAdvanceId: string | null;
+  founderPortion: number | null;
   farmPortion: number | null;
   journalNoteId: string | null;
   allocation?: {
@@ -112,6 +115,12 @@ export default function DocumentUploader({ loadDocumentId, onComplete }: Uploade
   const [donorName, setDonorName] = useState('');
   const [donorAmount, setDonorAmount] = useState('');
   const [arrangement, setArrangement] = useState<ArrangementResult | null>(null);
+
+  // Founder advance split
+  const [founderAdvanceEnabled, setFounderAdvanceEnabled] = useState(false);
+  const [founderAmount, setFounderAmount] = useState('');
+  const [founderAccount, setFounderAccount] = useState('capital_one');
+  const [founderMemo, setFounderMemo] = useState('');
 
   // Line-item species enrichment
   const [lineItemTags, setLineItemTags] = useState<Record<number, string[]>>({});
@@ -432,6 +441,13 @@ export default function DocumentUploader({ loadDocumentId, onComplete }: Uploade
           amount: parseFloat(donorAmount),
         };
       }
+      if (founderAdvanceEnabled && parseFloat(founderAmount) > 0) {
+        overrides.founderAdvance = {
+          amount: parseFloat(founderAmount),
+          personalAccount: founderAccount,
+          memo: founderMemo || undefined,
+        };
+      }
       if (Object.keys(lineItemTags).length > 0) {
         overrides.lineItemTags = lineItemTags;
       }
@@ -471,6 +487,8 @@ export default function DocumentUploader({ loadDocumentId, onComplete }: Uploade
           costTrackerEntries: [],
           donorPaidBillId: data.donorPaidBillId ?? null,
           donorPortion: null,
+          founderAdvanceId: data.founderAdvanceId ?? null,
+          founderPortion: null,
           farmPortion: null,
           journalNoteId: data.journalNoteId ?? null,
         });
@@ -483,7 +501,7 @@ export default function DocumentUploader({ loadDocumentId, onComplete }: Uploade
       setError(err instanceof Error ? err.message : String(err));
       setPhase('error');
     }
-  }, [uploadResult, overrideDate, overrideAmount, notes, donorPaidEnabled, donorName, donorAmount, lineItemTags, lineItemNotes, existingTransactionId, parseResult, onComplete]);
+  }, [uploadResult, overrideDate, overrideAmount, notes, donorPaidEnabled, donorName, donorAmount, founderAdvanceEnabled, founderAmount, founderAccount, founderMemo, lineItemTags, lineItemNotes, existingTransactionId, parseResult, onComplete]);
 
   // Batch upload: process multiple files with concurrency limit
   const processBatch = useCallback(async (files: File[]) => {
@@ -1178,6 +1196,84 @@ export default function DocumentUploader({ loadDocumentId, onComplete }: Uploade
               )}
             </div>
 
+            {/* Founder advance split */}
+            <div className="rounded-lg border border-console-border p-3 space-y-3">
+              <label className="flex items-center gap-2 cursor-pointer">
+                <input
+                  type="checkbox"
+                  checked={founderAdvanceEnabled}
+                  onChange={(e) => setFounderAdvanceEnabled(e.target.checked)}
+                  className="rounded border-console-border"
+                />
+                <Scale className={`w-3.5 h-3.5 ${founderAdvanceEnabled ? 'text-gauge-blue' : 'text-slate-600'}`} />
+                <span className="text-xs text-slate-300">Founder advanced personal funds</span>
+              </label>
+
+              {founderAdvanceEnabled && (
+                <div className="space-y-3">
+                  <div className="grid grid-cols-2 gap-3">
+                    <div>
+                      <label htmlFor="founder-amount" className="text-[11px] text-slate-500 uppercase tracking-wider block mb-1">
+                        Amount Advanced
+                      </label>
+                      <div className="flex items-center gap-1">
+                        <span className="text-slate-500 text-sm">$</span>
+                        <input
+                          id="founder-amount"
+                          type="number"
+                          step="0.01"
+                          value={founderAmount}
+                          onChange={(e) => setFounderAmount(e.target.value)}
+                          className="text-sm w-full font-mono"
+                        />
+                      </div>
+                    </div>
+                    <div>
+                      <label htmlFor="founder-account" className="text-[11px] text-slate-500 uppercase tracking-wider block mb-1">
+                        Personal Account
+                      </label>
+                      <select
+                        id="founder-account"
+                        value={founderAccount}
+                        onChange={(e) => setFounderAccount(e.target.value)}
+                        className="text-sm w-full"
+                      >
+                        <option value="capital_one">Capital One</option>
+                        <option value="personal_checking">Personal Checking</option>
+                        <option value="personal_cash">Personal Cash</option>
+                        <option value="other">Other</option>
+                      </select>
+                    </div>
+                  </div>
+                  <div>
+                    <label htmlFor="founder-memo" className="text-[11px] text-slate-500 uppercase tracking-wider block mb-1">
+                      Memo (optional)
+                    </label>
+                    <input
+                      id="founder-memo"
+                      type="text"
+                      value={founderMemo}
+                      onChange={(e) => setFounderMemo(e.target.value)}
+                      placeholder="e.g., 0% interest loan, Davidson grant incoming"
+                      className="text-sm w-full"
+                    />
+                  </div>
+                  {overrideAmount && parseFloat(founderAmount) > 0 && (
+                    <div className="flex items-center justify-between text-xs px-1">
+                      <span className="text-slate-400">
+                        Remaining:{' '}
+                        <span className="font-mono text-slate-200">
+                          {formatCurrency(parseFloat(overrideAmount) - parseFloat(donorAmount || '0') - parseFloat(founderAmount))}
+                        </span>
+                        <span className="text-slate-600 ml-1">(farm pays)</span>
+                      </span>
+                      <span className="badge badge-blue text-[10px]">990 Schedule L</span>
+                    </div>
+                  )}
+                </div>
+              )}
+            </div>
+
             {/* Create / Update Transaction button */}
             <button
               onClick={createTransaction}
@@ -1236,6 +1332,20 @@ export default function DocumentUploader({ loadDocumentId, onComplete }: Uploade
                 <Heart className="w-3.5 h-3.5" />
                 Donor-paid: {formatCurrency(createResult.donorPortion ?? 0)}
                 {donorName && <span className="text-slate-400">({donorName})</span>}
+              </div>
+            )}
+
+            {createResult.founderAdvanceId && (
+              <div className="flex items-center gap-2 text-xs text-gauge-blue">
+                <Scale className="w-3.5 h-3.5" />
+                Founder advance: {formatCurrency(createResult.founderPortion ?? 0)}
+                <span className="text-slate-400">({founderAccount})</span>
+              </div>
+            )}
+
+            {createResult.farmPortion != null && createResult.farmPortion < (createResult.donorPortion ?? 0) + (createResult.founderPortion ?? 0) + createResult.farmPortion && (
+              <div className="text-xs text-slate-400">
+                Farm portion: <span className="font-mono text-slate-200">{formatCurrency(createResult.farmPortion)}</span>
               </div>
             )}
 
