@@ -29,6 +29,7 @@ import {
   ScrollText,
   FolderHeart,
   KeyRound,
+  Scale,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import ChronicleButton from '@/components/ChronicleButton';
@@ -62,6 +63,7 @@ const navigation = [
       { name: 'Vendors', href: '/vendors', icon: Building2 },
       { name: 'Product Map', href: '/product-map', icon: Tags },
       { name: 'Programs', href: '/programs', icon: FolderHeart },
+      { name: 'Founder Advances', href: '/founder-advances', icon: Scale },
     ],
   },
   {

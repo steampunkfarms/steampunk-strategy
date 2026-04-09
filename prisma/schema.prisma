@@ -926,6 +926,51 @@ model CommingledItem {
 }
 
 // =============================================================================
+// FOUNDER ADVANCES — Tracks personal-fund loans to the org and their repayment
+// 501(c)(3) related-party transaction tracking for IRS 990 Schedule L.
+// Erick regularly advances personal funds for farm purchases and reimburses
+// himself later from the Wells Fargo account.
+// =============================================================================
+
+model FounderAdvance {
+  id              String    @id @default(uuid())
+
+  // The advance
+  date            DateTime                          // Date the personal funds were spent
+  amount          Decimal   @db.Decimal(10, 2)      // Amount advanced
+  description     String                            // "Star Milling Co. — feed purchase"
+  personalAccount String    @map("personal_account") // "capital_one" | "personal_checking" | "personal_cash" | freeform
+  reference       String?                           // Card last 4, receipt #, order #
+  memo            String?                           // "Founder advanced personal funds for Star Milling invoice. 0% interest."
+
+  // Link to the expense transaction (the underlying farm purchase)
+  transactionId   String?   @map("transaction_id")
+  vendorName      String?   @map("vendor_name")     // Denormalized for display without join
+
+  // Repayment tracking
+  repaidAmount    Decimal   @default(0) @db.Decimal(10, 2) @map("repaid_amount")
+  repaidDate      DateTime? @map("repaid_date")
+  repaidMethod    String?   @map("repaid_method")    // "zelle" | "check" | "ach" | "cash"
+  repaidReference String?   @map("repaid_reference") // Zelle confirmation, check #
+  repaidMemo      String?   @map("repaid_memo")      // "Repayment via Zelle from SFRBI Wells Fargo"
+  status          String    @default("outstanding")  // "outstanding" | "partial" | "repaid"
+
+  // Compliance
+  fiscalYear      Int       @map("fiscal_year")
+  interestRate    Decimal   @default(0) @db.Decimal(5, 4) @map("interest_rate") // Always 0 for Erick's advances
+
+  // Meta
+  createdAt       DateTime  @default(now()) @map("created_at")
+  updatedAt       DateTime  @updatedAt @map("updated_at")
+  createdBy       String?   @map("created_by")
+
+  @@map("founder_advances")
+  @@index([status])
+  @@index([fiscalYear])
+  @@index([date])
+}
+
+// =============================================================================
 // ACCOUNT REGISTRY — Which purchasing accounts belong to farm vs. personal
 // Used by the scanner to flag cross-account purchases automatically.
 // =============================================================================
