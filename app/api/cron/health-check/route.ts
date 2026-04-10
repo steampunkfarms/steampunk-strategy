@@ -10,7 +10,7 @@ import { dispatchHealthAlerts } from '@/lib/alerting';
 
 // see docs/handoffs/_working/20260310-health-check-cron-working-spec.md
 
-const REACHABILITY_TIMEOUT_MS = 8_000;
+const REACHABILITY_TIMEOUT_MS = 15_000; // postest — bumped from 8s on 2026-04-10 to absorb cold-start latency on rescuebarn root
 const STALE_TRANSACTION_DAYS = 14;
 const STALE_CRON_HOURS = 48;
 const STALE_RAISERIGHT_DAYS = parseInt(process.env.STALE_RAISERIGHT_DAYS?.trim() || '45', 10);
@@ -300,7 +300,7 @@ async function checkCredentialHealth(): Promise<CredentialHealthResult> {
             'content-type': 'application/json',
           },
           body: JSON.stringify({ model: 'claude-haiku-4-5-20251001', max_tokens: 1, messages: [{ role: 'user', content: 'ping' }] }),
-          signal: AbortSignal.timeout(5000),
+          signal: AbortSignal.timeout(10_000),
         });
         ok = res.ok;
         if (!ok) error = `HTTP ${res.status}`;
