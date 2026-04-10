@@ -68,6 +68,7 @@ async function runModeA() {
     const unallocated = await prisma.transaction.findMany({
       where: {
         programId: null,
+        functionalClass: null, // Skip already-attempted transactions
         type: 'expense',
         OR: [
           { vendorId: { not: null } },
@@ -107,14 +108,18 @@ async function runModeA() {
         extractedReceipt: { total: Number(tx.amount) },
       });
 
+      // Always update functionalClass (even when programId is null) so the
+      // transaction doesn't re-appear in the next batch. The allocation engine
+      // always returns a functionalClass ('management_general' as fallback).
+      await prisma.transaction.update({
+        where: { id: tx.id },
+        data: {
+          ...(allocation.programId ? { programId: allocation.programId } : {}),
+          functionalClass: allocation.functionalClass,
+        },
+      });
+
       if (allocation.programId) {
-        await prisma.transaction.update({
-          where: { id: tx.id },
-          data: {
-            programId: allocation.programId,
-            functionalClass: allocation.functionalClass,
-          },
-        });
         allocated++;
       }
 
@@ -173,6 +178,7 @@ async function runModeA() {
     const remaining = await prisma.transaction.count({
       where: {
         programId: null,
+        functionalClass: null,
         type: 'expense',
         OR: [{ vendorId: { not: null } }, { categoryId: { not: null } }],
       },
