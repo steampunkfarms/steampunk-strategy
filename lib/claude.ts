@@ -20,8 +20,9 @@ const anthropic = new Anthropic({
 export async function createMessage(
   params: MessageCreateParamsNonStreaming,
   caller: string,
+  options?: { signal?: AbortSignal },
 ) {
-  const response = await anthropic.messages.create(params);
+  const response = await anthropic.messages.create(params, options);
 
   console.log(
     `[Claude] model=${response.model} input=${response.usage.input_tokens} output=${response.usage.output_tokens} caller=${caller}`,

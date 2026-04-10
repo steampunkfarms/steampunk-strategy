@@ -24,8 +24,6 @@ import {
   Server,
   Tags,
   Brain,
-  TrendingUp,
-  Sparkles,
   ScrollText,
   FolderHeart,
   KeyRound,
@@ -43,14 +41,7 @@ const navigation = [
       { name: "Captain's Log", href: '/captains-log', icon: ScrollText },
       { name: 'Monitoring', href: '/monitoring', icon: Activity },
       { name: 'Credentials', href: '/credentials', icon: KeyRound },
-    ],
-  },
-  {
-    label: 'Intelligence',
-    items: [
-      { name: 'Overview', href: '/intelligence', icon: Brain },
-      { name: 'Analytical', href: '/intelligence/analytical', icon: TrendingUp },
-      { name: 'Strategic', href: '/intelligence/strategic', icon: Sparkles },
+      { name: 'Intelligence', href: '/intelligence', icon: Brain },
     ],
   },
   {

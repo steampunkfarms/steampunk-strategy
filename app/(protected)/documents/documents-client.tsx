@@ -60,6 +60,7 @@ export default function DocumentsClient({ documents }: { documents: DocumentRow[
   const [bulkSelected, setBulkSelected] = useState<Set<string>>(new Set());
   const [bulkCreating, setBulkCreating] = useState(false);
   const [bulkResult, setBulkResult] = useState<{ created: number; skipped: number; errors: Array<{ documentId: string; error: string }> } | null>(null);
+  const [retryingId, setRetryingId] = useState<string | null>(null);
 
   // Documents eligible for bulk conversion: parsed, no linked transaction
   const eligibleForBulk = docs.filter(d => d.parseStatus === 'complete' && !d.hasTransaction);
@@ -136,6 +137,33 @@ export default function DocumentsClient({ documents }: { documents: DocumentRow[
       setDeletingId(null);
     }
   }, [selectedDocId]);
+
+  const handleRetryParse = useCallback(async (e: React.MouseEvent, doc: DocumentRow) => {
+    e.stopPropagation();
+    setRetryingId(doc.id);
+    try {
+      const res = await fetch('/api/documents/parse', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ documentId: doc.id }),
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        alert(data.error || 'Retry parse failed');
+        return;
+      }
+      // Update the document with the new parse result
+      setDocs(prev => prev.map(d => 
+        d.id === doc.id 
+          ? { ...d, parseStatus: data.parseStatus || 'processing', confidence: data.confidence ?? null, vendor: data.vendorSlug ? { name: data.vendorSlug, slug: data.vendorSlug } : d.vendor }
+          : d
+      ));
+    } catch {
+      alert('Network error — retry parse failed');
+    } finally {
+      setRetryingId(null);
+    }
+  }, []);
 
   return (
     <>
@@ -271,18 +299,34 @@ export default function DocumentsClient({ documents }: { documents: DocumentRow[
                       {formatDate(doc.uploadedAt)}
                     </td>
                     <td>
-                      <button
-                        type="button"
-                        onClick={(e) => handleDelete(e, doc)}
-                        disabled={deletingId === doc.id}
-                        className="p-1 rounded text-slate-600 hover:text-gauge-red hover:bg-gauge-red/10 transition-colors disabled:opacity-50"
-                        title="Delete document"
-                      >
-                        {deletingId === doc.id
-                          ? <Loader2 className="w-3.5 h-3.5 animate-spin" />
-                          : <Trash2 className="w-3.5 h-3.5" />
-                        }
-                      </button>
+                      <div className="flex items-center gap-1">
+                        {doc.parseStatus === 'failed' && (
+                          <button
+                            type="button"
+                            onClick={(e) => handleRetryParse(e, doc)}
+                            disabled={retryingId === doc.id}
+                            className="p-1 rounded text-brass-warm hover:text-brass-gold hover:bg-brass-warm/10 transition-colors disabled:opacity-50"
+                            title="Retry document parse"
+                          >
+                            {retryingId === doc.id
+                              ? <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                              : <Zap className="w-3.5 h-3.5" />
+                            }
+                          </button>
+                        )}
+                        <button
+                          type="button"
+                          onClick={(e) => handleDelete(e, doc)}
+                          disabled={deletingId === doc.id}
+                          className="p-1 rounded text-slate-600 hover:text-gauge-red hover:bg-gauge-red/10 transition-colors disabled:opacity-50"
+                          title="Delete document"
+                        >
+                          {deletingId === doc.id
+                            ? <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                            : <Trash2 className="w-3.5 h-3.5" />
+                          }
+                        </button>
+                      </div>
                     </td>
                   </tr>
                 );

@@ -101,14 +101,25 @@ export default function TaxHubDashboard({ preps, availableYears }: Props) {
                   <p className="text-sm text-slate-400">{count} transactions</p>
                 </div>
                 {!ezPrep && (
-                  <button
-                    onClick={() => startPrep(year)}
-                    disabled={creating}
-                    className="flex items-center gap-2 px-4 py-2 bg-tardis hover:bg-tardis-light text-white text-sm rounded-lg transition-colors disabled:opacity-50"
-                  >
-                    <Plus className="w-4 h-4" />
-                    Start 990-EZ Prep
-                  </button>
+                  <div className="flex items-center gap-3">
+                    {count > 0 && (
+                      <Link
+                        href={`/tax-hub/${year}`}
+                        className="flex items-center gap-2 px-4 py-2 border border-console-border text-slate-300 hover:text-tardis-glow hover:border-tardis-glow/30 text-sm rounded-lg transition-colors"
+                      >
+                        <FileText className="w-4 h-4" />
+                        View Data
+                      </Link>
+                    )}
+                    <button
+                      onClick={() => startPrep(year)}
+                      disabled={creating}
+                      className="flex items-center gap-2 px-4 py-2 bg-tardis hover:bg-tardis-light text-white text-sm rounded-lg transition-colors disabled:opacity-50"
+                    >
+                      <Plus className="w-4 h-4" />
+                      Start 990-EZ Prep
+                    </button>
+                  </div>
                 )}
                 {ezPrep && (
                   <Link

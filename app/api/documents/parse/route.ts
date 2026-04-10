@@ -120,23 +120,50 @@ export async function POST(request: Request) {
           },
         };
 
-    // Call Claude Vision
-    const response = await createMessage({
-      model: MODEL,
-      max_tokens: 2000,
-      messages: [
-        {
-          role: 'user',
-          content: [
-            contentBlock,
-            {
-              type: 'text',
-              text: RECEIPT_EXTRACTION_PROMPT,
-            },
-          ],
-        },
-      ],
-    }, 'document-parse');
+    // Call Claude Vision with timeout protection (55s < Vercel 60s limit on Hobby)
+    const abortController = new AbortController();
+    const timeoutId = setTimeout(() => abortController.abort(), 55_000);
+
+    let response;
+    try {
+      response = await createMessage({
+        model: MODEL,
+        max_tokens: 2000,
+        messages: [
+          {
+            role: 'user',
+            content: [
+              contentBlock,
+              {
+                type: 'text',
+                text: RECEIPT_EXTRACTION_PROMPT,
+              },
+            ],
+          },
+        ],
+      }, 'document-parse', { signal: abortController.signal });
+    } catch (error) {
+      clearTimeout(timeoutId);
+      
+      // Handle timeout or abort error
+      if (error instanceof Error && (error.name === 'AbortError' || error.message.includes('timeout'))) {
+        await prisma.document.update({
+          where: { id: documentId },
+          data: {
+            parseStatus: 'failed',
+            parseModel: MODEL,
+            extractedText: 'Parse timeout after 55s — Claude Vision call did not complete in time',
+          },
+        });
+        return NextResponse.json(
+          { error: 'Parse timeout — Claude Vision exceeded 55 second limit', recoverable: true },
+          { status: 504 },
+        );
+      }
+      // Re-throw non-timeout errors to be caught by outer catch block
+      throw error;
+    }
+    clearTimeout(timeoutId);
 
     // Extract text from response
     const responseText = response.content
