@@ -107,7 +107,7 @@ export const MONITORED_PROJECTS: MonitoredProject[] = [
     slug: 'rescuebarn',
     name: 'Rescue Barn',
     productionUrl: 'https://rescuebarn.steampunkfarms.org',
-    healthEndpoint: null,
+    healthEndpoint: 'https://rescuebarn.steampunkfarms.org/api/health',
   },
   {
     id: 'prj_3helajMBHMAl3C1cTfePch58gW7Z',

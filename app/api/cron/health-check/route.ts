@@ -92,10 +92,18 @@ function authorize(request: Request): boolean {
 async function checkReachability(): Promise<ReachabilityResult[]> {
   return Promise.all(
     MONITORED_PROJECTS.map(async (project) => {
+      // Prefer the lightweight /api/health endpoint when configured.
+      // Root pages on rich Next.js sites (rescuebarn hero + sanctuary posts,
+      // postmaster dashboards, tardis Azure AD flow) frequently exceed cold-
+      // start budgets on HEAD probes, producing transient false-positive
+      // "unreachable" alerts. /api/health handlers do one indexed query and
+      // return in <1s even cold. Handlers only export GET, so switch methods.
+      const probeUrl = project.healthEndpoint ?? project.productionUrl;
+      const probeMethod: 'GET' | 'HEAD' = project.healthEndpoint ? 'GET' : 'HEAD';
       const start = Date.now();
       try {
-        const res = await fetch(project.productionUrl, {
-          method: 'HEAD',
+        const res = await fetch(probeUrl, {
+          method: probeMethod,
           signal: AbortSignal.timeout(REACHABILITY_TIMEOUT_MS),
           cache: 'no-store',
           redirect: 'follow',
