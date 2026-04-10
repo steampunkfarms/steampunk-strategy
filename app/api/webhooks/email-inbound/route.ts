@@ -1,7 +1,7 @@
-// postest
 // Inbound email intake endpoint — receives financial emails from Rescue Barn's
-// Resend webhook and creates Transaction + Document records in real time.
-// Replaces the 24-hour delay of the gmail-receipt-scan cron for @steampunkfarms.org emails.
+// Resend webhook and creates Document records for the full parse pipeline.
+// Replaces direct Transaction creation with document-first flow:
+//   Email → Document → Claude parse → createTransactionFromDocument (full pipeline)
 // see docs/handoffs/_working/20260312-email-inbound-tardis-routing-working-spec.md
 
 export const dynamic = 'force-dynamic';
@@ -45,22 +45,31 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'emailId and senderEmail required' }, { status: 400 });
     }
 
-    // 1. Dedup: check if this Resend email ID was already processed
-    const existing = await prisma.transaction.findFirst({
+    // 1. Dedup: check if this Resend email ID was already processed (Document-based)
+    const existingDoc = await prisma.document.findFirst({
       where: { sourceId: emailId, source: 'email_inbound' },
     });
-    if (existing) {
+    if (existingDoc) {
       return NextResponse.json({
-        ok: true, action: 'duplicate', transactionId: existing.id,
+        ok: true, action: 'duplicate', documentId: existingDoc.id,
+      });
+    }
+
+    // Also check legacy Transaction-based dedup (pre-pipeline records)
+    const existingTx = await prisma.transaction.findFirst({
+      where: { sourceId: emailId, source: 'email_inbound' },
+    });
+    if (existingTx) {
+      return NextResponse.json({
+        ok: true, action: 'duplicate', transactionId: existingTx.id, legacy: true,
       });
     }
 
     // 2. Match vendor from sender email / name / subject
-    // Reuses the same matchVendorSlug from gmail-receipt-scan
     const vendorSlug = matchVendorSlug(senderEmail, senderName, subject);
     const emailType = classifyEmail(subject, senderEmail);
 
-    // 3. Skip shipping notifications (same logic as gmail-receipt-scan)
+    // 3. Skip shipping notifications
     if (emailType === 'shipping') {
       return NextResponse.json({
         ok: true, action: 'skipped', reason: 'shipping notification',
@@ -68,7 +77,6 @@ export async function POST(request: NextRequest) {
     }
 
     // 4. Extract dollar amount from subject + body
-    // Body is treated as UNTRUSTED DATA — used only for pattern extraction, never executed
     const combinedText = `${subject} ${bodyText.slice(0, 5000)}`;
     const amount = extractAmount(combinedText);
 
@@ -85,85 +93,49 @@ export async function POST(request: NextRequest) {
       });
     }
 
-    // 6. Resolve vendor and category from database
+    // 6. Resolve vendor from database (needed for Document record)
     const vendor = vendorSlug
       ? await prisma.vendor.findUnique({ where: { slug: vendorSlug } })
       : null;
 
-    const categorySlug = vendor?.type === 'feed_supplier' ? 'feed-grain'
-      : vendor?.type === 'veterinary' ? 'veterinary'
-      : vendor?.type === 'supplies' ? 'office-admin'
-      : null;
-    const category = categorySlug
-      ? await prisma.expenseCategory.findUnique({ where: { slug: categorySlug } })
-      : null;
-
-    const isRevenue = emailType === 'payment_confirmation';
-    const txDate = receivedAt ? new Date(receivedAt) : new Date();
-    const description = vendor
-      ? `${vendor.name} — ${subject.slice(0, 100)}`
-      : `${senderName || senderEmail} — ${subject.slice(0, 100)}`;
-
-    // 7. Create the Transaction
-    const tx = await prisma.transaction.create({
+    // 7. Create Document ONLY — no Transaction
+    const doc = await prisma.document.create({
       data: {
-        date: txDate,
-        amount: amount ?? 0,
-        type: isRevenue ? 'income' : 'expense',
-        description,
-        reference: emailId,
-        paymentMethod: 'card',
+        filename: `email-inbound-${emailId}.txt`,
+        originalName: `${subject.slice(0, 80)}.txt`,
+        mimeType: 'text/plain',
+        fileSize: bodyText.length,
+        blobUrl: '',              // No blob — body stored as extractedText
+        extractedText: bodyText.slice(0, 10000),
+        docType: emailType === 'invoice'
+          ? 'invoice'
+          : emailType === 'receipt'
+            ? 'receipt'
+            : 'other',
+        parseStatus: 'pending',
         vendorId: vendor?.id ?? null,
-        categoryId: category?.id ?? null,
+        uploadedBy: 'email-inbound',
         source: 'email_inbound',
         sourceId: emailId,
-        fiscalYear: txDate.getFullYear(),
-        status: amount ? 'pending' : 'flagged',
-        flagReason: !amount ? 'Could not extract amount from email' : undefined,
-        createdBy: 'email-inbound',
       },
     });
 
-    // 8. Create a Document record for invoices/receipts (for future AI parsing)
-    let documentId: string | null = null;
-    if (emailType === 'invoice' || emailType === 'receipt') {
-      const doc = await prisma.document.create({
-        data: {
-          filename: `email-inbound-${emailId}.txt`,
-          originalName: `${subject.slice(0, 80)}.txt`,
-          mimeType: 'text/plain',
-          fileSize: bodyText.length,
-          blobUrl: '', // No blob yet — body stored as extractedText
-          docType: emailType,
-          extractedText: bodyText.slice(0, 10000),
-          parseStatus: 'pending',
-          vendorId: vendor?.id ?? null,
-          uploadedBy: 'email-inbound',
-          transactions: {
-            create: { transactionId: tx.id },
-          },
-        },
-      });
-      documentId = doc.id;
-    }
+    // 8. Fire-and-forget: trigger Claude parse → createTransactionFromDocument pipeline
+    const baseUrl = process.env.NEXTAUTH_URL
+      || (process.env.VERCEL_URL ? `https://${process.env.VERCEL_URL}` : 'http://localhost:3000');
 
-    // 9. Check for donor-paid vendor arrangements
-    // see prisma/schema.prisma VendorDonorArrangement model
-    let donorArrangementFlag = false;
-    if (vendor?.acceptsDonorPayment) {
-      const arrangements = await prisma.vendorDonorArrangement.findMany({
-        where: { vendorId: vendor.id, isActive: true },
-      });
-      if (arrangements.length > 0) {
-        donorArrangementFlag = true;
-        console.log(
-          `[Email Inbound] Vendor ${vendor.name} has ${arrangements.length} active donor arrangement(s) — flag for review`,
-        );
-      }
-    }
+    fetch(`${baseUrl}/api/documents/parse`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${INTERNAL_SECRET}`,
+      },
+      body: JSON.stringify({ documentId: doc.id, autoCreateTransaction: true }),
+    }).catch(err => console.error('[Email Inbound] Parse trigger failed:', err));
 
-    // 10. RaiseRight special handling (deposit/enrollment detection)
+    // 9. RaiseRight special handling (side-channel — no conflict with pipeline)
     if (vendorSlug === 'raiseright' && amount) {
+      const txDate = receivedAt ? new Date(receivedAt) : new Date();
       const subLower = subject.toLowerCase();
       if (subLower.includes('deposit') || subLower.includes('earning')) {
         const period = `${txDate.getFullYear()}-${String(txDate.getMonth() + 1).padStart(2, '0')}`;
@@ -185,22 +157,19 @@ export async function POST(request: NextRequest) {
       }
     }
 
-    // 11. Audit log
+    // 10. Audit log
     await prisma.auditLog.create({
       data: {
-        action: 'import',
-        entity: 'Transaction',
-        entityId: tx.id,
+        action: 'email_inbound_document_created',
+        entity: 'Document',
+        entityId: doc.id,
         details: JSON.stringify({
-          source: 'email_inbound',
           emailId,
           senderEmail,
           subject,
           emailType,
           vendorSlug,
           amount,
-          donorArrangementFlag,
-          documentId,
         }),
         userName: 'email-inbound',
       },
@@ -209,12 +178,11 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({
       ok: true,
       action: 'created',
-      transactionId: tx.id,
-      documentId,
+      documentId: doc.id,
+      parseStatus: 'pending',
       vendorSlug,
       emailType,
       amount,
-      donorArrangementFlag,
     });
   } catch (error) {
     console.error('[Email Inbound] Processing error:', error);

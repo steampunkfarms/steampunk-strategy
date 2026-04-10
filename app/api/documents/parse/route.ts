@@ -4,21 +4,42 @@ import { NextResponse } from 'next/server';
 import Anthropic from '@anthropic-ai/sdk';
 import { createMessage } from '@/lib/claude';
 import { prisma } from '@/lib/prisma';
+import { safeCompare } from '@/lib/safe-compare';
 import { RECEIPT_EXTRACTION_PROMPT, parseExtractionResponse } from '@/lib/receipt-parser';
 import { matchVendorByName } from '@/lib/vendor-match';
 import { runInvoicePipeline } from '@/lib/invoice-pipeline';
+import { createTransactionFromDocument } from '@/lib/create-transaction-from-document';
+import { checkDonorArrangement } from '@/lib/arrangements';
 
 const MODEL = 'claude-sonnet-4-20250514';
 
 /**
  * POST /api/documents/parse
  *
- * Sends a Document's blob to Claude Vision for structured extraction.
- * Body: { documentId: string }
+ * Sends a Document's blob (or text) to Claude for structured extraction.
+ * Body: { documentId: string, autoCreateTransaction?: boolean }
+ *
+ * Auth: NextAuth session (UI) or Bearer INTERNAL_SECRET (internal pipelines).
+ * The middleware handles session auth. For internal callers (email webhook,
+ * gmail cron), INTERNAL_SECRET is checked here as middleware whitelists /api/cron
+ * but not this route.
  */
 export async function POST(request: Request) {
   try {
-    const { documentId } = await request.json();
+    // Clone request for potential error-path re-read
+    const clonedRequest = request.clone();
+    const body = await request.json();
+    const { documentId, autoCreateTransaction } = body;
+
+    // Internal auth check — if called with INTERNAL_SECRET, skip session requirement
+    // (session auth is handled by middleware for browser requests)
+    if (autoCreateTransaction) {
+      const authHeader = request.headers.get('authorization');
+      const secret = process.env.INTERNAL_SECRET?.trim();
+      if (!secret || !authHeader || !safeCompare(authHeader, `Bearer ${secret}`)) {
+        return NextResponse.json({ error: 'autoCreateTransaction requires INTERNAL_SECRET' }, { status: 401 });
+      }
+    }
 
     if (!documentId) {
       return NextResponse.json({ error: 'documentId is required' }, { status: 400 });
@@ -59,6 +80,17 @@ export async function POST(request: Request) {
           })
         : null;
 
+      // If already parsed but no transaction, and autoCreateTransaction is requested, create one
+      if (autoCreateTransaction && !txDoc) {
+        try {
+          const overrides = await buildDonorOverrides(doc.vendorId, doc.extractedData);
+          const result = await createTransactionFromDocument(doc.id, overrides);
+          console.log(`[Parse] Auto-created transaction ${result.transactionId} from already-parsed document ${doc.id}`);
+        } catch (err) {
+          console.error(`[Parse] Auto-create transaction failed for already-parsed ${doc.id}:`, err);
+        }
+      }
+
       return NextResponse.json({
         documentId: doc.id,
         extractedData: doc.extractedData ? JSON.parse(doc.extractedData) : null,
@@ -83,93 +115,137 @@ export async function POST(request: Request) {
       data: { parseStatus: 'processing' },
     });
 
-    // Fetch the blob content
-    const blobResponse = await fetch(doc.blobUrl);
-    if (!blobResponse.ok) {
-      await prisma.document.update({
-        where: { id: documentId },
-        data: { parseStatus: 'failed' },
-      });
-      return NextResponse.json({ error: 'Failed to fetch blob content' }, { status: 502 });
-    }
+    // Determine parse path: blob (image/PDF) or text-only (email body)
+    const isTextOnly = !doc.blobUrl && doc.extractedText;
 
-    const blobBuffer = await blobResponse.arrayBuffer();
-    const base64 = Buffer.from(blobBuffer).toString('base64');
+    let responseText: string;
 
-    // Determine media type for Claude
-    const mediaType = doc.mimeType === 'application/pdf'
-      ? 'application/pdf' as const
-      : doc.mimeType as 'image/jpeg' | 'image/png' | 'image/webp' | 'image/gif';
+    if (isTextOnly) {
+      // ── Text-only parse path (email-sourced documents) ──
+      const abortController = new AbortController();
+      const timeoutId = setTimeout(() => abortController.abort(), 55_000);
 
-    // Build the content block
-    const contentBlock = doc.mimeType === 'application/pdf'
-      ? {
-          type: 'document' as const,
-          source: {
-            type: 'base64' as const,
-            media_type: 'application/pdf' as const,
-            data: base64,
-          },
+      try {
+        const response = await createMessage({
+          model: MODEL,
+          max_tokens: 2000,
+          messages: [
+            {
+              role: 'user',
+              content: `${RECEIPT_EXTRACTION_PROMPT}\n\n--- DOCUMENT TEXT ---\n${doc.extractedText!.slice(0, 8000)}`,
+            },
+          ],
+        }, 'document-parse-text', { signal: abortController.signal });
+
+        clearTimeout(timeoutId);
+
+        responseText = response.content
+          .filter((block): block is Anthropic.TextBlock => block.type === 'text')
+          .map((block) => block.text)
+          .join('');
+      } catch (error) {
+        clearTimeout(timeoutId);
+        if (error instanceof Error && (error.name === 'AbortError' || error.message.includes('timeout'))) {
+          await prisma.document.update({
+            where: { id: documentId },
+            data: {
+              parseStatus: 'failed',
+              parseModel: MODEL,
+              extractedText: doc.extractedText, // Preserve original text
+            },
+          });
+          return NextResponse.json(
+            { error: 'Parse timeout — Claude text extraction exceeded 55s limit', recoverable: true },
+            { status: 504 },
+          );
         }
-      : {
-          type: 'image' as const,
-          source: {
-            type: 'base64' as const,
-            media_type: mediaType as 'image/jpeg' | 'image/png' | 'image/webp' | 'image/gif',
-            data: base64,
-          },
-        };
-
-    // Call Claude Vision with timeout protection (55s < Vercel 60s limit on Hobby)
-    const abortController = new AbortController();
-    const timeoutId = setTimeout(() => abortController.abort(), 55_000);
-
-    let response;
-    try {
-      response = await createMessage({
-        model: MODEL,
-        max_tokens: 2000,
-        messages: [
-          {
-            role: 'user',
-            content: [
-              contentBlock,
-              {
-                type: 'text',
-                text: RECEIPT_EXTRACTION_PROMPT,
-              },
-            ],
-          },
-        ],
-      }, 'document-parse', { signal: abortController.signal });
-    } catch (error) {
-      clearTimeout(timeoutId);
-      
-      // Handle timeout or abort error
-      if (error instanceof Error && (error.name === 'AbortError' || error.message.includes('timeout'))) {
+        throw error;
+      }
+    } else {
+      // ── Blob parse path (image/PDF documents — existing behavior) ──
+      const blobResponse = await fetch(doc.blobUrl);
+      if (!blobResponse.ok) {
         await prisma.document.update({
           where: { id: documentId },
-          data: {
-            parseStatus: 'failed',
-            parseModel: MODEL,
-            extractedText: 'Parse timeout after 55s — Claude Vision call did not complete in time',
-          },
+          data: { parseStatus: 'failed' },
         });
-        return NextResponse.json(
-          { error: 'Parse timeout — Claude Vision exceeded 55 second limit', recoverable: true },
-          { status: 504 },
-        );
+        return NextResponse.json({ error: 'Failed to fetch blob content' }, { status: 502 });
       }
-      // Re-throw non-timeout errors to be caught by outer catch block
-      throw error;
-    }
-    clearTimeout(timeoutId);
 
-    // Extract text from response
-    const responseText = response.content
-      .filter((block): block is Anthropic.TextBlock => block.type === 'text')
-      .map((block) => block.text)
-      .join('');
+      const blobBuffer = await blobResponse.arrayBuffer();
+      const base64 = Buffer.from(blobBuffer).toString('base64');
+
+      const mediaType = doc.mimeType === 'application/pdf'
+        ? 'application/pdf' as const
+        : doc.mimeType as 'image/jpeg' | 'image/png' | 'image/webp' | 'image/gif';
+
+      const contentBlock = doc.mimeType === 'application/pdf'
+        ? {
+            type: 'document' as const,
+            source: {
+              type: 'base64' as const,
+              media_type: 'application/pdf' as const,
+              data: base64,
+            },
+          }
+        : {
+            type: 'image' as const,
+            source: {
+              type: 'base64' as const,
+              media_type: mediaType as 'image/jpeg' | 'image/png' | 'image/webp' | 'image/gif',
+              data: base64,
+            },
+          };
+
+      const abortController = new AbortController();
+      const timeoutId = setTimeout(() => abortController.abort(), 55_000);
+
+      let response;
+      try {
+        response = await createMessage({
+          model: MODEL,
+          max_tokens: 2000,
+          messages: [
+            {
+              role: 'user',
+              content: [
+                contentBlock,
+                {
+                  type: 'text',
+                  text: RECEIPT_EXTRACTION_PROMPT,
+                },
+              ],
+            },
+          ],
+        }, 'document-parse', { signal: abortController.signal });
+      } catch (error) {
+        clearTimeout(timeoutId);
+
+        if (error instanceof Error && (error.name === 'AbortError' || error.message.includes('timeout'))) {
+          await prisma.document.update({
+            where: { id: documentId },
+            data: {
+              parseStatus: 'failed',
+              parseModel: MODEL,
+              extractedText: 'Parse timeout after 55s — Claude Vision call did not complete in time',
+            },
+          });
+          return NextResponse.json(
+            { error: 'Parse timeout — Claude Vision exceeded 55 second limit', recoverable: true },
+            { status: 504 },
+          );
+        }
+        throw error;
+      }
+      clearTimeout(timeoutId);
+
+      responseText = response.content
+        .filter((block): block is Anthropic.TextBlock => block.type === 'text')
+        .map((block) => block.text)
+        .join('');
+    }
+
+    // ── Common post-parse logic (both paths converge here) ──
 
     const extracted = parseExtractionResponse(responseText);
 
@@ -215,8 +291,7 @@ export async function POST(request: Request) {
       },
     });
 
-    // Extract line items and promote to CostTracker (non-blocking — logs errors but won't fail parse)
-    // see HANDOFF-tardis-invoice-costtracker-pipeline.md#step-5
+    // Extract line items and promote to CostTracker (non-blocking)
     let pipelineResult = null;
     if (extracted.lineItems?.length || doc.docType === 'invoice' || extracted.documentType === 'invoice') {
       const invoiceDate = extracted.date ? new Date(extracted.date) : null;
@@ -240,6 +315,7 @@ export async function POST(request: Request) {
           vendor: extracted.vendor?.name,
           total: extracted.total,
           lineItems: extracted.lineItems?.length ?? 0,
+          textOnly: !!isTextOnly,
           pipeline: pipelineResult ? {
             extracted: pipelineResult.extracted,
             promoted: pipelineResult.promoted,
@@ -249,12 +325,28 @@ export async function POST(request: Request) {
       },
     });
 
+    // ── Auto-create transaction from parsed document ──
+    let autoCreatedTransactionId: string | null = null;
+    if (autoCreateTransaction) {
+      try {
+        const overrides = await buildDonorOverrides(vendorId, JSON.stringify(extracted));
+        const result = await createTransactionFromDocument(documentId, overrides);
+        autoCreatedTransactionId = result.transactionId;
+        console.log(`[Parse] Auto-created transaction ${result.transactionId} from document ${documentId}`);
+      } catch (err) {
+        // Don't fail the parse — log and allow manual recovery
+        console.error(`[Parse] Auto-create transaction failed for ${documentId}:`, err);
+      }
+    }
+
     return NextResponse.json({
       documentId: doc.id,
       extractedData: extracted,
       confidence: extracted.confidence,
       vendorMatched: !!vendorId,
       vendorSlug,
+      parseStatus: 'complete',
+      ...(autoCreatedTransactionId ? { transactionId: autoCreatedTransactionId } : {}),
     });
   } catch (error) {
     console.error('[Document Parse] Error:', error);
@@ -275,4 +367,37 @@ export async function POST(request: Request) {
       { status: 500 },
     );
   }
+}
+
+/**
+ * Build CreateTransactionOverrides with donor arrangement detection.
+ * Uses checkDonorArrangement from lib/arrangements.ts for period gating.
+ */
+async function buildDonorOverrides(
+  vendorId: string | null,
+  extractedDataJson: string | null,
+): Promise<Record<string, unknown>> {
+  if (!vendorId) return {};
+
+  try {
+    const check = await checkDonorArrangement(
+      vendorId,
+      new Date(),
+      extractedDataJson ? (JSON.parse(extractedDataJson).total ?? 0) : 0,
+    );
+
+    if (check.hasArrangement && check.appliesThisInvoice && check.arrangement && check.split) {
+      return {
+        donorPaid: {
+          donorName: check.arrangement.donorName,
+          amount: check.split.donorPortion,
+          donorEmail: check.arrangement.donorEmail ?? undefined,
+        },
+      };
+    }
+  } catch (err) {
+    console.error(`[Parse] Donor arrangement check failed for vendor ${vendorId}:`, err);
+  }
+
+  return {};
 }

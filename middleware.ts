@@ -21,6 +21,16 @@ export async function middleware(request: NextRequest) {
     return NextResponse.next();
   }
 
+  // Internal service auth — routes that accept INTERNAL_SECRET for pipeline calls
+  if (pathname.startsWith('/api/documents/parse')) {
+    const authHeader = request.headers.get('authorization');
+    const secret = process.env.INTERNAL_SECRET?.trim();
+    if (secret && authHeader && authHeader === `Bearer ${secret}`) {
+      return NextResponse.next();
+    }
+    // Fall through to session check for UI calls
+  }
+
   const token = await getToken({
     req: request,
     secret: process.env.NEXTAUTH_SECRET,

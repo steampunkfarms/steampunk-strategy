@@ -27,7 +27,7 @@ export const dynamic = 'force-dynamic';
 export const maxDuration = 60; // Vercel Pro: 60s max for cron
 
 interface ScanResult {
-  imported: Array<{ date: string; vendor: string; amount: number; description: string }>;
+  imported: Array<{ date: string; vendor: string; documentId: string; description: string }>;
   skipped: Array<{ messageId: string; reason: string }>;
   errors: Array<{ messageId: string; error: string }>;
   scannedCount: number;
@@ -76,9 +76,30 @@ export async function GET(request: Request) {
 
     result.scannedCount = messageIds.size;
 
-    // Process each unique message
+    // Base URL for fire-and-forget parse triggers
+    const baseUrl = process.env.NEXTAUTH_URL
+      || (process.env.VERCEL_URL ? `https://${process.env.VERCEL_URL}` : 'http://localhost:3000');
+    const internalSecret = process.env.INTERNAL_SECRET?.trim();
+
+    // Process each unique message — document-first flow
     for (const messageId of messageIds) {
       try {
+        // Dedup: check Document.sourceId first (new pipeline)
+        const existingDoc = await prisma.document.findFirst({
+          where: { sourceId: messageId, source: 'gmail_scan' },
+        });
+        if (existingDoc) {
+          result.skipped.push({ messageId, reason: 'duplicate (document)' });
+          continue;
+        }
+
+        // Also check legacy Transaction-based dedup (pre-pipeline records)
+        const duplicate = await isDuplicate(messageId, null, '', null);
+        if (duplicate) {
+          result.skipped.push({ messageId, reason: 'duplicate (legacy)' });
+          continue;
+        }
+
         const msgRes = await gmail.users.messages.get({
           userId: 'me',
           id: messageId,
@@ -94,7 +115,7 @@ export async function GET(request: Request) {
         const headers = parseEmailHeaders(msg.payload.headers as Array<{ name: string; value: string }>);
         const emailType = classifyEmail(headers.subject, headers.senderEmail);
 
-        // Skip shipping notifications and unknowns without amounts
+        // Skip shipping notifications
         if (emailType === 'shipping') {
           result.skipped.push({ messageId, reason: 'shipping notification' });
           continue;
@@ -119,89 +140,58 @@ export async function GET(request: Request) {
         // Match vendor
         const vendorSlug = matchVendorSlug(headers.senderEmail, headers.senderName, headers.subject);
 
-        // Amazon: skip personal purchases (card 9785 only, no gift card = personal)
+        // Amazon: skip personal purchases
         if (vendorSlug === 'amazon' && isAmazonPersonal(bodyText)) {
           result.skipped.push({ messageId, reason: 'amazon personal (card 9785, no gift card)' });
           continue;
         }
 
-        // Check for duplicates
-        const duplicate = await isDuplicate(messageId, vendorSlug, headers.date, amount);
-        if (duplicate) {
-          result.skipped.push({ messageId, reason: 'duplicate' });
-          continue;
-        }
-
-        // Check for attachments
-        const hasAttachment = msg.payload.parts?.some(p => p.filename && p.filename.length > 0) ?? false;
-        const attachment = msg.payload.parts?.find(p => p.filename && p.filename.length > 0);
-
-        // Resolve vendor and category from database
+        // Resolve vendor from database
         const vendor = vendorSlug
           ? await prisma.vendor.findUnique({ where: { slug: vendorSlug } })
           : null;
 
-        const categorySlug = vendor?.type === 'feed_supplier' ? 'feed-grain'
-          : vendor?.type === 'veterinary' ? 'veterinary'
-          : vendor?.type === 'supplies' ? 'office-admin'
-          : null;
-        const category = categorySlug
-          ? await prisma.expenseCategory.findUnique({ where: { slug: categorySlug } })
-          : null;
-
-        const isRevenue = emailType === 'payment_confirmation';
         const txDate = new Date(headers.date);
-
-        // Create the transaction
         const description = vendor
           ? `${vendor.name} — ${headers.subject.slice(0, 100)}`
           : headers.subject.slice(0, 200);
 
-        const tx = await prisma.transaction.create({
+        // Create Document ONLY — no Transaction
+        const doc = await prisma.document.create({
           data: {
-            date: txDate,
-            amount: amount ?? 0,
-            type: isRevenue ? 'income' : 'expense',
-            description,
-            reference: messageId,
-            paymentMethod: 'card',
+            filename: `gmail-scan-${messageId}.txt`,
+            originalName: `${headers.subject.slice(0, 80)}.txt`,
+            mimeType: 'text/plain',
+            fileSize: bodyText.length,
+            blobUrl: '',
+            extractedText: bodyText.slice(0, 10000),
+            docType: emailType === 'invoice' ? 'invoice' : 'receipt',
+            parseStatus: 'pending',
             vendorId: vendor?.id ?? null,
-            categoryId: category?.id ?? null,
+            uploadedBy: 'gmail-scanner',
             source: 'gmail_scan',
             sourceId: messageId,
-            fiscalYear: txDate.getFullYear(),
-            status: amount ? 'pending' : 'flagged',
-            flagReason: !amount ? 'Could not extract amount from email' : undefined,
-            createdBy: 'gmail-scanner',
           },
         });
 
-        // Create document record for attachments
-        if (hasAttachment && attachment?.filename) {
-          await prisma.document.create({
-            data: {
-              filename: `gmail-${messageId}-${attachment.filename}`,
-              originalName: attachment.filename,
-              mimeType: attachment.mimeType ?? 'application/octet-stream',
-              fileSize: parseInt(attachment.body?.size?.toString() ?? '0', 10),
-              blobUrl: '', // Will be populated when attachment is downloaded
-              docType: emailType === 'invoice' ? 'invoice' : 'receipt',
-              parseStatus: 'pending',
-              vendorId: vendor?.id ?? null,
-              uploadedBy: 'gmail-scanner',
-              transactions: {
-                create: { transactionId: tx.id },
-              },
+        // Fire-and-forget parse trigger (do NOT await — cron processes 50+ messages)
+        if (internalSecret) {
+          fetch(`${baseUrl}/api/documents/parse`, {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              'Authorization': `Bearer ${internalSecret}`,
             },
-          });
+            body: JSON.stringify({ documentId: doc.id, autoCreateTransaction: true }),
+          }).catch(err => console.error(`[Gmail Scan] Parse trigger failed for ${doc.id}:`, err));
         }
 
         // Audit log
         await prisma.auditLog.create({
           data: {
-            action: 'import',
-            entity: 'Transaction',
-            entityId: tx.id,
+            action: 'gmail_scan_document_created',
+            entity: 'Document',
+            entityId: doc.id,
             details: JSON.stringify({
               source: 'gmail_scan',
               messageId,
@@ -209,7 +199,7 @@ export async function GET(request: Request) {
               subject: headers.subject,
               emailType,
               vendorSlug,
-              hasAttachment,
+              amount,
             }),
             userName: 'gmail-scanner',
           },
@@ -218,16 +208,11 @@ export async function GET(request: Request) {
         result.imported.push({
           date: txDate.toISOString().split('T')[0],
           vendor: vendor?.name ?? `Unknown (${headers.senderEmail})`,
-          amount: amount ?? 0,
+          documentId: doc.id,
           description: description.slice(0, 80),
         });
 
-        // Flag Star Milling invoices for Ironwood arrangement check
-        if (vendorSlug === 'star-milling' && !isRevenue) {
-          console.log(`[Gmail Scan] Star Milling invoice detected — check Ironwood arrangement for ${txDate.toISOString().split('T')[0]}, amount: ${amount}`);
-        }
-
-        // RaiseRight: also create deposit/enrollment records
+        // RaiseRight: also create deposit/enrollment records (side-channel)
         if (vendorSlug === 'raiseright') {
           const subLower = headers.subject.toLowerCase();
           if ((subLower.includes('deposit') || subLower.includes('earning')) && amount) {
@@ -259,7 +244,7 @@ export async function GET(request: Request) {
       }
     }
 
-    // ── Compliance Notice Scanning ────────────────────────────────────────
+    // ── Compliance Notice Scanning (unchanged) ────────────────────────────
     const complianceResults: ComplianceNotice[] = [];
     const complianceMessageIds = new Set<string>();
 
