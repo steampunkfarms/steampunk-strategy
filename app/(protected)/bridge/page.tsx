@@ -24,13 +24,59 @@ import {
   ScanLine,
   FileEdit,
   Scale,
+  Activity,
 } from 'lucide-react';
 import { getBridgeStats, getComplianceTimeline, getTransparencySummary, getOperationsQueue } from '@/lib/queries';
 import { prisma } from '@/lib/prisma';
 import { formatCurrency, formatDate } from '@/lib/utils';
 
+// Phase 20 integrity digest — fetched from TARDIS self to avoid duplicating
+// the orchestrator wrapper-parsing logic. Falls back to null on failure so
+// the Bridge degrades gracefully when ORCHESTRATOR_URL is unset.
+// see app/api/integrity-digest/route.ts
+type IntegrityProbe = {
+  pipeline: string;
+  status: 'flowing' | 'stale' | 'empty' | 'error';
+  lastActivity: string | null;
+  details: string;
+  checkedAt: string;
+};
+
+type IntegrityDigest = {
+  latest: {
+    id: string;
+    status: string;
+    durationMs: number;
+    createdAt: string;
+    details: {
+      probes?: IntegrityProbe[];
+      checkedAt?: string;
+      summary?: {
+        total: number;
+        flowing: number;
+        stale: number;
+        empty: number;
+        error: number;
+      };
+    };
+  } | null;
+};
+
+async function fetchIntegrityDigest(): Promise<IntegrityDigest | null> {
+  try {
+    const base = process.env.NEXT_PUBLIC_APP_URL?.trim() ?? 'https://tardis.steampunkstudiolo.org';
+    const res = await fetch(`${base}/api/integrity-digest`, {
+      next: { revalidate: 300 },
+    });
+    if (!res.ok) return null;
+    return (await res.json()) as IntegrityDigest;
+  } catch {
+    return null;
+  }
+}
+
 export default async function BridgeDashboard() {
-  const [stats, compliance, transparency, urgentLogEntries, credentialAlerts, opsQueue] = await Promise.all([
+  const [stats, compliance, transparency, urgentLogEntries, credentialAlerts, opsQueue, integrityDigest] = await Promise.all([
     getBridgeStats(),
     getComplianceTimeline(),
     getTransparencySummary(),
@@ -61,7 +107,11 @@ export default async function BridgeDashboard() {
       return { total: creds.length, expired, expiringSoon, verifyFailed, hasIssues: expired + expiringSoon + verifyFailed > 0 };
     })(),
     getOperationsQueue(),
+    fetchIntegrityDigest(),
   ]);
+
+  const integrityProbes: IntegrityProbe[] = integrityDigest?.latest?.details?.probes ?? [];
+  const integrityCheckedAt = integrityDigest?.latest?.details?.checkedAt ?? integrityDigest?.latest?.createdAt ?? null;
 
   const pendingStatus = stats.pendingExpenses === 0 ? 'green' : stats.pendingExpenses > 10 ? 'red' : 'amber';
   const docStatus = stats.unprocessedDocs === 0 ? 'green' : 'amber';
@@ -274,6 +324,98 @@ export default async function BridgeDashboard() {
             ))}
           </div>
         </div>
+      </div>
+
+      {/* System Integrity — orchestrator Phase 20 pipeline probes */}
+      <div className="console-card">
+        <div className="px-5 py-4 border-b border-console-border flex items-center justify-between">
+          <h2 className="text-sm font-semibold text-slate-200 flex items-center gap-2">
+            <Activity className="w-4 h-4 text-brass-gold" />
+            System Integrity
+          </h2>
+          {integrityProbes.length > 0 ? (
+            <div className="flex items-center gap-2 text-[10px] text-slate-500">
+              {integrityDigest?.latest?.details?.summary && (
+                <>
+                  {integrityDigest.latest.details.summary.flowing > 0 && (
+                    <span className="badge badge-green">{integrityDigest.latest.details.summary.flowing} flowing</span>
+                  )}
+                  {integrityDigest.latest.details.summary.stale > 0 && (
+                    <span className="badge badge-amber">{integrityDigest.latest.details.summary.stale} stale</span>
+                  )}
+                  {integrityDigest.latest.details.summary.empty > 0 && (
+                    <span className="badge badge-red">{integrityDigest.latest.details.summary.empty} empty</span>
+                  )}
+                  {integrityDigest.latest.details.summary.error > 0 && (
+                    <span className="badge badge-red">{integrityDigest.latest.details.summary.error} error</span>
+                  )}
+                </>
+              )}
+            </div>
+          ) : (
+            <span className="badge badge-blue">No data yet</span>
+          )}
+        </div>
+        {integrityProbes.length > 0 ? (
+          <div className="p-5 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-3">
+            {integrityProbes.map((probe) => {
+              const dotColor =
+                probe.status === 'flowing'
+                  ? 'green'
+                  : probe.status === 'stale'
+                  ? 'amber'
+                  : 'red';
+              const badgeClass =
+                probe.status === 'flowing'
+                  ? 'badge-green'
+                  : probe.status === 'stale'
+                  ? 'badge-amber'
+                  : 'badge-red';
+              return (
+                <div
+                  key={probe.pipeline}
+                  className="border border-console-border rounded-lg p-3 hover:bg-console-hover transition-colors"
+                >
+                  <div className="flex items-center justify-between mb-2">
+                    <div className="flex items-center gap-2 min-w-0">
+                      <div className={`gauge-dot gauge-dot-${dotColor} flex-shrink-0`} />
+                      <span className="text-sm font-medium text-slate-200 truncate capitalize">
+                        {probe.pipeline.replace(/-/g, ' ')}
+                      </span>
+                    </div>
+                    <span className={`badge text-[10px] ${badgeClass}`}>{probe.status}</span>
+                  </div>
+                  <p className="text-[11px] text-slate-500 leading-tight line-clamp-2">
+                    {probe.details}
+                  </p>
+                  {probe.lastActivity && (
+                    <p className="text-[10px] text-slate-600 mt-1 font-mono">
+                      {new Date(probe.lastActivity).toLocaleDateString('en-US', {
+                        month: 'short',
+                        day: 'numeric',
+                        year: 'numeric',
+                      })}
+                    </p>
+                  )}
+                </div>
+              );
+            })}
+          </div>
+        ) : (
+          <div className="p-5 text-center">
+            <Activity className="w-8 h-8 text-slate-600 mx-auto mb-2" />
+            <p className="text-sm text-slate-400">
+              No integrity data yet. Phase 20 runs daily as part of the orchestrator sweep.
+            </p>
+          </div>
+        )}
+        {integrityCheckedAt && (
+          <div className="px-5 py-3 border-t border-console-border">
+            <p className="text-[10px] text-slate-500">
+              Last checked: {new Date(integrityCheckedAt).toLocaleString()}
+            </p>
+          </div>
+        )}
       </div>
 
       {/* Captain's Log Widget */}
