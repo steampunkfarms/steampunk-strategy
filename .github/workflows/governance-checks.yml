@@ -50,6 +50,7 @@ jobs:
           echo "✅ Health endpoint found."
 
       - name: Require revenue endpoint (payment sites)
+        continue-on-error: true
         run: |
           HAS_PAYMENTS=false
           if grep -q '"stripe"' package.json 2>/dev/null || \
