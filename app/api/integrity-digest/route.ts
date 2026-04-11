@@ -1,8 +1,9 @@
 // GET /api/integrity-digest
 // Bridge widget data source. Fetches the most recent orchestrator
-// Phase 20 run (pipeline-integrity-check) from the orchestrator's
-// job-history endpoint and unwraps it so the Bridge can render the
-// probe cards without knowing the orchestrator's wrapper schema.
+// Phase 20 (pipeline-integrity-check) AND Phase 21 (contract-validator)
+// runs from the orchestrator's job-history endpoint, in parallel, and
+// unwraps each so the Bridge can render probe + contract cards without
+// knowing the orchestrator's wrapper schema.
 //
 // Orchestrator route:
 //   /api/jobs/[jobName]/history → { executions: [...], stats7d, ... }
@@ -10,6 +11,7 @@
 // route has no auth check.
 //
 // see docs/handoffs/_working/20260410-cross-repo-integrity-phase-a-working-spec.md
+// see docs/handoffs/_working/20260410-cross-repo-integrity-phase-b-working-spec.md
 // see steampunk-orchestrator/src/app/api/jobs/[jobName]/history/route.ts
 
 export const dynamic = 'force-dynamic';
@@ -17,6 +19,36 @@ export const dynamic = 'force-dynamic';
 import { NextResponse } from 'next/server';
 
 const ORCHESTRATOR_URL = process.env.ORCHESTRATOR_URL?.trim() ?? '';
+
+type JobHistoryResponse = {
+  executions?: Array<{
+    id: string;
+    status: string;
+    durationMs: number;
+    details: unknown;
+    createdAt: string;
+  }>;
+};
+
+async function fetchLatestExecution(jobName: string) {
+  if (!ORCHESTRATOR_URL) return null;
+  try {
+    const res = await fetch(
+      `${ORCHESTRATOR_URL}/api/jobs/${jobName}/history`,
+      {
+        next: { revalidate: 300 }, // 5 min cache
+        signal: AbortSignal.timeout(10_000),
+      },
+    );
+    if (!res.ok) return null;
+    const data = (await res.json()) as JobHistoryResponse;
+    return Array.isArray(data?.executions) && data.executions.length > 0
+      ? data.executions[0]
+      : null;
+  } catch {
+    return null;
+  }
+}
 
 export async function GET() {
   if (!ORCHESTRATOR_URL) {
@@ -26,47 +58,18 @@ export async function GET() {
     );
   }
 
-  try {
-    const res = await fetch(
-      `${ORCHESTRATOR_URL}/api/jobs/pipeline-integrity-check/history`,
-      {
-        next: { revalidate: 300 }, // 5 min cache — probes run daily
-        signal: AbortSignal.timeout(10_000),
-      },
-    );
+  // Fetch both Phase 20 (daily) and Phase 21 (Monday-only) job histories
+  // in parallel. Both are nullable so the Bridge can render whichever
+  // half has data.
+  const [pipelines, contracts] = await Promise.all([
+    fetchLatestExecution('pipeline-integrity-check'),
+    fetchLatestExecution('contract-validator'),
+  ]);
 
-    if (!res.ok) {
-      return NextResponse.json(
-        { error: `Orchestrator returned ${res.status}` },
-        { status: 502 },
-      );
-    }
-
-    const data = (await res.json()) as {
-      executions?: Array<{
-        id: string;
-        status: string;
-        durationMs: number;
-        details: unknown;
-        createdAt: string;
-      }>;
-    };
-
-    const latest =
-      Array.isArray(data?.executions) && data.executions.length > 0
-        ? data.executions[0]
-        : null;
-
-    return NextResponse.json({
-      latest,
-      fetchedAt: new Date().toISOString(),
-    });
-  } catch (err) {
-    console.error('[integrity-digest]', err);
-    return NextResponse.json(
-      { error: 'Failed to fetch from orchestrator' },
-      { status: 502 },
-    );
-  }
+  return NextResponse.json({
+    pipelines,
+    contracts,
+    fetchedAt: new Date().toISOString(),
+  });
 }
 // postest

@@ -30,9 +30,9 @@ import { getBridgeStats, getComplianceTimeline, getTransparencySummary, getOpera
 import { prisma } from '@/lib/prisma';
 import { formatCurrency, formatDate } from '@/lib/utils';
 
-// Phase 20 integrity digest — fetched from TARDIS self to avoid duplicating
-// the orchestrator wrapper-parsing logic. Falls back to null on failure so
-// the Bridge degrades gracefully when ORCHESTRATOR_URL is unset.
+// Phase 20 + Phase 21 integrity digest — fetched from TARDIS self to avoid
+// duplicating the orchestrator wrapper-parsing logic. Falls back to null on
+// failure so the Bridge degrades gracefully when ORCHESTRATOR_URL is unset.
 // see app/api/integrity-digest/route.ts
 type IntegrityProbe = {
   pipeline: string;
@@ -42,24 +42,60 @@ type IntegrityProbe = {
   checkedAt: string;
 };
 
+type ContractMatch =
+  | 'valid'
+  | 'degraded'
+  | 'empty'
+  | 'empty_but_valid'
+  | 'shape_mismatch'
+  | 'period_mismatch'
+  | 'auth_failure'
+  | 'unreachable'
+  | 'delayed'
+  | 'stale'
+  | 'on_schedule'
+  | 'error'
+  | 'unexpected';
+
+type IntegrityContract = {
+  contract: string;
+  producer: { url: string; status: string; dataSummary: string };
+  consumer: { description: string; status: string; dataSummary: string };
+  match: ContractMatch;
+  driftDetails: string | null;
+};
+
+type ExecutionRow<TDetails> = {
+  id: string;
+  status: string;
+  durationMs: number;
+  createdAt: string;
+  details: TDetails;
+};
+
 type IntegrityDigest = {
-  latest: {
-    id: string;
-    status: string;
-    durationMs: number;
-    createdAt: string;
-    details: {
-      probes?: IntegrityProbe[];
-      checkedAt?: string;
-      summary?: {
-        total: number;
-        flowing: number;
-        stale: number;
-        empty: number;
-        error: number;
-      };
+  pipelines: ExecutionRow<{
+    probes?: IntegrityProbe[];
+    checkedAt?: string;
+    summary?: {
+      total: number;
+      flowing: number;
+      stale: number;
+      empty: number;
+      error: number;
     };
-  } | null;
+  }> | null;
+  contracts: ExecutionRow<{
+    contracts?: IntegrityContract[];
+    checkedAt?: string;
+    summary?: {
+      total: number;
+      valid: number;
+      warnings: number;
+      failures: number;
+    };
+  }> | null;
+  fetchedAt: string;
 };
 
 async function fetchIntegrityDigest(): Promise<IntegrityDigest | null> {
@@ -73,6 +109,14 @@ async function fetchIntegrityDigest(): Promise<IntegrityDigest | null> {
   } catch {
     return null;
   }
+}
+
+// Group contract match values into the same green/amber/red triage the
+// pipeline probes use. Keeps both Bridge sections visually consistent.
+function contractColor(match: ContractMatch): 'green' | 'amber' | 'red' {
+  if (match === 'valid' || match === 'on_schedule') return 'green';
+  if (match === 'degraded' || match === 'delayed' || match === 'empty_but_valid') return 'amber';
+  return 'red';
 }
 
 export default async function BridgeDashboard() {
@@ -110,8 +154,14 @@ export default async function BridgeDashboard() {
     fetchIntegrityDigest(),
   ]);
 
-  const integrityProbes: IntegrityProbe[] = integrityDigest?.latest?.details?.probes ?? [];
-  const integrityCheckedAt = integrityDigest?.latest?.details?.checkedAt ?? integrityDigest?.latest?.createdAt ?? null;
+  const integrityProbes: IntegrityProbe[] = integrityDigest?.pipelines?.details?.probes ?? [];
+  const integrityCheckedAt =
+    integrityDigest?.pipelines?.details?.checkedAt ?? integrityDigest?.pipelines?.createdAt ?? null;
+  const pipelineSummary = integrityDigest?.pipelines?.details?.summary;
+  const integrityContracts: IntegrityContract[] = integrityDigest?.contracts?.details?.contracts ?? [];
+  const contractsCheckedAt =
+    integrityDigest?.contracts?.details?.checkedAt ?? integrityDigest?.contracts?.createdAt ?? null;
+  const contractsSummary = integrityDigest?.contracts?.details?.summary;
 
   const pendingStatus = stats.pendingExpenses === 0 ? 'green' : stats.pendingExpenses > 10 ? 'red' : 'amber';
   const docStatus = stats.unprocessedDocs === 0 ? 'green' : 'amber';
@@ -335,19 +385,19 @@ export default async function BridgeDashboard() {
           </h2>
           {integrityProbes.length > 0 ? (
             <div className="flex items-center gap-2 text-[10px] text-slate-500">
-              {integrityDigest?.latest?.details?.summary && (
+              {pipelineSummary && (
                 <>
-                  {integrityDigest.latest.details.summary.flowing > 0 && (
-                    <span className="badge badge-green">{integrityDigest.latest.details.summary.flowing} flowing</span>
+                  {pipelineSummary.flowing > 0 && (
+                    <span className="badge badge-green">{pipelineSummary.flowing} flowing</span>
                   )}
-                  {integrityDigest.latest.details.summary.stale > 0 && (
-                    <span className="badge badge-amber">{integrityDigest.latest.details.summary.stale} stale</span>
+                  {pipelineSummary.stale > 0 && (
+                    <span className="badge badge-amber">{pipelineSummary.stale} stale</span>
                   )}
-                  {integrityDigest.latest.details.summary.empty > 0 && (
-                    <span className="badge badge-red">{integrityDigest.latest.details.summary.empty} empty</span>
+                  {pipelineSummary.empty > 0 && (
+                    <span className="badge badge-red">{pipelineSummary.empty} empty</span>
                   )}
-                  {integrityDigest.latest.details.summary.error > 0 && (
-                    <span className="badge badge-red">{integrityDigest.latest.details.summary.error} error</span>
+                  {pipelineSummary.error > 0 && (
+                    <span className="badge badge-red">{pipelineSummary.error} error</span>
                   )}
                 </>
               )}
@@ -413,6 +463,82 @@ export default async function BridgeDashboard() {
           <div className="px-5 py-3 border-t border-console-border">
             <p className="text-[10px] text-slate-500">
               Last checked: {new Date(integrityCheckedAt).toLocaleString()}
+            </p>
+          </div>
+        )}
+      </div>
+
+      {/* Integration Contracts — orchestrator Phase 21 contract validator */}
+      <div className="console-card">
+        <div className="px-5 py-4 border-b border-console-border flex items-center justify-between">
+          <h2 className="text-sm font-semibold text-slate-200 flex items-center gap-2">
+            <Activity className="w-4 h-4 text-brass-gold" />
+            Integration Contracts
+          </h2>
+          {integrityContracts.length > 0 ? (
+            <div className="flex items-center gap-2 text-[10px] text-slate-500">
+              {contractsSummary && (
+                <>
+                  {contractsSummary.valid > 0 && (
+                    <span className="badge badge-green">{contractsSummary.valid} valid</span>
+                  )}
+                  {contractsSummary.warnings > 0 && (
+                    <span className="badge badge-amber">{contractsSummary.warnings} warning</span>
+                  )}
+                  {contractsSummary.failures > 0 && (
+                    <span className="badge badge-red">{contractsSummary.failures} failing</span>
+                  )}
+                </>
+              )}
+            </div>
+          ) : (
+            <span className="badge badge-blue">No data yet</span>
+          )}
+        </div>
+        {integrityContracts.length > 0 ? (
+          <div className="divide-y divide-console-border">
+            {integrityContracts.map((contract) => {
+              const dotColor = contractColor(contract.match);
+              const badgeClass =
+                dotColor === 'green' ? 'badge-green' : dotColor === 'amber' ? 'badge-amber' : 'badge-red';
+              return (
+                <div
+                  key={contract.contract}
+                  className="px-5 py-3 flex items-start gap-3 hover:bg-console-hover transition-colors"
+                >
+                  <div className={`gauge-dot gauge-dot-${dotColor} flex-shrink-0 mt-1`} />
+                  <div className="flex-1 min-w-0">
+                    <p className="text-sm text-slate-200 truncate font-medium">
+                      {contract.contract}
+                    </p>
+                    <p className="text-[11px] text-slate-500 mt-0.5">
+                      {contract.driftDetails ?? contract.producer.dataSummary ?? '—'}
+                    </p>
+                    {contract.producer.dataSummary && contract.driftDetails && (
+                      <p className="text-[10px] text-slate-600 mt-0.5 font-mono">
+                        Producer: {contract.producer.dataSummary}
+                      </p>
+                    )}
+                  </div>
+                  <span className={`badge text-[10px] ${badgeClass} flex-shrink-0`}>
+                    {contract.match.replace(/_/g, ' ')}
+                  </span>
+                </div>
+              );
+            })}
+          </div>
+        ) : (
+          <div className="p-5 text-center">
+            <Activity className="w-8 h-8 text-slate-600 mx-auto mb-2" />
+            <p className="text-sm text-slate-400">
+              No contract data yet. Phase 21 runs Monday only as part of the orchestrator sweep.
+            </p>
+          </div>
+        )}
+        {contractsCheckedAt && (
+          <div className="px-5 py-3 border-t border-console-border">
+            <p className="text-[10px] text-slate-500">
+              Last checked: {new Date(contractsCheckedAt).toLocaleString()}
             </p>
           </div>
         )}
