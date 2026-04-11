@@ -25,6 +25,7 @@ import {
   FileEdit,
   Scale,
   Activity,
+  Trash2,
 } from 'lucide-react';
 import { getBridgeStats, getComplianceTimeline, getTransparencySummary, getOperationsQueue } from '@/lib/queries';
 import { prisma } from '@/lib/prisma';
@@ -65,6 +66,14 @@ type IntegrityContract = {
   driftDetails: string | null;
 };
 
+type StaleArtifactFinding = {
+  scan: string;
+  severity: 'critical' | 'warning' | 'info';
+  item: string;
+  reason: string;
+  location: string;
+};
+
 type ExecutionRow<TDetails> = {
   id: string;
   status: string;
@@ -93,6 +102,18 @@ type IntegrityDigest = {
       valid: number;
       warnings: number;
       failures: number;
+    };
+  }> | null;
+  staleArtifacts: ExecutionRow<{
+    findings?: StaleArtifactFinding[];
+    checkedAt?: string;
+    summary?: {
+      total: number;
+      critical: number;
+      warnings: number;
+      info: number;
+      scansRun: string[];
+      manifestVersion: number;
     };
   }> | null;
   fetchedAt: string;
@@ -162,6 +183,10 @@ export default async function BridgeDashboard() {
   const contractsCheckedAt =
     integrityDigest?.contracts?.details?.checkedAt ?? integrityDigest?.contracts?.createdAt ?? null;
   const contractsSummary = integrityDigest?.contracts?.details?.summary;
+  const staleFindings: StaleArtifactFinding[] = integrityDigest?.staleArtifacts?.details?.findings ?? [];
+  const staleCheckedAt =
+    integrityDigest?.staleArtifacts?.details?.checkedAt ?? integrityDigest?.staleArtifacts?.createdAt ?? null;
+  const staleSummary = integrityDigest?.staleArtifacts?.details?.summary;
 
   const pendingStatus = stats.pendingExpenses === 0 ? 'green' : stats.pendingExpenses > 10 ? 'red' : 'amber';
   const docStatus = stats.unprocessedDocs === 0 ? 'green' : 'amber';
@@ -539,6 +564,93 @@ export default async function BridgeDashboard() {
           <div className="px-5 py-3 border-t border-console-border">
             <p className="text-[10px] text-slate-500">
               Last checked: {new Date(contractsCheckedAt).toLocaleString()}
+            </p>
+          </div>
+        )}
+      </div>
+
+      {/* Stale Artifacts — orchestrator Phase 22 stale-artifact-scanner */}
+      <div className="console-card">
+        <div className="px-5 py-4 border-b border-console-border flex items-center justify-between">
+          <h2 className="text-sm font-semibold text-slate-200 flex items-center gap-2">
+            <Trash2 className="w-4 h-4 text-brass-gold" />
+            Stale Artifacts
+          </h2>
+          {staleSummary ? (
+            <div className="flex items-center gap-2 text-[10px] text-slate-500">
+              {staleSummary.critical > 0 && (
+                <span className="badge badge-red">{staleSummary.critical} critical</span>
+              )}
+              {staleSummary.warnings > 0 && (
+                <span className="badge badge-amber">{staleSummary.warnings} warning</span>
+              )}
+              {staleSummary.info > 0 && (
+                <span className="badge badge-blue">{staleSummary.info} info</span>
+              )}
+              {staleSummary.total === 0 && (
+                <span className="badge badge-green">clean</span>
+              )}
+            </div>
+          ) : (
+            <span className="badge badge-blue">No data yet</span>
+          )}
+        </div>
+        {staleFindings.length > 0 ? (
+          <div className="divide-y divide-console-border">
+            {staleFindings.map((finding, i) => {
+              const dotColor =
+                finding.severity === 'critical'
+                  ? 'red'
+                  : finding.severity === 'warning'
+                  ? 'amber'
+                  : 'blue';
+              const badgeClass =
+                dotColor === 'red'
+                  ? 'badge-red'
+                  : dotColor === 'amber'
+                  ? 'badge-amber'
+                  : 'badge-blue';
+              return (
+                <div
+                  key={`${finding.scan}-${i}`}
+                  className="px-5 py-3 flex items-start gap-3 hover:bg-console-hover transition-colors"
+                >
+                  <div className={`gauge-dot gauge-dot-${dotColor} flex-shrink-0 mt-1`} />
+                  <div className="flex-1 min-w-0">
+                    <p className="text-sm text-slate-200 truncate font-medium">{finding.item}</p>
+                    <p className="text-[11px] text-slate-500 mt-0.5">{finding.reason}</p>
+                    <p className="text-[10px] text-slate-600 mt-0.5 font-mono truncate">
+                      {finding.location}
+                    </p>
+                  </div>
+                  <span className={`badge text-[10px] ${badgeClass} flex-shrink-0`}>
+                    {finding.scan.replace(/-/g, ' ')}
+                  </span>
+                </div>
+              );
+            })}
+          </div>
+        ) : staleSummary ? (
+          <div className="p-5 text-center">
+            <Trash2 className="w-8 h-8 text-slate-600 mx-auto mb-2" />
+            <p className="text-sm text-slate-400">No stale artifacts detected</p>
+            <p className="text-[11px] text-slate-500 mt-1">
+              {staleSummary.scansRun.length} scans passed · {staleSummary.manifestVersion} retired service
+              {staleSummary.manifestVersion === 1 ? '' : 's'} monitored
+            </p>
+          </div>
+        ) : (
+          <div className="p-5 text-center">
+            <Trash2 className="w-8 h-8 text-slate-600 mx-auto mb-2" />
+            <p className="text-sm text-slate-400">
+              Stale artifact scan has not run yet. Runs Monday mornings.
+            </p>
+          </div>
+        )}
+        {staleCheckedAt && (
+          <div className="px-5 py-3 border-t border-console-border">
+            <p className="text-[10px] text-slate-500">
+              Last checked: {new Date(staleCheckedAt).toLocaleString()}
             </p>
           </div>
         )}

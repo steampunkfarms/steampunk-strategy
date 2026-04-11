@@ -1,9 +1,10 @@
 // GET /api/integrity-digest
 // Bridge widget data source. Fetches the most recent orchestrator
-// Phase 20 (pipeline-integrity-check) AND Phase 21 (contract-validator)
-// runs from the orchestrator's job-history endpoint, in parallel, and
-// unwraps each so the Bridge can render probe + contract cards without
-// knowing the orchestrator's wrapper schema.
+// Phase 20 (pipeline-integrity-check), Phase 21 (contract-validator),
+// and Phase 22 (stale-artifact-scanner) runs from the orchestrator's
+// job-history endpoint, in parallel, and unwraps each so the Bridge
+// can render probe + contract + stale-artifact cards without knowing
+// the orchestrator's wrapper schema.
 //
 // Orchestrator route:
 //   /api/jobs/[jobName]/history → { executions: [...], stats7d, ... }
@@ -12,6 +13,7 @@
 //
 // see docs/handoffs/_working/20260410-cross-repo-integrity-phase-a-working-spec.md
 // see docs/handoffs/_working/20260410-cross-repo-integrity-phase-b-working-spec.md
+// see docs/handoffs/_working/20260411-cross-repo-integrity-phase-c-working-spec.md
 // see steampunk-orchestrator/src/app/api/jobs/[jobName]/history/route.ts
 
 export const dynamic = 'force-dynamic';
@@ -58,17 +60,19 @@ export async function GET() {
     );
   }
 
-  // Fetch both Phase 20 (daily) and Phase 21 (Monday-only) job histories
-  // in parallel. Both are nullable so the Bridge can render whichever
-  // half has data.
-  const [pipelines, contracts] = await Promise.all([
+  // Fetch Phase 20 (daily), Phase 21 (Monday-only), and Phase 22
+  // (Monday-only) job histories in parallel. All three are nullable so
+  // the Bridge can render whichever sections have data.
+  const [pipelines, contracts, staleArtifacts] = await Promise.all([
     fetchLatestExecution('pipeline-integrity-check'),
     fetchLatestExecution('contract-validator'),
+    fetchLatestExecution('stale-artifact-scanner'),
   ]);
 
   return NextResponse.json({
     pipelines,
     contracts,
+    staleArtifacts,
     fetchedAt: new Date().toISOString(),
   });
 }
