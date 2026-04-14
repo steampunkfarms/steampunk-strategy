@@ -16,6 +16,7 @@ import {
   RotateCcw,
 } from 'lucide-react';
 import { formatDate } from '@/lib/utils';
+import { prisma } from '@/lib/prisma';
 
 interface EnvMapping {
   repo: string;
@@ -59,12 +60,52 @@ interface Summary {
 }
 
 async function getCredentials(): Promise<{ credentials: Credential[]; summary: Summary }> {
-  const baseUrl = process.env.NEXTAUTH_URL || process.env.VERCEL_URL
-    ? `https://${process.env.VERCEL_URL}`
-    : 'http://localhost:3000';
-  const res = await fetch(`${baseUrl}/api/credentials`, { cache: 'no-store' });
-  if (!res.ok) throw new Error('Failed to fetch credentials');
-  return res.json();
+  const rows = await prisma.credentialRegistry.findMany({
+    orderBy: [{ riskLevel: 'asc' }, { status: 'asc' }, { name: 'asc' }],
+  });
+
+  const now = new Date();
+  const credentials = rows.map((cred) => {
+    let computedStatus = cred.status;
+    let daysUntilExpiry: number | null = null;
+
+    if (cred.expiresAt) {
+      const msLeft = new Date(cred.expiresAt).getTime() - now.getTime();
+      daysUntilExpiry = Math.ceil(msLeft / (1000 * 60 * 60 * 24));
+      if (daysUntilExpiry <= 0) computedStatus = 'expired';
+      else if (daysUntilExpiry <= cred.reminderDays) computedStatus = 'expiring_soon';
+    }
+
+    let verifyStale = false;
+    if (cred.lastVerifiedAt) {
+      const hoursSinceVerify = (now.getTime() - new Date(cred.lastVerifiedAt).getTime()) / (1000 * 60 * 60);
+      verifyStale = hoursSinceVerify > 168;
+    }
+
+    let envMappings: Array<{ repo: string; envVar: string }> = [];
+    try { envMappings = JSON.parse(cred.envMappings); } catch { /* skip */ }
+
+    return {
+      ...cred,
+      envMappings,
+      computedStatus,
+      daysUntilExpiry,
+      verifyStale,
+      repoCount: new Set(envMappings.map((m: { repo: string }) => m.repo)).size,
+      envVarCount: envMappings.length,
+    };
+  });
+
+  const summary = {
+    total: credentials.length,
+    critical: credentials.filter(c => c.riskLevel === 'critical').length,
+    expiringSoon: credentials.filter(c => c.computedStatus === 'expiring_soon').length,
+    expired: credentials.filter(c => c.computedStatus === 'expired').length,
+    verifyFailed: credentials.filter(c => c.lastVerifyOk === false).length,
+    unverified: credentials.filter(c => c.lastVerifyOk === null).length,
+  };
+
+  return { credentials: credentials as unknown as Credential[], summary };
 }
 
 function statusDot(cred: Credential): string {
