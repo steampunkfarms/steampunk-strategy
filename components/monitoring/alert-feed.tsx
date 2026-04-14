@@ -1,7 +1,8 @@
 'use client';
 
 import { useState } from 'react';
-import { AlertTriangle, XCircle, Info, CheckCircle2 } from 'lucide-react';
+import Link from 'next/link';
+import { AlertTriangle, XCircle, Info, CheckCircle2, ChevronRight } from 'lucide-react';
 
 interface AlertRecord {
   id: string;
@@ -70,7 +71,7 @@ export default function AlertFeed({ initialAlerts }: { initialAlerts: AlertRecor
       {alerts.map(alert => (
         <div
           key={alert.id}
-          className={`console-card p-4 border-l-4 ${
+          className={`console-card border-l-4 ${
             alert.severity === 'critical'
               ? 'border-l-gauge-red'
               : alert.severity === 'warning'
@@ -78,11 +79,14 @@ export default function AlertFeed({ initialAlerts }: { initialAlerts: AlertRecor
                 : 'border-l-gauge-blue'
           }`}
         >
-          <div className="flex items-start justify-between gap-3">
-            <div className="flex items-start gap-3 min-w-0">
+          <div className="flex items-start justify-between gap-3 p-4">
+            <Link
+              href={`/monitoring/alerts/${alert.id}`}
+              className="flex items-start gap-3 min-w-0 flex-1 group"
+            >
               <SeverityIcon severity={alert.severity} />
-              <div className="min-w-0">
-                <p className="text-sm text-slate-200 font-medium truncate">{alert.title}</p>
+              <div className="min-w-0 flex-1">
+                <p className="text-sm text-slate-200 font-medium truncate group-hover:text-tardis-glow transition-colors">{alert.title}</p>
                 <div className="flex items-center gap-3 mt-1 text-[11px] text-slate-500">
                   <span className="font-mono">{alert.source}</span>
                   <span>{timeAgo(alert.createdAt)}</span>
@@ -94,7 +98,8 @@ export default function AlertFeed({ initialAlerts }: { initialAlerts: AlertRecor
                   )}
                 </div>
               </div>
-            </div>
+              <ChevronRight className="w-4 h-4 text-slate-600 group-hover:text-tardis-glow transition-colors mt-0.5 flex-shrink-0" />
+            </Link>
             <div className="flex items-center gap-1.5 shrink-0">
               {alert.state === 'open' && (
                 <button
