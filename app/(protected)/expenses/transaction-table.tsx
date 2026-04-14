@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useEffect } from 'react';
 import {
   CheckCircle2,
   ShieldCheck,
@@ -67,6 +67,7 @@ interface TransactionTableProps {
 
 export default function TransactionTable({ transactions: initial }: TransactionTableProps) {
   const [transactions, setTransactions] = useState(initial);
+  useEffect(() => { setTransactions(initial); }, [initial]);
   const [verifying, setVerifying] = useState<Set<string>>(new Set());
   const [bulkVerifying, setBulkVerifying] = useState(false);
   const [expandedId, setExpandedId] = useState<string | null>(null);
