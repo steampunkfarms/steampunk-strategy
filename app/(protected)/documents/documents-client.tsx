@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useMemo } from 'react';
 import {
   Image,
   File,
@@ -12,6 +12,7 @@ import {
   CheckSquare,
   Square,
   Zap,
+  Filter,
 } from 'lucide-react';
 import { formatDate } from '@/lib/utils';
 import DocumentUploader from './document-uploader';
@@ -61,9 +62,24 @@ export default function DocumentsClient({ documents }: { documents: DocumentRow[
   const [bulkCreating, setBulkCreating] = useState(false);
   const [bulkResult, setBulkResult] = useState<{ created: number; skipped: number; errors: Array<{ documentId: string; error: string }> } | null>(null);
   const [retryingId, setRetryingId] = useState<string | null>(null);
+  const [filterType, setFilterType] = useState('');
+  const [filterStatus, setFilterStatus] = useState('');
+  const [filterSearch, setFilterSearch] = useState('');
 
-  // Documents eligible for bulk conversion: parsed, no linked transaction
-  const eligibleForBulk = docs.filter(d => d.parseStatus === 'complete' && !d.hasTransaction);
+  const filteredDocs = useMemo(() => {
+    return docs.filter(d => {
+      if (filterType && d.docType !== filterType) return false;
+      if (filterStatus && d.parseStatus !== filterStatus) return false;
+      if (filterSearch) {
+        const q = filterSearch.toLowerCase();
+        if (!d.originalName.toLowerCase().includes(q) && !(d.vendor?.name ?? '').toLowerCase().includes(q)) return false;
+      }
+      return true;
+    });
+  }, [docs, filterType, filterStatus, filterSearch]);
+
+  // Documents eligible for bulk conversion: parsed, no linked transaction (from filtered view)
+  const eligibleForBulk = filteredDocs.filter(d => d.parseStatus === 'complete' && !d.hasTransaction);
 
   const toggleBulkSelect = (docId: string) => {
     setBulkSelected(prev => {
@@ -173,6 +189,46 @@ export default function DocumentsClient({ documents }: { documents: DocumentRow[
         onComplete={() => setSelectedDocId(null)}
       />
 
+      {/* Filter bar */}
+      {docs.length > 0 && (
+        <div className="console-card p-4 flex flex-wrap items-center gap-4">
+          <Filter className="w-4 h-4 text-brass-muted" />
+          <input
+            type="text"
+            placeholder="Search documents..."
+            className="flex-1 min-w-[200px] text-sm"
+            value={filterSearch}
+            onChange={(e) => setFilterSearch(e.target.value)}
+          />
+          <select
+            className="text-sm"
+            title="Filter by document type"
+            value={filterType}
+            onChange={(e) => setFilterType(e.target.value)}
+          >
+            <option value="">All Types</option>
+            <option value="receipt">Receipts</option>
+            <option value="invoice">Invoices</option>
+            <option value="bank_statement">Bank Statements</option>
+            <option value="tax_form">Tax Forms</option>
+            <option value="shipping_manifest">Shipping Manifests</option>
+            <option value="other">Other</option>
+          </select>
+          <select
+            className="text-sm"
+            title="Filter by parse status"
+            value={filterStatus}
+            onChange={(e) => setFilterStatus(e.target.value)}
+          >
+            <option value="">All Status</option>
+            <option value="pending">Pending Parse</option>
+            <option value="processing">Processing</option>
+            <option value="complete">Parsed</option>
+            <option value="failed">Failed</option>
+          </select>
+        </div>
+      )}
+
       {/* Bulk action bar */}
       {eligibleForBulk.length > 0 && (
         <div className="console-card p-3 flex items-center gap-3 flex-wrap">
@@ -211,7 +267,7 @@ export default function DocumentsClient({ documents }: { documents: DocumentRow[
       )}
 
       {/* Document list */}
-      {docs.length > 0 && (
+      {filteredDocs.length > 0 && (
         <div className="console-card overflow-hidden">
           <table className="w-full bridge-table">
             <thead>
@@ -227,7 +283,7 @@ export default function DocumentsClient({ documents }: { documents: DocumentRow[
               </tr>
             </thead>
             <tbody>
-              {docs.map((doc) => {
+              {filteredDocs.map((doc) => {
                 const Icon = doc.mimeType.startsWith('image/') ? Image : File;
                 const StatusIcon = statusIcons[doc.parseStatus] ?? Clock;
                 const statusColor = statusColors[doc.parseStatus] ?? 'text-slate-400';

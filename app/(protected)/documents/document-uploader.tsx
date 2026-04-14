@@ -238,17 +238,23 @@ export default function DocumentUploader({ loadDocumentId, onComplete }: Uploade
 
     const docId = loadDocumentId;
     let cancelled = false;
+    const abortController = new AbortController();
 
     async function loadDocument() {
       setPhase('parsing');
       setError(null);
+
+      // Client-side timeout — Vercel functions may hang beyond their limit
+      const timeoutId = setTimeout(() => abortController.abort(), 60_000);
 
       try {
         const parseRes = await fetch('/api/documents/parse', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ documentId: docId }),
+          signal: abortController.signal,
         });
+        clearTimeout(timeoutId);
         const parseData = await parseRes.json();
 
         if (cancelled) return;
@@ -321,14 +327,15 @@ export default function DocumentUploader({ loadDocumentId, onComplete }: Uploade
         if (!cancelled) setPhase('review');
       } catch (err) {
         if (!cancelled) {
-          setError(err instanceof Error ? err.message : String(err));
+          const isTimeout = err instanceof DOMException && err.name === 'AbortError';
+          setError(isTimeout ? 'Parse timed out — try again or retry later' : (err instanceof Error ? err.message : String(err)));
           setPhase('error');
         }
       }
     }
 
     loadDocument();
-    return () => { cancelled = true; };
+    return () => { cancelled = true; abortController.abort(); };
   }, [loadDocumentId]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Step 1: Upload file

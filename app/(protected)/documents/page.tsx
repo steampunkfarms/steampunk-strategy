@@ -5,7 +5,6 @@ import {
   Clock,
   AlertTriangle,
   Loader2,
-  Filter,
 } from 'lucide-react';
 import { getDocuments, getDocumentStats } from '@/lib/queries';
 import DocumentsClient from './documents-client';
@@ -99,29 +98,6 @@ export default async function DocumentsPage() {
         </div>
       )}
 
-      {/* Filter bar */}
-      {docStats.total > 0 && (
-        <div className="console-card p-4 flex flex-wrap items-center gap-4">
-          <Filter className="w-4 h-4 text-brass-muted" />
-          <input type="text" placeholder="Search documents..." className="flex-1 min-w-[200px] text-sm" />
-          <select className="text-sm" title="Filter by document type">
-            <option value="">All Types</option>
-            <option value="receipt">Receipts</option>
-            <option value="invoice">Invoices</option>
-            <option value="bank_statement">Bank Statements</option>
-            <option value="tax_form">Tax Forms</option>
-            <option value="shipping_manifest">Shipping Manifests</option>
-            <option value="other">Other</option>
-          </select>
-          <select className="text-sm" title="Filter by parse status">
-            <option value="">All Status</option>
-            <option value="pending">Pending Parse</option>
-            <option value="processing">Processing</option>
-            <option value="complete">Parsed</option>
-            <option value="failed">Failed</option>
-          </select>
-        </div>
-      )}
     </div>
   );
 }
