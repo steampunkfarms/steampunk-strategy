@@ -3,7 +3,7 @@ import { prisma } from '@/lib/prisma';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth';
 
-const STUDIOLO_URL = process.env.STUDIOLO_API_URL || 'https://steampunkstudiolo.org';
+const STUDIOLO_URL = process.env.STUDIOLO_API_URL || process.env.STUDIOLO_INTERNAL_URL || 'https://www.steampunkstudiolo.org';
 const SYNC_SECRET = process.env.STUDIOLO_SYNC_SECRET;
 
 /**
